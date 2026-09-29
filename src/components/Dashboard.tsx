@@ -13,8 +13,10 @@ import {
   Info,
   ArrowRight,
   ShieldCheck,
+  Upload,
 } from 'lucide-react';
 import { useScheduler } from '../context/SchedulerContext';
+import { downloadFacultyTemplateCSV } from '../services/csvParser';
 
 export const Dashboard: React.FC = () => {
   const {
@@ -27,6 +29,7 @@ export const Dashboard: React.FC = () => {
     setIsWhyValidModalOpen,
     setIsExportModalOpen,
     isGenerating,
+    loadDemoFaculty,
   } = useScheduler();
 
   const activeDates = project.examPeriod.dates.filter((d) => !d.isExcluded);
@@ -58,6 +61,51 @@ export const Dashboard: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      {/* Session Onboarding Prompt if No Faculty Loaded */}
+      {project.faculty.length === 0 && (
+        <div className="bg-gradient-to-r from-emerald-50 via-sky-50 to-indigo-50 border-2 border-dashed border-emerald-300 rounded-2xl p-6 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4">
+          <div className="flex items-center space-x-4">
+            <div className="w-12 h-12 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
+              <Upload className="w-6 h-6" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-slate-900">
+                Welcome! Please Upload Faculty CSV for This Browser Session
+              </h3>
+              <p className="text-xs text-slate-600 mt-0.5">
+                Every browser session begins clean. Upload your faculty roster CSV or download our example template format to start scheduling.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+            <button
+              onClick={() => downloadFacultyTemplateCSV(false)}
+              className="inline-flex items-center space-x-1.5 px-3.5 py-2 text-xs font-bold text-emerald-800 bg-white hover:bg-emerald-100 border border-emerald-300 rounded-xl shadow-2xs transition"
+              title="Download standard CSV format with mandatory headers: Sr. No., Faculty Name, HOD, Arrival"
+            >
+              <Download className="w-4 h-4 text-emerald-600" />
+              <span>DOWNLOAD EXAMPLE FORMAT</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('faculty')}
+              className="inline-flex items-center space-x-1.5 px-4 py-2 text-xs font-bold text-white bg-sky-600 hover:bg-sky-700 rounded-xl shadow-sm transition"
+            >
+              <Upload className="w-4 h-4" />
+              <span>UPLOAD FACULTY CSV</span>
+            </button>
+
+            <button
+              onClick={loadDemoFaculty}
+              className="inline-flex items-center space-x-1 px-3 py-2 text-xs font-medium text-slate-600 hover:text-slate-900 bg-white hover:bg-slate-100 border border-slate-200 rounded-xl transition"
+            >
+              <span>Or Load 61 Demo Faculty</span>
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Top Banner / Callout */}
       <div className="bg-gradient-to-r from-sky-900 via-sky-800 to-indigo-900 rounded-2xl p-6 text-white shadow-lg">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -82,7 +130,7 @@ export const Dashboard: React.FC = () => {
           <div className="flex flex-wrap gap-2.5">
             <button
               onClick={generateAlternatives}
-              disabled={isGenerating}
+              disabled={isGenerating || project.faculty.length === 0}
               className="inline-flex items-center space-x-2 px-4 py-2.5 rounded-xl font-bold text-sm bg-white text-sky-900 hover:bg-sky-50 shadow-md transition disabled:opacity-50 cursor-pointer"
             >
               <Sparkles className={`w-4 h-4 text-sky-600 ${isGenerating ? 'animate-spin' : ''}`} />
@@ -115,9 +163,17 @@ export const Dashboard: React.FC = () => {
             <Info className="w-4 h-4 text-sky-300" />
             <span className="font-semibold text-white">Dynamic Workload Mathematical Balance:</span>
             <span>
-              {regularFaculty.length} Regular × {regularFaculty[0]?.maxSupervisions || 6} ({regularCapacity}) +{' '}
-              {hodFaculty.length} HOD × {hodFaculty[0]?.maxSupervisions || 4} ({hodCapacity}) ={' '}
-              <strong className="text-white">{totalCapacity} Faculty Capacity</strong>
+              {project.faculty.length > 0 ? (
+                <>
+                  {regularFaculty.length} Regular × {regularFaculty[0]?.maxSupervisions || 6} ({regularCapacity}) +{' '}
+                  {hodFaculty.length} HOD × {hodFaculty[0]?.maxSupervisions || 4} ({hodCapacity}) ={' '}
+                  <strong className="text-white">{totalCapacity} Faculty Capacity</strong>
+                </>
+              ) : (
+                <span className="text-amber-200 font-semibold">
+                  No faculty loaded in this session (0 Capacity)
+                </span>
+              )}
             </span>
             <span>⟷</span>
             <span>
@@ -126,7 +182,9 @@ export const Dashboard: React.FC = () => {
             </span>
           </div>
           <div className="mt-1 md:mt-0 font-medium">
-            {totalCapacity === validation.totalRequiredPositions ? (
+            {project.faculty.length === 0 ? (
+              <span className="text-amber-200 font-medium">Upload CSV to calculate balance</span>
+            ) : totalCapacity === validation.totalRequiredPositions ? (
               <span className="text-emerald-300 flex items-center space-x-1">
                 <CheckCircle2 className="w-3.5 h-3.5" />
                 <span>Perfect Mathematical Equilibrium</span>

@@ -11,7 +11,7 @@ import {
   SessionDefinition,
   SessionTiming,
 } from '../types';
-import { INITIAL_PROJECT_STATE, DEFAULT_SESSIONS } from '../data/defaultData';
+import { INITIAL_PROJECT_STATE, DEFAULT_SESSIONS, DEFAULT_FACULTY_LIST } from '../data/defaultData';
 import { validateSchedule } from '../services/validation/validator';
 import { analyzeInfeasibility, InfeasibilityReport } from '../services/validation/infeasibility';
 import { generateFiveAlternatives, generateSingleAlternative } from '../services/scheduler/alternatives';
@@ -74,6 +74,8 @@ interface SchedulerContextType {
   toggleFacultyHod: (srNo: number) => void;
   bulkReassignHods: (hodSrNos: number[], defaultHodTarget?: number) => void;
   toggleFacultyExclusion: (srNo: number, reason?: string) => void;
+  updateRoleWorkloadCap: (role: 'hod' | 'regular', newCap: number, newTarget?: number) => void;
+  loadDemoFaculty: () => void;
   updateExamDates: (dates: ExamDateConfig[]) => void;
   updateExamPeriodInfo: (name: string, startDate: string, endDate: string) => void;
   setAvailability: (facultySrNo: number, date: string, isAvailable: boolean) => void;
@@ -426,6 +428,39 @@ export const SchedulerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }));
   }, []);
 
+  // Role-based bulk workload/cap update (e.g. all HODs or all Regular faculty in one go)
+  const updateRoleWorkloadCap = useCallback((role: 'hod' | 'regular', newCap: number, newTarget?: number) => {
+    const target = newTarget ?? newCap;
+    setProject((prev) => ({
+      ...prev,
+      faculty: prev.faculty.map((f) => {
+        if (role === 'hod' && f.isHod) {
+          return {
+            ...f,
+            maxSupervisions: Math.max(1, newCap),
+            targetSupervisions: Math.max(1, target),
+          };
+        }
+        if (role === 'regular' && !f.isHod) {
+          return {
+            ...f,
+            maxSupervisions: Math.max(1, newCap),
+            targetSupervisions: Math.max(1, target),
+          };
+        }
+        return f;
+      }),
+    }));
+  }, []);
+
+  // One-click demo faculty loader (standard 61-member baseline)
+  const loadDemoFaculty = useCallback(() => {
+    setProject((prev) => ({
+      ...prev,
+      faculty: DEFAULT_FACULTY_LIST,
+    }));
+  }, []);
+
   // Update exam dates configuration
   const updateExamDates = useCallback((dates: ExamDateConfig[]) => {
     setProject((prev) => ({
@@ -659,6 +694,8 @@ export const SchedulerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         toggleFacultyHod,
         bulkReassignHods,
         toggleFacultyExclusion,
+        updateRoleWorkloadCap,
+        loadDemoFaculty,
         updateExamDates,
         updateExamPeriodInfo,
         setAvailability,

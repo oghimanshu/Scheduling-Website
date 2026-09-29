@@ -29,6 +29,8 @@ export const FacultyManager: React.FC = () => {
     setIsReassignHodsModalOpen,
     toggleFacultyHod,
     toggleFacultyExclusion,
+    updateRoleWorkloadCap,
+    loadDemoFaculty,
   } = useScheduler();
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -36,6 +38,11 @@ export const FacultyManager: React.FC = () => {
   const [arrivalFilter, setArrivalFilter] = useState<'All' | ArrivalCategory>('All');
   const [inclusionFilter, setInclusionFilter] = useState<'All' | 'Active' | 'Excluded'>('All');
   const [editingFaculty, setEditingFaculty] = useState<Faculty | null>(null);
+
+  // Bulk role-based caps state
+  const [regularCapInput, setRegularCapInput] = useState<number>(6);
+  const [hodCapInput, setHodCapInput] = useState<number>(4);
+  const [roleCapMessage, setRoleCapMessage] = useState<string | null>(null);
 
   // CSV Import Modal State
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
@@ -158,8 +165,74 @@ export const FacultyManager: React.FC = () => {
     }
   };
 
+  // Bulk role-based cap apply handlers
+  const handleApplyRegularCap = () => {
+    if (regularCapInput < 1) {
+      alert('Cap must be at least 1.');
+      return;
+    }
+    updateRoleWorkloadCap('regular', regularCapInput);
+    setRoleCapMessage(`Successfully updated all ${facultyStats.regularCount} Regular Faculty to maximum cap of ${regularCapInput}!`);
+    setTimeout(() => setRoleCapMessage(null), 4000);
+  };
+
+  const handleApplyHodCap = () => {
+    if (hodCapInput < 1) {
+      alert('Cap must be at least 1.');
+      return;
+    }
+    updateRoleWorkloadCap('hod', hodCapInput);
+    setRoleCapMessage(`Successfully updated all ${facultyStats.hodCount} HODs to maximum cap of ${hodCapInput}!`);
+    setTimeout(() => setRoleCapMessage(null), 4000);
+  };
+
   return (
     <div className="space-y-6">
+      {/* Empty State / Session Upload Prompt */}
+      {project.faculty.length === 0 && (
+        <div className="bg-gradient-to-br from-sky-50 via-indigo-50/50 to-white border-2 border-dashed border-sky-300 rounded-2xl p-8 text-center shadow-xs">
+          <div className="w-14 h-14 mx-auto rounded-2xl bg-sky-100 text-sky-600 flex items-center justify-center shadow-inner mb-3">
+            <Upload className="w-7 h-7" />
+          </div>
+          <div className="max-w-lg mx-auto">
+            <h3 className="text-lg font-bold text-slate-900">Upload Faculty Master CSV for This Session</h3>
+            <p className="text-xs text-slate-600 mt-1">
+              Every browser session starts clean. Please upload your college faculty CSV roster, or download the example format below to fill in your data.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-center gap-3 pt-5">
+            <button
+              onClick={() => handleDownloadSample(false)}
+              className="inline-flex items-center space-x-2 px-4 py-2.5 text-xs font-bold text-emerald-800 bg-emerald-100 hover:bg-emerald-200 border border-emerald-300 rounded-xl shadow-xs transition"
+              title="Download standard CSV format with mandatory headers: Sr. No., Faculty Name, HOD, Arrival"
+            >
+              <Download className="w-4 h-4 text-emerald-700" />
+              <span>DOWNLOAD EXAMPLE FORMAT (.CSV)</span>
+            </button>
+
+            <label className="inline-flex items-center space-x-2 px-5 py-2.5 text-xs font-bold text-white bg-sky-600 hover:bg-sky-700 rounded-xl shadow-md cursor-pointer transition">
+              <Upload className="w-4 h-4" />
+              <span>IMPORT FACULTY CSV</span>
+              <input
+                type="file"
+                accept=".csv"
+                onChange={handleFileUpload}
+                className="hidden"
+              />
+            </label>
+
+            <button
+              onClick={loadDemoFaculty}
+              className="inline-flex items-center space-x-1.5 px-4 py-2.5 text-xs font-medium text-slate-600 hover:text-slate-900 bg-white hover:bg-slate-100 border border-slate-300 rounded-xl transition"
+              title="Load the 61-member demo faculty dataset"
+            >
+              <span>Or Load 61 Demo Faculty</span>
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Header & Actions */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-5 rounded-xl border border-slate-200 shadow-2xs">
         <div>
@@ -185,14 +258,14 @@ export const FacultyManager: React.FC = () => {
             <span>REASSIGN HODS</span>
           </button>
 
-          {/* Download Sample */}
+          {/* Download Example Format */}
           <button
             onClick={() => handleDownloadSample(false)}
-            className="inline-flex items-center space-x-1.5 px-3 py-2 text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition"
-            title="Download clean CSV template with mandatory headers"
+            className="inline-flex items-center space-x-1.5 px-3 py-2 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 rounded-lg transition"
+            title="Download clean example CSV template ready to be filled"
           >
-            <Download className="w-3.5 h-3.5 text-slate-500" />
-            <span>Sample CSV</span>
+            <Download className="w-3.5 h-3.5 text-emerald-600" />
+            <span>DOWNLOAD EXAMPLE FORMAT</span>
           </button>
 
           {/* Import CSV */}
@@ -206,6 +279,68 @@ export const FacultyManager: React.FC = () => {
               className="hidden"
             />
           </label>
+        </div>
+      </div>
+
+      {/* Role-Based Bulk Workload Cap Manager */}
+      <div className="bg-gradient-to-r from-slate-50 to-indigo-50/40 border border-slate-200 p-4 rounded-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <div className="flex items-center space-x-2">
+            <Sliders className="w-4 h-4 text-indigo-600" />
+            <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+              Role-Based Workload Limits (Bulk Cap Manager)
+            </h3>
+          </div>
+          <p className="text-xs text-slate-500 mt-0.5">
+            Change maximum duty cap for all HODs or all Regular Faculty in one go instead of manual individual editing.
+          </p>
+          {roleCapMessage && (
+            <p className="text-xs font-semibold text-emerald-700 mt-1">
+              ✓ {roleCapMessage}
+            </p>
+          )}
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Regular Faculty Bulk Cap */}
+          <div className="flex items-center space-x-2 bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-2xs">
+            <span className="text-xs font-semibold text-slate-700">Regular Cap:</span>
+            <input
+              type="number"
+              min="1"
+              max="20"
+              value={regularCapInput}
+              onChange={(e) => setRegularCapInput(parseInt(e.target.value, 10) || 1)}
+              className="w-12 text-center text-xs font-bold border-b border-sky-400 focus:outline-none"
+            />
+            <button
+              onClick={handleApplyRegularCap}
+              className="px-2.5 py-1 text-[11px] font-semibold text-sky-700 bg-sky-50 hover:bg-sky-100 rounded border border-sky-200 transition"
+              title="Apply this cap to all regular faculty members"
+            >
+              Apply All Regular ({facultyStats.regularCount})
+            </button>
+          </div>
+
+          {/* HOD Bulk Cap */}
+          <div className="flex items-center space-x-2 bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-2xs">
+            <span className="text-xs font-semibold text-slate-700">HOD Cap:</span>
+            <input
+              type="number"
+              min="1"
+              max="20"
+              value={hodCapInput}
+              onChange={(e) => setHodCapInput(parseInt(e.target.value, 10) || 1)}
+              className="w-12 text-center text-xs font-bold border-b border-indigo-400 focus:outline-none"
+            />
+            <button
+              onClick={handleApplyHodCap}
+              className="px-2.5 py-1 text-[11px] font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded border border-indigo-200 transition"
+              title="Apply this cap to all department HODs"
+            >
+              Apply All HODs ({facultyStats.hodCount})
+            </button>
+          </div>
         </div>
       </div>
 

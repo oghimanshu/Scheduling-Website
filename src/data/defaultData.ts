@@ -177,7 +177,7 @@ export const DEFAULT_SESSIONS: SessionDefinition[] = [
 export const INITIAL_PROJECT_STATE: ProjectState = {
   version: '1.0.0',
   projectName: 'College Examination Supervision - October 2026',
-  faculty: DEFAULT_FACULTY_LIST,
+  faculty: [], // Clean slate on every browser session — requires CSV upload
   sessions: DEFAULT_SESSIONS,
   examPeriod: {
     name: 'End Semester Examinations 2026',

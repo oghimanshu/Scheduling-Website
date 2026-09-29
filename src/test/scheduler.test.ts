@@ -228,7 +228,8 @@ describe('Examination Supervision Scheduler Engine', () => {
   });
 
   it('should preserve full project state across JSON serialization and deserialization', () => {
-    const jsonStr = JSON.stringify(INITIAL_PROJECT_STATE);
+    const testState = { ...INITIAL_PROJECT_STATE, faculty: DEFAULT_FACULTY_LIST };
+    const jsonStr = JSON.stringify(testState);
     const parsed = importProjectFromJson(jsonStr);
 
     expect(parsed.success).toBe(true);
