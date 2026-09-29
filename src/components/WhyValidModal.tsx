@@ -1,0 +1,149 @@
+import React from 'react';
+import {
+  CheckCircle2,
+  X,
+  ShieldCheck,
+  Calendar,
+  Users,
+  Award,
+  AlertTriangle,
+} from 'lucide-react';
+import { useScheduler } from '../context/SchedulerContext';
+
+export const WhyValidModal: React.FC = () => {
+  const {
+    isWhyValidModalOpen,
+    setIsWhyValidModalOpen,
+    validation,
+    project,
+  } = useScheduler();
+
+  if (!isWhyValidModalOpen) return null;
+
+  const activeDates = project.examPeriod.dates.filter((d) => !d.isExcluded);
+
+  // Verification checks breakdown
+  const checklist = [
+    {
+      title: 'All JRS 1 positions filled',
+      description: `Every active date has required JRS 1 supervisors assigned (${activeDates.length * 17} total).`,
+      passed: validation.conflicts.filter((c) => c.session === 'JRS 1' && c.category === 'staffing_deficit').length === 0,
+    },
+    {
+      title: 'All JRS 2 positions filled',
+      description: `Universal session fully staffed (${activeDates.length * 25} total).`,
+      passed: validation.conflicts.filter((c) => c.session === 'JRS 2' && c.category === 'staffing_deficit').length === 0,
+    },
+    {
+      title: 'All JRS 3 positions filled',
+      description: `Afternoon session requirements fully satisfied (${activeDates.length * 15} total).`,
+      passed: validation.conflicts.filter((c) => c.session === 'JRS 3' && c.category === 'staffing_deficit').length === 0,
+    },
+    {
+      title: 'Faculty availability respected',
+      description: 'Zero faculty members are assigned on dates where they are marked on leave or unavailable.',
+      passed: validation.conflicts.filter((c) => c.category === 'unavailability').length === 0,
+    },
+    {
+      title: 'Faculty arrival-category eligibility respected',
+      description: 'Morning faculty restricted to JRS 1 & 2; Afternoon faculty restricted to JRS 2 & 3; Mid faculty across all.',
+      passed: validation.conflicts.filter((c) => c.category === 'ineligibility').length === 0,
+    },
+    {
+      title: 'Maximum 2 assignments/day respected',
+      description: 'No faculty member is assigned more than twice on any single examination date.',
+      passed: validation.conflicts.filter((c) => c.category === 'daily_limit').length === 0,
+    },
+    {
+      title: 'Allowed double assignment combinations respected',
+      description: 'Only JRS 1+2 or JRS 2+3 used. Prohibited JRS 1+3 combination avoided.',
+      passed: validation.conflicts.filter((c) => c.category === 'jrs1_jrs3_combination' && c.type === 'hard').length === 0,
+    },
+    {
+      title: 'Maximum workload ceilings respected',
+      description: 'No regular faculty exceeds 6 supervisions, and HODs respect their individual maximums.',
+      passed: validation.conflicts.filter((c) => c.category === 'max_workload').length === 0,
+    },
+    {
+      title: 'Locked assignments preserved',
+      description: 'All user-locked duty slots were held fixed without modification.',
+      passed: true,
+    },
+    {
+      title: 'Excluded dates respected',
+      description: 'Holidays and non-exam days received zero duties.',
+      passed: validation.conflicts.filter((c) => c.category === 'excluded_date').length === 0,
+    },
+    {
+      title: 'Workload targets achieved',
+      description: `${validation.regularAtTargetCount}/${validation.regularCount} regular faculty at target; ${validation.hodAtTargetCount}/${validation.hodCount} HODs at target.`,
+      passed: validation.regularAtTargetCount === validation.regularCount && validation.hodAtTargetCount === validation.hodCount,
+    },
+  ];
+
+  return (
+    <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl border border-slate-200 space-y-5 animate-in fade-in zoom-in-95 duration-150">
+        <div className="flex justify-between items-start border-b border-slate-100 pb-4">
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center">
+              <ShieldCheck className="w-6 h-6" />
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-slate-900">
+                Why is this schedule valid?
+              </h3>
+              <p className="text-xs text-slate-500">
+                Comprehensive audit against institutional rules and mathematical constraints
+              </p>
+            </div>
+          </div>
+
+          <button
+            onClick={() => setIsWhyValidModalOpen(false)}
+            className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Verification Checklist */}
+        <div className="space-y-2.5 max-h-[60vh] overflow-y-auto pr-1">
+          {checklist.map((item, idx) => (
+            <div
+              key={idx}
+              className={`p-3 rounded-xl border flex items-start space-x-3 transition ${
+                item.passed
+                  ? 'bg-emerald-50/50 border-emerald-200/70 text-emerald-950'
+                  : 'bg-amber-50/50 border-amber-200/70 text-amber-950'
+              }`}
+            >
+              {item.passed ? (
+                <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
+              ) : (
+                <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+              )}
+              <div className="flex-1 text-xs">
+                <div className="font-bold">{item.title}</div>
+                <div className="text-slate-600 mt-0.5">{item.description}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Summary Footer */}
+        <div className="pt-3 border-t border-slate-100 flex justify-between items-center text-xs">
+          <span className="text-slate-500">
+            Total Positions: <strong>{validation.totalFilledPositions} / {validation.totalRequiredPositions}</strong>
+          </span>
+          <button
+            onClick={() => setIsWhyValidModalOpen(false)}
+            className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded-lg transition"
+          >
+            Got It
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};

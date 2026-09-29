@@ -1,0 +1,444 @@
+import React from 'react';
+import {
+  Users,
+  Calendar,
+  Layers,
+  CheckCircle2,
+  AlertCircle,
+  AlertTriangle,
+  FileSpreadsheet,
+  RotateCcw,
+  Sparkles,
+  Download,
+  Info,
+  ArrowRight,
+  ShieldCheck,
+} from 'lucide-react';
+import { useScheduler } from '../context/SchedulerContext';
+
+export const Dashboard: React.FC = () => {
+  const {
+    project,
+    validation,
+    setActiveTab,
+    generateAlternatives,
+    rebalanceCurrentSchedule,
+    setIsAlternativesModalOpen,
+    setIsWhyValidModalOpen,
+    setIsExportModalOpen,
+    isGenerating,
+  } = useScheduler();
+
+  const activeDates = project.examPeriod.dates.filter((d) => !d.isExcluded);
+
+  // Compute workload min, max, average dynamically
+  const workloads = project.faculty.map((f) => {
+    const assignedCount = project.assignments.filter((a) => a.facultySrNo === f.srNo).length;
+    return f.previousSupervisions + assignedCount;
+  });
+  const minWorkload = workloads.length > 0 ? Math.min(...workloads) : 0;
+  const maxWorkload = workloads.length > 0 ? Math.max(...workloads) : 0;
+  const avgWorkload =
+    workloads.length > 0
+      ? (workloads.reduce((a, b) => a + b, 0) / workloads.length).toFixed(1)
+      : '0.0';
+
+  // Dynamic capacity calculations
+  const regularFaculty = project.faculty.filter((f) => !f.isHod);
+  const hodFaculty = project.faculty.filter((f) => f.isHod);
+  const regularCapacity = regularFaculty.reduce(
+    (sum, f) => sum + Math.max(0, f.maxSupervisions - f.previousSupervisions),
+    0
+  );
+  const hodCapacity = hodFaculty.reduce(
+    (sum, f) => sum + Math.max(0, f.maxSupervisions - f.previousSupervisions),
+    0
+  );
+  const totalCapacity = regularCapacity + hodCapacity;
+
+  return (
+    <div className="space-y-6">
+      {/* Top Banner / Callout */}
+      <div className="bg-gradient-to-r from-sky-900 via-sky-800 to-indigo-900 rounded-2xl p-6 text-white shadow-lg">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div>
+            <div className="flex items-center space-x-2">
+              <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-sky-500/20 text-sky-200 border border-sky-400/30">
+                Active Period: {project.examPeriod.name}
+              </span>
+              <span className="text-xs text-sky-300">
+                ({activeDates.length} Active Dates, {project.examPeriod.dates.length - activeDates.length} Excluded)
+              </span>
+            </div>
+            <h2 className="text-2xl font-extrabold tracking-tight mt-1.5">
+              College Examination Supervision Control Center
+            </h2>
+            <p className="text-sm text-sky-200 max-w-2xl mt-1">
+              Automated mathematical constraint scheduling engine guaranteeing faculty eligibility, availability,
+              workload fairness, and locked administrative assignments.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap gap-2.5">
+            <button
+              onClick={generateAlternatives}
+              disabled={isGenerating}
+              className="inline-flex items-center space-x-2 px-4 py-2.5 rounded-xl font-bold text-sm bg-white text-sky-900 hover:bg-sky-50 shadow-md transition disabled:opacity-50 cursor-pointer"
+            >
+              <Sparkles className={`w-4 h-4 text-sky-600 ${isGenerating ? 'animate-spin' : ''}`} />
+              <span>{isGenerating ? 'Optimizing Schedule...' : 'GENERATE 5 ALTERNATIVES'}</span>
+            </button>
+
+            <button
+              onClick={rebalanceCurrentSchedule}
+              disabled={isGenerating || project.assignments.length === 0}
+              className="inline-flex items-center space-x-2 px-3.5 py-2.5 rounded-xl font-medium text-sm bg-sky-700/80 hover:bg-sky-700 text-white border border-sky-600 transition disabled:opacity-40 cursor-pointer"
+              title="Preserves locked assignments while redistributing open slots"
+            >
+              <RotateCcw className="w-4 h-4" />
+              <span>REBALANCE</span>
+            </button>
+
+            <button
+              onClick={() => setIsExportModalOpen(true)}
+              className="inline-flex items-center space-x-2 px-3.5 py-2.5 rounded-xl font-medium text-sm bg-sky-700/80 hover:bg-sky-700 text-white border border-sky-600 transition cursor-pointer"
+            >
+              <Download className="w-4 h-4" />
+              <span>EXPORT</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Dynamic Capacity Balance Equation */}
+        <div className="mt-5 pt-4 border-t border-sky-700/60 flex flex-wrap items-center justify-between text-xs text-sky-200">
+          <div className="flex items-center space-x-2">
+            <Info className="w-4 h-4 text-sky-300" />
+            <span className="font-semibold text-white">Dynamic Workload Mathematical Balance:</span>
+            <span>
+              {regularFaculty.length} Regular × {regularFaculty[0]?.maxSupervisions || 6} ({regularCapacity}) +{' '}
+              {hodFaculty.length} HOD × {hodFaculty[0]?.maxSupervisions || 4} ({hodCapacity}) ={' '}
+              <strong className="text-white">{totalCapacity} Faculty Capacity</strong>
+            </span>
+            <span>⟷</span>
+            <span>
+              {activeDates.length} Active Dates × 57 Sessions/Day ={' '}
+              <strong className="text-white">{validation.totalRequiredPositions} Required Positions</strong>
+            </span>
+          </div>
+          <div className="mt-1 md:mt-0 font-medium">
+            {totalCapacity === validation.totalRequiredPositions ? (
+              <span className="text-emerald-300 flex items-center space-x-1">
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                <span>Perfect Mathematical Equilibrium</span>
+              </span>
+            ) : totalCapacity > validation.totalRequiredPositions ? (
+              <span className="text-sky-300">Surplus Capacity (+{totalCapacity - validation.totalRequiredPositions})</span>
+            ) : (
+              <span className="text-amber-300 font-bold">Deficit: Need +{validation.totalRequiredPositions - totalCapacity} positions</span>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* KPI Cards Grid */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        {/* Total Faculty */}
+        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs">
+          <div className="flex items-center justify-between text-slate-500 mb-1">
+            <span className="text-xs font-medium uppercase tracking-wider">Faculty</span>
+            <Users className="w-4 h-4 text-slate-400" />
+          </div>
+          <div className="text-2xl font-bold text-slate-900">{project.faculty.length}</div>
+          <div className="text-[11px] text-slate-500 mt-0.5">
+            {regularFaculty.length} Regular • {hodFaculty.length} HOD
+          </div>
+        </div>
+
+        {/* Active Dates */}
+        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs">
+          <div className="flex items-center justify-between text-slate-500 mb-1">
+            <span className="text-xs font-medium uppercase tracking-wider">Active Dates</span>
+            <Calendar className="w-4 h-4 text-slate-400" />
+          </div>
+          <div className="text-2xl font-bold text-slate-900">{activeDates.length}</div>
+          <div className="text-[11px] text-slate-500 mt-0.5">
+            {project.examPeriod.dates.length - activeDates.length} Excluded (Holidays)
+          </div>
+        </div>
+
+        {/* Required Positions */}
+        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs">
+          <div className="flex items-center justify-between text-slate-500 mb-1">
+            <span className="text-xs font-medium uppercase tracking-wider">Required</span>
+            <Layers className="w-4 h-4 text-slate-400" />
+          </div>
+          <div className="text-2xl font-bold text-slate-900">{validation.totalRequiredPositions}</div>
+          <div className="text-[11px] text-slate-500 mt-0.5">
+            57 / day across 3 JRS sessions
+          </div>
+        </div>
+
+        {/* Filled Positions */}
+        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs">
+          <div className="flex items-center justify-between text-slate-500 mb-1">
+            <span className="text-xs font-medium uppercase tracking-wider">Filled</span>
+            <CheckCircle2
+              className={`w-4 h-4 ${
+                validation.totalFilledPositions === validation.totalRequiredPositions
+                  ? 'text-emerald-500'
+                  : 'text-amber-500'
+              }`}
+            />
+          </div>
+          <div
+            className={`text-2xl font-bold ${
+              validation.totalFilledPositions === validation.totalRequiredPositions
+                ? 'text-emerald-600'
+                : 'text-amber-600'
+            }`}
+          >
+            {validation.totalFilledPositions}
+          </div>
+          <div className="text-[11px] text-slate-500 mt-0.5">
+            {validation.unfilledPositions > 0 ? (
+              <span className="text-rose-600 font-semibold">{validation.unfilledPositions} unfilled</span>
+            ) : (
+              <span className="text-emerald-600 font-medium">100% Staffed</span>
+            )}
+          </div>
+        </div>
+
+        {/* Hard Conflicts */}
+        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs">
+          <div className="flex items-center justify-between text-slate-500 mb-1">
+            <span className="text-xs font-medium uppercase tracking-wider">Hard Conflicts</span>
+            <AlertCircle
+              className={`w-4 h-4 ${validation.hardConflictsCount > 0 ? 'text-rose-500' : 'text-emerald-500'}`}
+            />
+          </div>
+          <div
+            className={`text-2xl font-bold ${
+              validation.hardConflictsCount > 0 ? 'text-rose-600' : 'text-emerald-600'
+            }`}
+          >
+            {validation.hardConflictsCount}
+          </div>
+          <div className="text-[11px] text-slate-500 mt-0.5">
+            {validation.hardConflictsCount === 0 ? 'Strict Constraints Met' : 'Violation(s) detected'}
+          </div>
+        </div>
+
+        {/* Workload Range */}
+        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs">
+          <div className="flex items-center justify-between text-slate-500 mb-1">
+            <span className="text-xs font-medium uppercase tracking-wider">Workload</span>
+            <FileSpreadsheet className="w-4 h-4 text-slate-400" />
+          </div>
+          <div className="text-2xl font-bold text-slate-900">{avgWorkload}</div>
+          <div className="text-[11px] text-slate-500 mt-0.5">
+            Min: {minWorkload} • Max: {maxWorkload}
+          </div>
+        </div>
+      </div>
+
+      {/* Prominent Validation Summary Panel */}
+      <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+          <div>
+            <div className="flex items-center space-x-2">
+              <ShieldCheck className="w-5 h-5 text-sky-600" />
+              <h3 className="text-base font-bold text-slate-900">
+                Mathematical Validation & Rule Verification Engine
+              </h3>
+            </div>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Independent audit against institutional business rules and hard constraints
+            </p>
+          </div>
+
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={() => setIsWhyValidModalOpen(true)}
+              className="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 transition cursor-pointer flex items-center space-x-1.5"
+            >
+              <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+              <span>Why is this schedule valid?</span>
+            </button>
+            {project.alternatives.length > 0 && (
+              <button
+                onClick={() => setIsAlternativesModalOpen(true)}
+                className="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-sky-50 text-sky-700 hover:bg-sky-100 border border-sky-200 transition cursor-pointer flex items-center space-x-1.5"
+              >
+                <Sparkles className="w-4 h-4 text-sky-600" />
+                <span>View 5 Alternatives</span>
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Dynamic Verification Matrix */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
+          <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/60">
+            <div className="text-xs font-semibold text-slate-600">Positions Allocation</div>
+            <div className="text-lg font-bold text-slate-900 mt-1">
+              {validation.totalFilledPositions} / {validation.totalRequiredPositions}
+            </div>
+            <div className="text-xs text-slate-500 mt-0.5 flex items-center space-x-1">
+              {validation.unfilledPositions === 0 ? (
+                <span className="text-emerald-600 font-medium">✓ 100% Positions Staffed</span>
+              ) : (
+                <span className="text-rose-600 font-medium">⚠ {validation.unfilledPositions} unallocated</span>
+              )}
+            </div>
+          </div>
+
+          <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/60">
+            <div className="text-xs font-semibold text-slate-600">Regular Faculty Target (6/6)</div>
+            <div className="text-lg font-bold text-slate-900 mt-1">
+              {validation.regularAtTargetCount} / {validation.regularCount}
+            </div>
+            <div className="text-xs text-slate-500 mt-0.5">
+              {validation.regularAtTargetCount === validation.regularCount ? (
+                <span className="text-emerald-600 font-medium">✓ All 49 faculty at exactly 6</span>
+              ) : (
+                <span className="text-amber-600 font-medium">
+                  {validation.regularCount - validation.regularAtTargetCount} deviating from target
+                </span>
+              )}
+            </div>
+          </div>
+
+          <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/60">
+            <div className="text-xs font-semibold text-slate-600">HOD Target (4/4)</div>
+            <div className="text-lg font-bold text-slate-900 mt-1">
+              {validation.hodAtTargetCount} / {validation.hodCount}
+            </div>
+            <div className="text-xs text-slate-500 mt-0.5">
+              {validation.hodAtTargetCount === validation.hodCount ? (
+                <span className="text-emerald-600 font-medium">✓ All 12 HODs at exactly 4</span>
+              ) : (
+                <span className="text-amber-600 font-medium">
+                  {validation.hodCount - validation.hodAtTargetCount} deviating from target
+                </span>
+              )}
+            </div>
+          </div>
+
+          <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/60">
+            <div className="text-xs font-semibold text-slate-600">Constraint Violations</div>
+            <div className="text-lg font-bold text-slate-900 mt-1">
+              {validation.hardConflictsCount} Hard • {validation.softWarningsCount} Soft
+            </div>
+            <div className="text-xs text-slate-500 mt-0.5">
+              {validation.hardConflictsCount === 0 ? (
+                <span className="text-emerald-600 font-medium">✓ 0 Rule Violations</span>
+              ) : (
+                <span className="text-rose-600 font-medium">{validation.hardConflictsCount} critical errors</span>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Conflicts List if any */}
+        {validation.conflicts.length > 0 && (
+          <div className="mt-5 space-y-2">
+            <div className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+              Detected Notifications ({validation.conflicts.length})
+            </div>
+            <div className="max-h-56 overflow-y-auto space-y-2 pr-1">
+              {validation.conflicts.map((c) => (
+                <div
+                  key={c.id}
+                  className={`p-3 rounded-lg text-xs flex items-start space-x-2.5 border ${
+                    c.type === 'hard'
+                      ? 'bg-rose-50 border-rose-200 text-rose-800'
+                      : 'bg-amber-50 border-amber-200 text-amber-800'
+                  }`}
+                >
+                  {c.type === 'hard' ? (
+                    <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                  ) : (
+                    <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                  )}
+                  <div className="flex-1">
+                    <span className="font-semibold uppercase text-[10px] tracking-wider px-1.5 py-0.5 rounded mr-2 bg-white/70">
+                      {c.type}
+                    </span>
+                    <span>{c.message}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Navigation Quick Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div
+          onClick={() => setActiveTab('faculty')}
+          className="bg-white p-5 rounded-xl border border-slate-200 shadow-2xs hover:border-sky-300 hover:shadow-md transition cursor-pointer group"
+        >
+          <div className="w-10 h-10 rounded-lg bg-sky-50 text-sky-600 flex items-center justify-center mb-3 group-hover:scale-105 transition">
+            <Users className="w-5 h-5" />
+          </div>
+          <h4 className="text-sm font-bold text-slate-900 flex items-center justify-between">
+            <span>Faculty Management</span>
+            <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-sky-600 group-hover:translate-x-1 transition" />
+          </h4>
+          <p className="text-xs text-slate-500 mt-1">
+            Import CSV, configure previous counts, manage individual HOD maximums and arrival categories.
+          </p>
+        </div>
+
+        <div
+          onClick={() => setActiveTab('period')}
+          className="bg-white p-5 rounded-xl border border-slate-200 shadow-2xs hover:border-sky-300 hover:shadow-md transition cursor-pointer group"
+        >
+          <div className="w-10 h-10 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center mb-3 group-hover:scale-105 transition">
+            <Calendar className="w-5 h-5" />
+          </div>
+          <h4 className="text-sm font-bold text-slate-900 flex items-center justify-between">
+            <span>Examination Period</span>
+            <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-indigo-600 group-hover:translate-x-1 transition" />
+          </h4>
+          <p className="text-xs text-slate-500 mt-1">
+            Generate exam dates, exclude holidays/no-exam dates, and configure JRS 1, 2, 3 timings and staffing.
+          </p>
+        </div>
+
+        <div
+          onClick={() => setActiveTab('availability')}
+          className="bg-white p-5 rounded-xl border border-slate-200 shadow-2xs hover:border-sky-300 hover:shadow-md transition cursor-pointer group"
+        >
+          <div className="w-10 h-10 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center mb-3 group-hover:scale-105 transition">
+            <CheckCircle2 className="w-5 h-5" />
+          </div>
+          <h4 className="text-sm font-bold text-slate-900 flex items-center justify-between">
+            <span>Availability Matrix</span>
+            <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-emerald-600 group-hover:translate-x-1 transition" />
+          </h4>
+          <p className="text-xs text-slate-500 mt-1">
+            Interactive grid to quickly mark faculty leaves, copy availability across dates, or batch update.
+          </p>
+        </div>
+
+        <div
+          onClick={() => setActiveTab('schedule')}
+          className="bg-white p-5 rounded-xl border border-slate-200 shadow-2xs hover:border-sky-300 hover:shadow-md transition cursor-pointer group"
+        >
+          <div className="w-10 h-10 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center mb-3 group-hover:scale-105 transition">
+            <FileSpreadsheet className="w-5 h-5" />
+          </div>
+          <h4 className="text-sm font-bold text-slate-900 flex items-center justify-between">
+            <span>Schedule Views</span>
+            <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-amber-600 group-hover:translate-x-1 transition" />
+          </h4>
+          <p className="text-xs text-slate-500 mt-1">
+            Faculty Schedule View, Date/Session Duty Rosters, and Workload Target Distribution.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+};
