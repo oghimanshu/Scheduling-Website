@@ -31,10 +31,11 @@ export const AssignmentInspectorModal: React.FC = () => {
   const dateConfig = project.examPeriod.dates.find((d) => d.date === a.date);
 
   const isEligible = faculty ? isFacultyEligibleForSession(faculty.arrival, a.session) : false;
-  const isAvailable = faculty ? project.availability[`${faculty.srNo}_${a.date}`] !== false : true;
+  const isDateExcluded = Array.isArray(faculty?.excludedDates) && faculty.excludedDates.includes(a.date);
+  const isAvailable = faculty ? ((project.availability || {})[`${faculty.srNo}_${a.date}`] !== false) && !isDateExcluded : true;
 
   // Workload before & after
-  const facultyAssignments = project.assignments.filter((asg) => asg.facultySrNo === a.facultySrNo);
+  const facultyAssignments = (project.assignments || []).filter((asg) => asg.facultySrNo === a.facultySrNo);
   const totalNew = facultyAssignments.length;
   const grandTotal = (faculty?.previousSupervisions || 0) + totalNew;
 
@@ -42,104 +43,116 @@ export const AssignmentInspectorModal: React.FC = () => {
   const dayAssignments = facultyAssignments.filter((asg) => asg.date === a.date);
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 space-y-5 animate-in fade-in zoom-in-95 duration-150">
-        <div className="flex justify-between items-start border-b border-slate-100 pb-3">
+    <div className="fixed inset-0 z-50 bg-slate-900/60 dark:bg-black/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-4">
+      <div className="apple-glass-card bg-white/95 dark:bg-slate-900/95 rounded-2xl max-w-lg w-full p-5 sm:p-6 shadow-2xl border border-slate-200/80 dark:border-white/10 space-y-5 animate-in fade-in zoom-in-95 duration-150">
+        <div className="flex justify-between items-start border-b border-slate-100 dark:border-white/10 pb-3">
           <div>
-            <span className="text-[11px] font-semibold tracking-wider uppercase text-sky-700 bg-sky-50 px-2 py-0.5 rounded">
-              Assignment Explanation & Inspector
+            <span className="text-[11px] font-semibold tracking-wider uppercase text-sky-700 dark:text-sky-300 bg-sky-50 dark:bg-sky-950/60 border border-sky-200/60 dark:border-sky-800/40 px-2 py-0.5 rounded-md">
+              Assignment Explanation &amp; Inspector
             </span>
-            <h3 className="text-base font-bold text-slate-900 mt-1">
+            <h3 className="text-base font-bold text-slate-900 dark:text-white mt-1">
               {faculty?.name || `Faculty #${a.facultySrNo}`}
             </h3>
           </div>
           <button
             onClick={() => setSelectedAssignmentForInspect(null)}
-            className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition"
+            className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-white/10 transition cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Detailed Attribute Breakdown (Section 20) */}
-        <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/80 space-y-2.5 text-xs">
+        {a.isReserve && (
+          <div className="flex items-center space-x-2 px-3.5 py-2 rounded-xl bg-amber-50 dark:bg-amber-950/50 border border-amber-300 dark:border-amber-700/60 text-amber-900 dark:text-amber-200 text-xs">
+            <Shield className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
+            <div>
+              <span className="font-bold">Standby / Reserve Supervisor</span>
+              <p className="text-[11px] text-amber-700 dark:text-amber-300 mt-0.5">
+                Designated standby for this session. {project.settings.reserveCanExceedCap ? 'Does not count towards workload limit.' : 'Counts towards workload limit.'}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Detailed Attribute Breakdown */}
+        <div className="bg-slate-50/80 dark:bg-slate-800/60 p-4 rounded-xl border border-slate-200/80 dark:border-white/10 space-y-2.5 text-xs backdrop-blur-xs">
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <span className="text-slate-500">Date:</span>
-              <p className="font-semibold text-slate-900">{dateConfig?.displayDate || a.date}</p>
+              <span className="text-slate-500 dark:text-slate-400">Date:</span>
+              <p className="font-semibold text-slate-900 dark:text-white">{dateConfig?.displayDate || a.date}</p>
             </div>
             <div>
-              <span className="text-slate-500">Session:</span>
-              <p className="font-bold text-sky-700">{a.session}</p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-200/60">
-            <div>
-              <span className="text-slate-500">Arrival Category:</span>
-              <p className="font-semibold text-slate-900">{faculty?.arrival || 'Unknown'}</p>
-            </div>
-            <div>
-              <span className="text-slate-500">Role:</span>
-              <p className="font-semibold text-slate-900">{faculty?.isHod ? 'HOD' : 'Regular Faculty'}</p>
+              <span className="text-slate-500 dark:text-slate-400">Session:</span>
+              <p className="font-bold text-sky-600 dark:text-sky-400">{a.session}</p>
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-200/60">
+          <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-200/60 dark:border-white/10">
             <div>
-              <span className="text-slate-500">Eligibility for {a.session}:</span>
-              <p className={`font-bold flex items-center space-x-1 ${isEligible ? 'text-emerald-600' : 'text-rose-600'}`}>
-                {isEligible ? <span>✓ Eligible</span> : <span>⚠ Ineligible (Override required)</span>}
+              <span className="text-slate-500 dark:text-slate-400">Arrival Category:</span>
+              <p className="font-semibold text-slate-900 dark:text-white">{faculty?.arrival || 'Unknown'}</p>
+            </div>
+            <div>
+              <span className="text-slate-500 dark:text-slate-400">Role:</span>
+              <p className="font-semibold text-slate-900 dark:text-white">{faculty?.isHod ? 'HOD' : 'Regular Faculty'}</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-200/60 dark:border-white/10">
+            <div>
+              <span className="text-slate-500 dark:text-slate-400">Eligibility for {a.session}:</span>
+              <p className={`font-bold flex items-center space-x-1 ${isEligible ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+                {isEligible ? <span>&check; Eligible</span> : <span>&warning; Ineligible (Override required)</span>}
               </p>
             </div>
             <div>
-              <span className="text-slate-500">Availability:</span>
-              <p className={`font-bold flex items-center space-x-1 ${isAvailable ? 'text-emerald-600' : 'text-rose-600'}`}>
-                {isAvailable ? <span>✓ Available</span> : <span>⚠ Marked on Leave</span>}
+              <span className="text-slate-500 dark:text-slate-400">Availability:</span>
+              <p className={`font-bold flex items-center space-x-1 ${isAvailable ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+                {isAvailable ? <span>&check; Available</span> : <span>&warning; Marked on Leave</span>}
               </p>
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-200/60">
+          <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-200/60 dark:border-white/10">
             <div>
-              <span className="text-slate-500">Previous:</span>
-              <p className="font-mono font-semibold">{faculty?.previousSupervisions || 0}</p>
+              <span className="text-slate-500 dark:text-slate-400">Previous:</span>
+              <p className="font-mono font-semibold text-slate-700 dark:text-slate-300">{faculty?.previousSupervisions || 0}</p>
             </div>
             <div>
-              <span className="text-slate-500">Total Duties:</span>
-              <p className="font-mono font-bold text-slate-900">{grandTotal} / {faculty?.targetSupervisions || 6}</p>
+              <span className="text-slate-500 dark:text-slate-400">Total Duties:</span>
+              <p className="font-mono font-bold text-slate-900 dark:text-white">{grandTotal} / {faculty?.targetSupervisions || 6}</p>
             </div>
             <div>
-              <span className="text-slate-500">Daily Duties:</span>
-              <p className="font-mono font-bold text-slate-900">{dayAssignments.length} / 2</p>
+              <span className="text-slate-500 dark:text-slate-400">Daily Duties:</span>
+              <p className="font-mono font-bold text-slate-900 dark:text-white">{dayAssignments.length} / 2</p>
             </div>
           </div>
 
-          <div className="pt-2 border-t border-slate-200/60 flex items-center justify-between">
-            <span className="text-slate-500">Lock Status:</span>
-            <span className={`font-semibold ${a.isLocked ? 'text-indigo-600' : 'text-slate-500'}`}>
+          <div className="pt-2 border-t border-slate-200/60 dark:border-white/10 flex items-center justify-between">
+            <span className="text-slate-500 dark:text-slate-400">Lock Status:</span>
+            <span className={`font-semibold ${a.isLocked ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-500 dark:text-slate-400'}`}>
               {a.isLocked ? 'Locked (Hard Constraint)' : 'Unlocked (Can be optimized/rebalanced)'}
             </span>
           </div>
 
           {a.isOverride && (
-            <div className="pt-2 border-t border-slate-200/60 text-amber-700 bg-amber-50 p-2 rounded">
+            <div className="pt-2 border-t border-slate-200/60 dark:border-white/10 text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 p-2 rounded">
               <span className="font-bold">Administrator Override:</span> {a.overrideReason || 'Explicit Override'}
             </div>
           )}
         </div>
 
         {/* Why Selected Explanation Block */}
-        <div className="p-3.5 rounded-xl bg-sky-50/60 border border-sky-200/60 text-xs text-sky-900 space-y-1">
-          <div className="font-bold flex items-center space-x-1.5 text-sky-950">
-            <HelpCircle className="w-4 h-4 text-sky-600" />
+        <div className="p-3.5 rounded-xl bg-sky-50/60 dark:bg-sky-950/40 border border-sky-200/60 dark:border-sky-800/40 text-xs text-sky-900 dark:text-sky-300 space-y-1">
+          <div className="font-bold flex items-center space-x-1.5 text-sky-950 dark:text-sky-200">
+            <HelpCircle className="w-4 h-4 text-sky-600 dark:text-sky-400" />
             <span>Why selected by solver:</span>
           </div>
-          <p>• Verified eligible for {a.session} under {faculty?.arrival} arrival policy.</p>
-          <p>• Verified available on {dateConfig?.displayDate || a.date}.</p>
-          <p>• Within maximum workload limit of {faculty?.maxSupervisions}.</p>
-          <p>• Respects 1 assignment/day priority before considering double assignments.</p>
-          <p>• Selected by constraint solver to achieve target workload ({faculty?.targetSupervisions}).</p>
+          <p>&bull; Verified eligible for {a.session} under {faculty?.arrival} arrival policy.</p>
+          <p>&bull; Verified available on {dateConfig?.displayDate || a.date}.</p>
+          <p>&bull; Within maximum workload limit of {faculty?.maxSupervisions}.</p>
+          <p>&bull; Respects faculty-first prioritization to fulfill duty workloads before HODs.</p>
+          <p>&bull; Respects 1 assignment/day priority before considering double assignments.</p>
         </div>
 
         {/* Actions Bar */}
@@ -151,7 +164,7 @@ export const AssignmentInspectorModal: React.FC = () => {
                 setSelectedAssignmentForInspect(null);
               }
             }}
-            className="inline-flex items-center space-x-1.5 px-3 py-1.5 text-xs font-semibold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-lg transition"
+            className="inline-flex items-center space-x-1.5 px-3 py-1.5 text-xs font-semibold text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-900/50 border border-rose-200 dark:border-rose-800/40 rounded-lg transition cursor-pointer"
           >
             <Trash2 className="w-3.5 h-3.5" />
             <span>Remove Assignment</span>
@@ -163,10 +176,10 @@ export const AssignmentInspectorModal: React.FC = () => {
                 toggleLockAssignment(a.id);
                 setSelectedAssignmentForInspect({ ...a, isLocked: !a.isLocked });
               }}
-              className={`inline-flex items-center space-x-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition ${
+              className={`inline-flex items-center space-x-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition cursor-pointer ${
                 a.isLocked
-                  ? 'bg-amber-100 text-amber-800 hover:bg-amber-200 border border-amber-300'
-                  : 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200'
+                  ? 'bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 hover:bg-amber-200 dark:hover:bg-amber-900/50 border border-amber-300 dark:border-amber-800/40'
+                  : 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 border border-indigo-200 dark:border-indigo-800/40'
               }`}
             >
               {a.isLocked ? <Unlock className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
@@ -175,7 +188,7 @@ export const AssignmentInspectorModal: React.FC = () => {
 
             <button
               onClick={() => setSelectedAssignmentForInspect(null)}
-              className="px-4 py-1.5 text-xs font-semibold text-white bg-slate-800 hover:bg-slate-900 rounded-lg transition"
+              className="px-4 py-1.5 text-xs font-semibold text-white bg-slate-800 dark:bg-slate-700 hover:bg-slate-900 dark:hover:bg-slate-600 rounded-lg transition cursor-pointer"
             >
               Close
             </button>

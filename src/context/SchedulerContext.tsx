@@ -11,7 +11,7 @@ import {
   SessionDefinition,
   SessionTiming,
 } from '../types';
-import { INITIAL_PROJECT_STATE, DEFAULT_SESSIONS, DEFAULT_FACULTY_LIST } from '../data/defaultData';
+import { INITIAL_PROJECT_STATE, DEFAULT_SESSIONS } from '../data/defaultData';
 import { validateSchedule } from '../services/validation/validator';
 import { analyzeInfeasibility, InfeasibilityReport } from '../services/validation/infeasibility';
 import { generateFiveAlternatives, generateSingleAlternative } from '../services/scheduler/alternatives';
@@ -20,7 +20,7 @@ import { saveProjectToStorage, loadProjectFromStorage } from '../services/storag
 
 interface SchedulerContextType {
   project: ProjectState;
-  activeTab: 'dashboard' | 'faculty' | 'period' | 'availability' | 'schedule';
+  activeTab: 'dashboard' | 'faculty' | 'period' | 'availability' | 'schedule' | 'instructions';
   scheduleViewMode: 'faculty' | 'session' | 'workload';
   validation: ValidationSummary;
   isGenerating: boolean;
@@ -34,9 +34,11 @@ interface SchedulerContextType {
   isReassignHodsModalOpen: boolean;
   isSessionManagerModalOpen: boolean;
   infeasibilityReport: InfeasibilityReport | null;
+  isDarkMode: boolean;
+  toggleDarkMode: () => void;
 
   // Setters
-  setActiveTab: (tab: 'dashboard' | 'faculty' | 'period' | 'availability' | 'schedule') => void;
+  setActiveTab: (tab: 'dashboard' | 'faculty' | 'period' | 'availability' | 'schedule' | 'instructions') => void;
   setScheduleViewMode: (mode: 'faculty' | 'session' | 'workload') => void;
   setSelectedAssignmentForInspect: (assignment: Assignment | null) => void;
   setManualEditSlot: (slot: { facultySrNo?: number; date: string; session: SessionType } | null) => void;
@@ -74,8 +76,8 @@ interface SchedulerContextType {
   toggleFacultyHod: (srNo: number) => void;
   bulkReassignHods: (hodSrNos: number[], defaultHodTarget?: number) => void;
   toggleFacultyExclusion: (srNo: number, reason?: string) => void;
+  updateFacultyExcludedDates: (srNo: number, dates: string[]) => void;
   updateRoleWorkloadCap: (role: 'hod' | 'regular', newCap: number, newTarget?: number) => void;
-  loadDemoFaculty: () => void;
   updateExamDates: (dates: ExamDateConfig[]) => void;
   updateExamPeriodInfo: (name: string, startDate: string, endDate: string) => void;
   setAvailability: (facultySrNo: number, date: string, isAvailable: boolean) => void;
@@ -103,7 +105,7 @@ export const SchedulerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     return st;
   });
 
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'faculty' | 'period' | 'availability' | 'schedule'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'faculty' | 'period' | 'availability' | 'schedule' | 'instructions'>('dashboard');
   const [scheduleViewMode, setScheduleViewMode] = useState<'faculty' | 'session' | 'workload'>('faculty');
   const [isGenerating, setIsGenerating] = useState(false);
   const [lastSaved, setLastSaved] = useState<string>(project.lastSavedTimestamp || 'Not saved yet');
@@ -116,6 +118,32 @@ export const SchedulerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [isReassignHodsModalOpen, setIsReassignHodsModalOpen] = useState(false);
   const [isSessionManagerModalOpen, setIsSessionManagerModalOpen] = useState(false);
   const [infeasibilityReport, setInfeasibilityReport] = useState<InfeasibilityReport | null>(null);
+
+  // Dark Mode State
+  const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('EXAM_SCHEDULER_THEME');
+      if (saved) return saved === 'dark';
+      return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    }
+    return false;
+  });
+
+  useEffect(() => {
+    if (typeof document !== 'undefined') {
+      if (isDarkMode) {
+        document.documentElement.classList.add('dark');
+        localStorage.setItem('EXAM_SCHEDULER_THEME', 'dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+        localStorage.setItem('EXAM_SCHEDULER_THEME', 'light');
+      }
+    }
+  }, [isDarkMode]);
+
+  const toggleDarkMode = useCallback(() => {
+    setIsDarkMode((prev) => !prev);
+  }, []);
 
   // Auto-save to LocalStorage whenever project changes
   useEffect(() => {
@@ -372,10 +400,15 @@ export const SchedulerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   // Update faculty list
   const updateFacultyList = useCallback((newFaculty: Faculty[]) => {
-    setProject((prev) => ({
-      ...prev,
-      faculty: newFaculty,
-    }));
+    setProject((prev) => {
+      const validSrNos = new Set(newFaculty.map((f) => f.srNo));
+      const filteredAssignments = prev.assignments.filter((a) => validSrNos.has(a.facultySrNo));
+      return {
+        ...prev,
+        faculty: newFaculty,
+        assignments: filteredAssignments,
+      };
+    });
   }, []);
 
   // 1-Click Toggle Faculty HOD Status
@@ -428,6 +461,38 @@ export const SchedulerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }));
   }, []);
 
+  // Update date-specific exclusions for a faculty member
+  const updateFacultyExcludedDates = useCallback((srNo: number, dates: string[]) => {
+    setProject((prev) => {
+      const newAvail = { ...prev.availability };
+      const currentFac = prev.faculty.find((f) => f.srNo === srNo);
+      const prevExcluded = new Set(currentFac?.excludedDates || []);
+      const newExcludedSet = new Set(dates);
+
+      // Synchronize availability map: mark excluded dates as false, un-excluded dates as true
+      prev.examPeriod.dates.forEach((d) => {
+        const key = `${srNo}_${d.date}`;
+        if (newExcludedSet.has(d.date)) {
+          newAvail[key] = false;
+        } else if (prevExcluded.has(d.date) && !newExcludedSet.has(d.date)) {
+          newAvail[key] = true;
+        }
+      });
+
+      return {
+        ...prev,
+        availability: newAvail,
+        faculty: prev.faculty.map((f) => {
+          if (f.srNo !== srNo) return f;
+          return {
+            ...f,
+            excludedDates: dates,
+          };
+        }),
+      };
+    });
+  }, []);
+
   // Role-based bulk workload/cap update (e.g. all HODs or all Regular faculty in one go)
   const updateRoleWorkloadCap = useCallback((role: 'hod' | 'regular', newCap: number, newTarget?: number) => {
     const target = newTarget ?? newCap;
@@ -450,14 +515,6 @@ export const SchedulerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         }
         return f;
       }),
-    }));
-  }, []);
-
-  // One-click demo faculty loader (standard 61-member baseline)
-  const loadDemoFaculty = useCallback(() => {
-    setProject((prev) => ({
-      ...prev,
-      faculty: DEFAULT_FACULTY_LIST,
     }));
   }, []);
 
@@ -671,6 +728,8 @@ export const SchedulerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         isReassignHodsModalOpen,
         isSessionManagerModalOpen,
         infeasibilityReport,
+        isDarkMode,
+        toggleDarkMode,
         setActiveTab,
         setScheduleViewMode,
         setSelectedAssignmentForInspect,
@@ -694,8 +753,8 @@ export const SchedulerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         toggleFacultyHod,
         bulkReassignHods,
         toggleFacultyExclusion,
+        updateFacultyExcludedDates,
         updateRoleWorkloadCap,
-        loadDemoFaculty,
         updateExamDates,
         updateExamPeriodInfo,
         setAvailability,

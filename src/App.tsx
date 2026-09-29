@@ -15,34 +15,51 @@ import { ExportModal } from './components/ExportModal';
 import { SettingsModal } from './components/SettingsModal';
 import { ReassignHodsModal } from './components/ReassignHodsModal';
 import { SessionManagerModal } from './components/SessionManagerModal';
+import { InstructionsView } from './components/InstructionsView';
 
 const AppContent: React.FC = () => {
   const { activeTab } = useScheduler();
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50 text-slate-800">
+    <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 transition-colors duration-300 relative overflow-hidden">
+      {/* Apple-style Chromatic Ambient Glow Orbs */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden z-0" aria-hidden="true">
+        <div className="absolute -top-32 -left-32 w-96 h-96 rounded-full bg-gradient-to-tr from-sky-400/20 to-blue-500/15 dark:from-sky-500/15 dark:to-indigo-500/15 blur-3xl transform-gpu"></div>
+        <div className="absolute top-1/3 -right-32 w-[28rem] h-[28rem] rounded-full bg-gradient-to-bl from-indigo-400/20 to-purple-400/15 dark:from-indigo-600/15 dark:to-purple-700/15 blur-3xl transform-gpu"></div>
+        <div className="absolute -bottom-32 left-1/3 w-[32rem] h-[32rem] rounded-full bg-gradient-to-tr from-cyan-400/15 to-sky-300/15 dark:from-teal-500/10 dark:to-blue-600/10 blur-3xl transform-gpu"></div>
+      </div>
+
       {/* Navbar with tabs and quick status */}
       <Navbar />
 
       {/* Main Container */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 relative z-10">
         {activeTab === 'dashboard' && <Dashboard />}
         {activeTab === 'faculty' && <FacultyManager />}
         {activeTab === 'period' && <ExamPeriodManager />}
         {activeTab === 'availability' && <AvailabilityManager />}
         {activeTab === 'schedule' && <ScheduleViewer />}
+        {activeTab === 'instructions' && <InstructionsView />}
       </main>
 
-      {/* Footer */}
-      <footer className="bg-white border-t border-slate-200 py-4 mt-auto">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row justify-between items-center text-xs text-slate-500 gap-2">
-          <div className="flex items-center space-x-2">
-            <span className="font-semibold text-slate-700">Examination Supervision Scheduler</span>
-            <span>•</span>
+      {/* Footer with Liquid Glass styling & Himanshu Gaur Attribution */}
+      <footer className="apple-glass border-t border-slate-200/70 dark:border-white/10 py-5 mt-auto relative z-10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row justify-between items-center text-xs text-slate-500 dark:text-slate-400 gap-3">
+          <div className="flex flex-col sm:flex-row items-center space-y-1 sm:space-y-0 sm:space-x-2 text-center sm:text-left">
+            <span className="font-bold text-slate-800 dark:text-slate-100">Examination Supervision Scheduler</span>
+            <span className="hidden sm:inline">•</span>
             <span>Constraint-Based Mathematical Duty Allocation Engine</span>
           </div>
-          <div className="text-[11px] text-slate-400">
-            College Academic & Examination Administration Portal
+
+          <div className="flex items-center space-x-2">
+            <div className="inline-flex items-center space-x-1.5 px-3.5 py-1 rounded-full bg-white/70 dark:bg-slate-900/70 border border-slate-200/80 dark:border-white/10 shadow-xs backdrop-blur-md">
+              <span className="text-slate-600 dark:text-slate-300">
+                Designed &amp; Developed by{' '}
+                <strong className="font-bold text-sky-700 dark:text-sky-300">
+                  Himanshu Gaur
+                </strong>
+              </span>
+            </div>
           </div>
         </div>
       </footer>
@@ -61,11 +78,15 @@ const AppContent: React.FC = () => {
   );
 };
 
+import { ErrorBoundary } from './components/ErrorBoundary';
+
 export function App() {
   return (
-    <SchedulerProvider>
-      <AppContent />
-    </SchedulerProvider>
+    <ErrorBoundary>
+      <SchedulerProvider>
+        <AppContent />
+      </SchedulerProvider>
+    </ErrorBoundary>
   );
 }
 

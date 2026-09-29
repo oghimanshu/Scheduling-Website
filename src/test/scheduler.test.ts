@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { DEFAULT_FACULTY_LIST, DEFAULT_DATES_CONFIG, DEFAULT_SETTINGS, INITIAL_PROJECT_STATE } from '../data/defaultData';
+import { DEFAULT_DATES_CONFIG, DEFAULT_SETTINGS, INITIAL_PROJECT_STATE } from '../data/defaultData';
+import { MOCK_FACULTY_LIST as DEFAULT_FACULTY_LIST } from './fixtures/mockFaculty';
 import { solveExaminationSchedule } from '../services/scheduler/solver';
 import { validateSchedule, isFacultyEligibleForSession } from '../services/validation/validator';
 import { generateFiveAlternatives } from '../services/scheduler/alternatives';
@@ -10,8 +11,21 @@ import { exportProjectToJson, importProjectFromJson } from '../services/export/e
 import { Assignment, ProjectState } from '../types';
 
 describe('Examination Supervision Scheduler Engine', () => {
-  it('should parse faculty CSV with mandatory columns and preserve original Sr. Nos.', () => {
+  it('should generate empty sample CSV template with only headers', () => {
     const csvContent = generateSampleFacultyCSV(false);
+    expect(csvContent.trim()).toBe('Sr. No.,Faculty Name,HOD,Arrival');
+    const result = parseFacultyCSV(csvContent);
+    expect(result.success).toBe(false);
+    expect(result.errors[0]).toContain('no faculty member rows');
+  });
+
+  it('should parse faculty CSV with mandatory columns and preserve original Sr. Nos.', () => {
+    const csvContent =
+      `Sr. No.,Faculty Name,HOD,Arrival\n` +
+      `4,Dr. Neera Kumar,Yes,Morning\n` +
+      `5,Mr. Test Faculty,No,Morning\n` +
+      `23,Mr. Chaitanya S Songirkar,Yes,Afternoon\n` +
+      `56,Ms. Nisha Padmanabhan,No,Mid\n`;
     const result = parseFacultyCSV(csvContent);
     expect(result.success).toBe(true);
     expect(result.faculty.length).toBe(4);
@@ -40,10 +54,13 @@ describe('Examination Supervision Scheduler Engine', () => {
   });
 
   it('should correctly import optional No. of Supervision column when selected', () => {
-    const csvWithSupervision = generateSampleFacultyCSV(true);
+    const csvWithSupervision =
+      `Sr. No.,Faculty Name,HOD,Arrival,No. of Supervision\n` +
+      `4,Dr. Neera Kumar,Yes,Morning,2\n`;
     const result = parseFacultyCSV(csvWithSupervision, { mode: 'from_csv' });
     expect(result.success).toBe(true);
     expect(result.hasOptionalSupervisions).toBe(true);
+    expect(result.faculty[0].previousSupervisions).toBe(2);
   });
 
   it('should enforce arrival category eligibility rules accurately', () => {
@@ -235,5 +252,111 @@ describe('Examination Supervision Scheduler Engine', () => {
     expect(parsed.success).toBe(true);
     expect(parsed.state?.faculty.length).toBe(61);
     expect(parsed.state?.examPeriod.dates.length).toBe(8);
+  });
+
+  it('should prioritize regular faculties first to fulfill their workloads before assigning to HODs', () => {
+    // When required positions are fewer than regular faculty capacity (e.g., 200 required),
+    // regular faculty must fulfill their workloads and HODs should not take slots that regular faculty can fill.
+    const customDates = DEFAULT_DATES_CONFIG.map((d) => ({
+      ...d,
+      sessionRequirements: {
+        'JRS 1': 10,
+        'JRS 2': 15,
+        'JRS 3': 10,
+      },
+    })); // 6 active dates * 35 = 210 positions.
+    // 49 regular faculties * 6 capacity = 294 capacity (enough to cover 210 completely).
+
+    const result = solveExaminationSchedule(
+      DEFAULT_FACULTY_LIST,
+      customDates,
+      {},
+      DEFAULT_SETTINGS,
+      { seed: 42 }
+    );
+
+    expect(result.success).toBe(true);
+    expect(result.assignments.length).toBe(210);
+
+    // Count assignments given to HODs vs Regular faculty
+    const hodAssignments = result.assignments.filter((a) => {
+      const f = DEFAULT_FACULTY_LIST.find((fac) => fac.srNo === a.facultySrNo);
+      return f?.isHod;
+    });
+
+    const regularAssignments = result.assignments.filter((a) => {
+      const f = DEFAULT_FACULTY_LIST.find((fac) => fac.srNo === a.facultySrNo);
+      return !f?.isHod;
+    });
+
+    // Regular faculty should take the vast majority of slots (>90% or all slots)
+    // and HOD assignments should be minimal or zero when regular faculty are available
+    expect(regularAssignments.length).toBeGreaterThanOrEqual(195);
+    expect(hodAssignments.length).toBeLessThanOrEqual(15);
+  });
+
+  it('should strictly exclude faculty on their specific excluded dates while assigning them on other dates', () => {
+    const facultyWithDateExclusion = DEFAULT_FACULTY_LIST.map((f) => {
+      if (f.srNo === 4) {
+        return {
+          ...f,
+          excludedDates: ['2026-10-06', '2026-10-08'],
+        };
+      }
+      return f;
+    });
+
+    const result = solveExaminationSchedule(
+      facultyWithDateExclusion,
+      DEFAULT_DATES_CONFIG,
+      {},
+      DEFAULT_SETTINGS,
+      { seed: 101 }
+    );
+
+    expect(result.success).toBe(true);
+
+    // Faculty #4 must NEVER be assigned on 2026-10-06 or 2026-10-08
+    const forbiddenAssignments = result.assignments.filter(
+      (a) => a.facultySrNo === 4 && (a.date === '2026-10-06' || a.date === '2026-10-08')
+    );
+    expect(forbiddenAssignments.length).toBe(0);
+
+    // But Faculty #4 can still receive assignments on other active exam dates
+    const allowedAssignments = result.assignments.filter(
+      (a) => a.facultySrNo === 4 && a.date !== '2026-10-06' && a.date !== '2026-10-08'
+    );
+    expect(allowedAssignments.length).toBeGreaterThan(0);
+  });
+
+  it('should allocate reserve supervisors when configured and respect whether duties can exceed cap', () => {
+    const settingsWithReserves = {
+      ...DEFAULT_SETTINGS,
+      reserveSupervisorsPerSession: 1,
+      reserveCanExceedCap: true,
+    };
+
+    const result = solveExaminationSchedule(
+      DEFAULT_FACULTY_LIST,
+      DEFAULT_DATES_CONFIG,
+      {},
+      settingsWithReserves,
+      { seed: 42 }
+    );
+
+    expect(result.success).toBe(true);
+
+    const reserves = result.assignments.filter((a) => a.isReserve);
+    // 6 active dates * 3 sessions * 1 reserve = 18 reserve duties
+    expect(reserves.length).toBe(18);
+
+    // Each session on each active date must have 1 reserve supervisor
+    const activeDates = DEFAULT_DATES_CONFIG.filter((d) => !d.isExcluded);
+    activeDates.forEach((d) => {
+      ['JRS 1', 'JRS 2', 'JRS 3'].forEach((s) => {
+        const sessionReserves = reserves.filter((a) => a.date === d.date && a.session === s);
+        expect(sessionReserves.length).toBe(1);
+      });
+    });
   });
 });

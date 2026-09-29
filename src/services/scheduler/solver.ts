@@ -156,7 +156,7 @@ export function solveExaminationSchedule(
 
     // Availability check
     const availKey = `${faculty.srNo}_${date}`;
-    if (availability[availKey] === false) return false;
+    if (availability[availKey] === false || (faculty.excludedDates && faculty.excludedDates.includes(date))) return false;
 
     // Eligibility check
     if (!isFacultyEligibleForSession(faculty.arrival, session, options.sessionDefinitions)) return false;
@@ -238,19 +238,34 @@ export function solveExaminationSchedule(
     let score = 0;
     const currentNew = facultyTotalNew.get(faculty.srNo) || 0;
     const target = facultyTarget.get(faculty.srNo) || 0;
+    const maxCap = facultyMaxCap.get(faculty.srNo) || 0;
 
-    // Remaining duties towards target
-    const remainingToTarget = target - currentNew;
-    score += remainingToTarget * 1000;
-
-    // Heavily penalize exceeding target if target < max
-    if (currentNew >= target) {
-      score -= 5000 * (currentNew - target + 1);
+    // Strict Role Tiering:
+    // Regular faculty with remaining workload to target gets highest tier (+1,000,000)
+    // Regular faculty with remaining capacity up to max gets tier (+500,000)
+    // HODs get lowest tier (-1,000,000) so regular faculty are assigned every slot first!
+    if (!faculty.isHod) {
+      if (currentNew < target) {
+        score += 1_000_000;
+        score += (target - currentNew) * 5_000;
+      } else if (currentNew < maxCap) {
+        score += 500_000;
+        score += (maxCap - currentNew) * 1_000;
+      } else {
+        score -= 200_000;
+      }
+    } else {
+      // HOD tier: strictly lower than any regular faculty who can take the slot
+      score -= 1_000_000;
+      score += (target - currentNew) * 1_000;
+      if (currentNew >= target) {
+        score -= 50_000 * (currentNew - target + 1);
+      }
     }
 
-    // Heavy penalty for second assignment of the day
+    // Heavy penalty for second assignment of the day (within its tier)
     if (isSecondOfDay) {
-      score -= 20000;
+      score -= 80_000;
     }
 
     // Category specialization preference:
@@ -267,11 +282,6 @@ export function solveExaminationSchedule(
     // In JRS 2: Any, but prefer balancing
     if (session === 'JRS 2') {
       score += 100;
-    }
-
-    // Prefer giving assignments to regular faculty vs HOD in proportion to their targets
-    if (faculty.isHod) {
-      score -= 50; // Slight preference to give regular faculty their 6 duties
     }
 
     // Controlled random perturbation (between 0 and 80)
@@ -331,15 +341,18 @@ export function solveExaminationSchedule(
   });
 
   // PASS 3: Exact Workload Target Optimization & Rebalancing
-  // If some faculty are below target while others are at target, or any slots remain,
-  // perform augmenting chain / swaps to reach exact targets!
-  for (let iteration = 0; iteration < 20; iteration++) {
+  // If some regular faculty are below target while HODs or over-assigned faculty hold slots,
+  // perform augmenting chain / swaps so regular faculty fulfill their full workload first!
+  for (let iteration = 0; iteration < 30; iteration++) {
     let madeChange = false;
 
-    // Look for under-assigned faculty
+    // Look for under-assigned faculty (prioritizing regular faculty first)
     const underAssigned = facultyList
       .filter((f) => (facultyTotalNew.get(f.srNo) || 0) < (facultyTarget.get(f.srNo) || 0))
       .sort((a, b) => {
+        // Regular faculty ALWAYS come before HODs
+        if (!a.isHod && b.isHod) return -1;
+        if (a.isHod && !b.isHod) return 1;
         const aUnder = (facultyTarget.get(a.srNo) || 0) - (facultyTotalNew.get(a.srNo) || 0);
         const bUnder = (facultyTarget.get(b.srNo) || 0) - (facultyTotalNew.get(b.srNo) || 0);
         return bUnder - aUnder;
@@ -348,37 +361,64 @@ export function solveExaminationSchedule(
     if (underAssigned.length === 0) break;
 
     for (const under of underAssigned) {
-      // Find an active date and session where an over-assigned or at-target faculty is assigned,
-      // and 'under' is eligible, available, and not already assigned on that date!
+      // Find an active date and session where an HOD or over-assigned faculty is assigned,
+      // and 'under' is eligible and available to take the duty!
       for (const d of activeDates) {
         const uDateSessions = facultyDateSessions.get(under.srNo)?.get(d.date) || new Set();
-        if (uDateSessions.size >= 1) continue; // Prefer giving to days where 'under' has 0 assignments
+        if (uDateSessions.size >= 2) continue; // Maximum 2 duties per day
 
         const availKey = `${under.srNo}_${d.date}`;
-        if (availability[availKey] === false) continue;
+        if (availability[availKey] === false || (under.excludedDates && under.excludedDates.includes(d.date))) continue;
 
         for (const session of sessionOrder) {
-          if (!isFacultyEligibleForSession(under.arrival, session)) continue;
+          if (uDateSessions.has(session)) continue; // Already in this session
+          if (!isFacultyEligibleForSession(under.arrival, session, options.sessionDefinitions)) continue;
 
-          // Find someone assigned here who has more assignments than their target,
-          // or who has 2 assignments on this date!
+          // Check double duty combination rule if under already has 1 duty today
+          if (uDateSessions.size === 1) {
+            const existing = Array.from(uDateSessions)[0];
+            if (
+              ((existing === 'JRS 1' && session === 'JRS 3') ||
+                (existing === 'JRS 3' && session === 'JRS 1')) &&
+              !settings.allowJrs1Jrs3Double
+            ) {
+              continue;
+            }
+          }
+
           const assignedSrNos = Array.from(assignmentsByDateSession.get(d.date)!.get(session)!);
-          const candidateDonorSrNo = assignedSrNos.find((donorSrNo) => {
-            const donor = facultyList.find((f) => f.srNo === donorSrNo);
-            if (!donor) return false;
-            // Never swap locked assignments
-            const isLocked = lockedAssignments.some(
-              (l) => l.facultySrNo === donorSrNo && l.date === d.date && l.session === session
-            );
-            if (isLocked) return false;
 
-            const donorTotal = facultyTotalNew.get(donorSrNo) || 0;
-            const donorTarget = facultyTarget.get(donorSrNo) || 0;
-            const donorDayCount = facultyDateSessions.get(donorSrNo)?.get(d.date)?.size || 0;
+          // Priority 1 Donor: If 'under' is regular faculty, ANY HOD assigned here must yield!
+          let candidateDonorSrNo: number | undefined;
 
-            // Donor can donate if they have > target OR they have 2 assignments on this day!
-            return donorTotal > donorTarget || donorDayCount > 1;
-          });
+          if (!under.isHod) {
+            candidateDonorSrNo = assignedSrNos.find((donorSrNo) => {
+              const donor = facultyList.find((f) => f.srNo === donorSrNo);
+              if (!donor || !donor.isHod) return false;
+              const isLocked = lockedAssignments.some(
+                (l) => l.facultySrNo === donorSrNo && l.date === d.date && l.session === session
+              );
+              return !isLocked;
+            });
+          }
+
+          // Priority 2 Donor: Faculty with assignments > target, or with 2 duties today
+          if (candidateDonorSrNo === undefined) {
+            candidateDonorSrNo = assignedSrNos.find((donorSrNo) => {
+              const donor = facultyList.find((f) => f.srNo === donorSrNo);
+              if (!donor) return false;
+              const isLocked = lockedAssignments.some(
+                (l) => l.facultySrNo === donorSrNo && l.date === d.date && l.session === session
+              );
+              if (isLocked) return false;
+
+              const donorTotal = facultyTotalNew.get(donorSrNo) || 0;
+              const donorTarget = facultyTarget.get(donorSrNo) || 0;
+              const donorDayCount = facultyDateSessions.get(donorSrNo)?.get(d.date)?.size || 0;
+
+              return donorTotal > donorTarget || donorDayCount > 1;
+            });
+          }
 
           if (candidateDonorSrNo !== undefined) {
             // Swap: remove donor, add under
@@ -424,6 +464,105 @@ export function solveExaminationSchedule(
       if (madeChange) break;
     }
     if (!madeChange) break;
+  }
+
+  // PASS 4: Reserve Supervisors Allocation (if configured)
+  const reservesNeeded = settings.reserveSupervisorsPerSession || 0;
+  if (reservesNeeded > 0) {
+    activeDates.forEach((d) => {
+      sessionOrder.forEach((session) => {
+        const candidates = facultyList
+          .filter((f) => {
+            if (f.isExcluded) return false;
+            if (f.excludedDates && f.excludedDates.includes(d.date)) return false;
+            const availKey = `${f.srNo}_${d.date}`;
+            if (availability[availKey] === false) return false;
+            if (!isFacultyEligibleForSession(f.arrival, session, options.sessionDefinitions)) return false;
+
+            // Cannot be already assigned in this session (neither primary nor reserve)
+            const sessionSet = assignmentsByDateSession.get(d.date)?.get(session);
+            if (sessionSet && sessionSet.has(f.srNo)) return false;
+
+            // Daily duty count limit (max 2 per day)
+            const fDateMap = facultyDateSessions.get(f.srNo)!;
+            const sessionsOnDate = fDateMap.get(d.date) || new Set();
+            if (sessionsOnDate.size >= 2) return false;
+
+            // Double duty combination check if already has 1 duty today
+            if (sessionsOnDate.size === 1) {
+              const existingSession = Array.from(sessionsOnDate)[0];
+              if (
+                ((existingSession === 'JRS 1' && session === 'JRS 3') ||
+                  (existingSession === 'JRS 3' && session === 'JRS 1')) &&
+                !settings.allowJrs1Jrs3Double
+              ) {
+                return false;
+              }
+            }
+
+            // Workload cap limit check: only enforced if reserve duties cannot exceed cap
+            if (!settings.reserveCanExceedCap) {
+              const curTotal = facultyTotalNew.get(f.srNo) || 0;
+              const maxCap = facultyMaxCap.get(f.srNo) || 0;
+              if (curTotal >= maxCap) return false;
+            }
+
+            return true;
+          })
+          .map((f) => {
+            let score = 0;
+            const currentNew = facultyTotalNew.get(f.srNo) || 0;
+            const target = facultyTarget.get(f.srNo) || 0;
+            const fDateMap = facultyDateSessions.get(f.srNo)!;
+            const sessionsOnDate = fDateMap.get(d.date) || new Set();
+
+            // Prioritize regular faculty first, HODs last
+            score += f.isHod ? -100_000 : 100_000;
+
+            // Prioritize faculty with 0 assignments today over faculty with 1 assignment today
+            if (sessionsOnDate.size === 0) {
+              score += 20_000;
+            }
+
+            // Prefer faculty who need duties to reach target
+            if (currentNew < target) {
+              score += (target - currentNew) * 500;
+            } else {
+              score -= (currentNew - target) * 200;
+            }
+
+            // Small RNG tie breaker
+            score += rng() * 50;
+
+            return { faculty: f, score };
+          })
+          .sort((a, b) => b.score - a.score);
+
+        const chosenReserves = candidates.slice(0, reservesNeeded);
+        chosenReserves.forEach((c) => {
+          assignmentsByDateSession.get(d.date)!.get(session)!.add(c.faculty.srNo);
+
+          if (!settings.reserveCanExceedCap) {
+            const cur = facultyTotalNew.get(c.faculty.srNo) || 0;
+            facultyTotalNew.set(c.faculty.srNo, cur + 1);
+          }
+
+          const fDateMap = facultyDateSessions.get(c.faculty.srNo)!;
+          if (!fDateMap.has(d.date)) fDateMap.set(d.date, new Set());
+          fDateMap.get(d.date)!.add(session);
+
+          finalAssignments.push({
+            id: `reserve-${c.faculty.srNo}-${d.date}-${session}`,
+            facultySrNo: c.faculty.srNo,
+            date: d.date,
+            session,
+            isLocked: false,
+            isOverride: false,
+            isReserve: true,
+          });
+        });
+      });
+    });
   }
 
   // 5. Run independent validation on the generated schedule

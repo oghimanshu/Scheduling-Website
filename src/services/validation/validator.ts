@@ -65,18 +65,18 @@ export function validateSchedule(
     allSessionsSet.add('JRS 3');
   }
   activeDates.forEach((d) => {
-    Object.keys(d.sessionRequirements).forEach((s) => allSessionsSet.add(s));
+    Object.keys(d.sessionRequirements || {}).forEach((s) => allSessionsSet.add(s));
   });
 
   const sessionList = Array.from(allSessionsSet);
 
   activeDates.forEach((d) => {
     sessionList.forEach((session) => {
-      const required = d.sessionRequirements[session] || 0;
+      const required = (d.sessionRequirements && d.sessionRequirements[session]) || 0;
       totalRequiredPositions += required;
 
       const sessionAssignments = assignments.filter(
-        (a) => a.date === d.date && a.session === session
+        (a) => a.date === d.date && a.session === session && !a.isReserve
       );
       const assignedCount = sessionAssignments.length;
       totalFilledPositions += assignedCount;
@@ -181,16 +181,16 @@ export function validateSchedule(
       });
     }
 
-    // Availability check
+    // Availability & Date-specific exclusion check
     const availKey = `${a.facultySrNo}_${a.date}`;
-    const isAvail = availability[availKey] !== false; // Default true if undefined
+    const isAvail = availability[availKey] !== false && (!fac.excludedDates || !fac.excludedDates.includes(a.date));
     if (!isAvail && !a.isOverride) {
       const dateCfg = dateConfigMap.get(a.date);
       conflicts.push({
         id: `unavail-${a.id}`,
         type: 'hard',
         category: 'unavailability',
-        message: `${fac.name} is marked UNAVAILABLE on ${dateCfg?.displayDate || a.date} but has been assigned to ${a.session}.`,
+        message: `${fac.name} is marked UNAVAILABLE / EXCLUDED on ${dateCfg?.displayDate || a.date} but has been assigned to ${a.session}.`,
         facultySrNo: fac.srNo,
         facultyName: fac.name,
         date: a.date,
@@ -214,18 +214,24 @@ export function validateSchedule(
     }
 
     // Aggregate by date
-    const dateMap = facultyDateAssignments.get(a.facultySrNo)!;
-    const currentSessions = dateMap.get(a.date) || [];
-    currentSessions.push(a.session);
-    dateMap.set(a.date, currentSessions);
+    const dateMap = facultyDateAssignments.get(a.facultySrNo);
+    if (dateMap) {
+      const currentSessions = dateMap.get(a.date) || [];
+      currentSessions.push(a.session);
+      dateMap.set(a.date, currentSessions);
+    }
 
-    // Aggregate total new
-    const curNew = facultyTotalNewSupervisions.get(a.facultySrNo) || 0;
-    facultyTotalNewSupervisions.set(a.facultySrNo, curNew + 1);
+    // Aggregate total new workload (reserve duty only counts if reserveCanExceedCap is false)
+    if (!a.isReserve || !settings.reserveCanExceedCap) {
+      const curNew = facultyTotalNewSupervisions.get(a.facultySrNo) || 0;
+      facultyTotalNewSupervisions.set(a.facultySrNo, curNew + 1);
+    }
 
     // Aggregate JRS types
-    const jrsCounts = facultyJrsTypeCounts.get(a.facultySrNo)!;
-    jrsCounts[a.session] = (jrsCounts[a.session] || 0) + 1;
+    const jrsCounts = facultyJrsTypeCounts.get(a.facultySrNo);
+    if (jrsCounts) {
+      jrsCounts[a.session] = (jrsCounts[a.session] || 0) + 1;
+    }
   });
 
   // 4. Daily limits & combinations per faculty
@@ -240,12 +246,13 @@ export function validateSchedule(
     if (fac.isHod) hodCount++;
     else regularCount++;
 
-    const dateMap = facultyDateAssignments.get(fac.srNo)!;
+    const dateMap = facultyDateAssignments.get(fac.srNo);
     let doubleCountForFaculty = 0;
 
-    dateMap.forEach((sessions, dateStr) => {
-      const dateCfg = dateConfigMap.get(dateStr);
-      const displayDate = dateCfg?.displayDate || dateStr;
+    if (dateMap) {
+      dateMap.forEach((sessions, dateStr) => {
+        const dateCfg = dateConfigMap.get(dateStr);
+        const displayDate = dateCfg?.displayDate || dateStr;
 
       // Rule: Max 2 per day
       if (sessions.length > 2) {
@@ -292,6 +299,7 @@ export function validateSchedule(
         }
       }
     });
+  }
 
     // Check soft warning: excessive double assignments
     if (doubleCountForFaculty >= 3) {

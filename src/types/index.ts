@@ -29,6 +29,7 @@ export interface Faculty {
   maxSupervisions: number;      // Maximum allowed (default: 6 for regular, 4 for HOD, editable)
   isExcluded?: boolean;         // When true, faculty is excluded from duties in this period
   exclusionReason?: string;     // e.g., 'Sabbatical', 'Medical Leave', 'Exam Committee', 'Other'
+  excludedDates?: string[];     // Specific exam dates when faculty is on leave / excluded
   notes?: string;
 }
 
@@ -54,6 +55,7 @@ export interface Assignment {
   overrideReason?: string;
   overrideTimestamp?: string;
   assignedBy?: string;       // Admin identifier if authenticated
+  isReserve?: boolean;       // When true, assigned as standby/reserve supervisor
 }
 
 export interface ValidationConflict {
@@ -141,6 +143,8 @@ export interface SchedulerSettings {
   defaultJrs3Required: number;  // Default 15
   defaultSessionTimings: Record<SessionType, SessionTiming>;
   randomSeed: number;
+  reserveSupervisorsPerSession: number; // Number of reserve supervisors per session (default 0)
+  reserveCanExceedCap: boolean;          // Whether reserve duties can exceed workload limit (default false)
   firebaseConfig?: {
     apiKey: string;
     authDomain: string;

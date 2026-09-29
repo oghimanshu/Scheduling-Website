@@ -98,7 +98,7 @@ export function analyzeInfeasibility(
         if (f.isExcluded) return; // Skip excluded faculty
 
         const availKey = `${f.srNo}_${d.date}`;
-        const isAvail = availability[availKey] !== false;
+        const isAvail = availability[availKey] !== false && (!f.excludedDates || !f.excludedDates.includes(d.date));
         if (!isAvail) {
           unavailableCount++;
           return;

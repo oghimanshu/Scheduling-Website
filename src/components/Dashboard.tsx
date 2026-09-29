@@ -14,6 +14,7 @@ import {
   ArrowRight,
   ShieldCheck,
   Upload,
+  BookOpen,
 } from 'lucide-react';
 import { useScheduler } from '../context/SchedulerContext';
 import { downloadFacultyTemplateCSV } from '../services/csvParser';
@@ -29,7 +30,6 @@ export const Dashboard: React.FC = () => {
     setIsWhyValidModalOpen,
     setIsExportModalOpen,
     isGenerating,
-    loadDemoFaculty,
   } = useScheduler();
 
   const activeDates = project.examPeriod.dates.filter((d) => !d.isExcluded);
@@ -63,16 +63,16 @@ export const Dashboard: React.FC = () => {
     <div className="space-y-6">
       {/* Session Onboarding Prompt if No Faculty Loaded */}
       {project.faculty.length === 0 && (
-        <div className="bg-gradient-to-r from-emerald-50 via-sky-50 to-indigo-50 border-2 border-dashed border-emerald-300 rounded-2xl p-6 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4">
+        <div className="bg-gradient-to-r from-emerald-50/80 via-sky-50/60 to-indigo-50/80 dark:from-emerald-950/30 dark:via-sky-950/20 dark:to-indigo-950/30 border-2 border-dashed border-emerald-300/80 dark:border-emerald-700/40 rounded-3xl p-6 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4 backdrop-blur-xs">
           <div className="flex items-center space-x-4">
-            <div className="w-12 h-12 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
+            <div className="w-12 h-12 rounded-2xl bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 flex items-center justify-center shrink-0">
               <Upload className="w-6 h-6" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-slate-900">
+              <h3 className="text-base font-bold text-slate-900 dark:text-white">
                 Welcome! Please Upload Faculty CSV for This Browser Session
               </h3>
-              <p className="text-xs text-slate-600 mt-0.5">
+              <p className="text-xs text-slate-600 dark:text-slate-300 mt-0.5">
                 Every browser session begins clean. Upload your faculty roster CSV or download our example template format to start scheduling.
               </p>
             </div>
@@ -81,26 +81,19 @@ export const Dashboard: React.FC = () => {
           <div className="flex flex-wrap items-center gap-2.5 shrink-0">
             <button
               onClick={() => downloadFacultyTemplateCSV(false)}
-              className="inline-flex items-center space-x-1.5 px-3.5 py-2 text-xs font-bold text-emerald-800 bg-white hover:bg-emerald-100 border border-emerald-300 rounded-xl shadow-2xs transition"
+              className="inline-flex items-center space-x-1.5 px-3.5 py-2 text-xs font-bold text-emerald-800 dark:text-emerald-300 bg-white/90 dark:bg-slate-800/90 hover:bg-emerald-100 dark:hover:bg-slate-700 border border-emerald-300 dark:border-emerald-800/50 rounded-xl shadow-2xs transition cursor-pointer"
               title="Download standard CSV format with mandatory headers: Sr. No., Faculty Name, HOD, Arrival"
             >
-              <Download className="w-4 h-4 text-emerald-600" />
+              <Download className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
               <span>DOWNLOAD EXAMPLE FORMAT</span>
             </button>
 
             <button
               onClick={() => setActiveTab('faculty')}
-              className="inline-flex items-center space-x-1.5 px-4 py-2 text-xs font-bold text-white bg-sky-600 hover:bg-sky-700 rounded-xl shadow-sm transition"
+              className="inline-flex items-center space-x-1.5 px-4 py-2 text-xs font-bold text-white bg-sky-600 hover:bg-sky-700 rounded-xl shadow-sm transition cursor-pointer"
             >
               <Upload className="w-4 h-4" />
               <span>UPLOAD FACULTY CSV</span>
-            </button>
-
-            <button
-              onClick={loadDemoFaculty}
-              className="inline-flex items-center space-x-1 px-3 py-2 text-xs font-medium text-slate-600 hover:text-slate-900 bg-white hover:bg-slate-100 border border-slate-200 rounded-xl transition"
-            >
-              <span>Or Load 61 Demo Faculty</span>
             </button>
           </div>
         </div>
@@ -118,12 +111,14 @@ export const Dashboard: React.FC = () => {
                 ({activeDates.length} Active Dates, {project.examPeriod.dates.length - activeDates.length} Excluded)
               </span>
             </div>
-            <h2 className="text-2xl font-extrabold tracking-tight mt-1.5">
-              College Examination Supervision Control Center
-            </h2>
-            <p className="text-sm text-sky-200 max-w-2xl mt-1">
+            <div className="flex items-center space-x-2 mt-1.5 flex-wrap gap-y-1">
+              <h2 className="text-xl sm:text-2xl font-extrabold tracking-tight">
+                College Examination Supervision Control Center
+              </h2>
+            </div>
+            <p className="text-xs sm:text-sm text-sky-200 max-w-2xl mt-1">
               Automated mathematical constraint scheduling engine guaranteeing faculty eligibility, availability,
-              workload fairness, and locked administrative assignments.
+              workload fairness, faculty-first prioritization, and locked administrative overrides.
             </p>
           </div>
 
@@ -199,47 +194,51 @@ export const Dashboard: React.FC = () => {
       </div>
 
       {/* KPI Cards Grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3.5">
         {/* Total Faculty */}
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs">
-          <div className="flex items-center justify-between text-slate-500 mb-1">
-            <span className="text-xs font-medium uppercase tracking-wider">Faculty</span>
-            <Users className="w-4 h-4 text-slate-400" />
+        <div className="apple-glass-card p-4 rounded-2xl relative overflow-hidden">
+          <div className="apple-specular-rim" />
+          <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-1">
+            <span className="text-xs font-semibold uppercase tracking-wider">Faculty</span>
+            <Users className="w-4 h-4 text-slate-400 dark:text-slate-400" />
           </div>
-          <div className="text-2xl font-bold text-slate-900">{project.faculty.length}</div>
-          <div className="text-[11px] text-slate-500 mt-0.5">
+          <div className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">{project.faculty.length}</div>
+          <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
             {regularFaculty.length} Regular • {hodFaculty.length} HOD
           </div>
         </div>
 
         {/* Active Dates */}
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs">
-          <div className="flex items-center justify-between text-slate-500 mb-1">
-            <span className="text-xs font-medium uppercase tracking-wider">Active Dates</span>
-            <Calendar className="w-4 h-4 text-slate-400" />
+        <div className="apple-glass-card p-4 rounded-2xl relative overflow-hidden">
+          <div className="apple-specular-rim" />
+          <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-1">
+            <span className="text-xs font-semibold uppercase tracking-wider">Active Dates</span>
+            <Calendar className="w-4 h-4 text-slate-400 dark:text-slate-400" />
           </div>
-          <div className="text-2xl font-bold text-slate-900">{activeDates.length}</div>
-          <div className="text-[11px] text-slate-500 mt-0.5">
+          <div className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">{activeDates.length}</div>
+          <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
             {project.examPeriod.dates.length - activeDates.length} Excluded (Holidays)
           </div>
         </div>
 
         {/* Required Positions */}
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs">
-          <div className="flex items-center justify-between text-slate-500 mb-1">
-            <span className="text-xs font-medium uppercase tracking-wider">Required</span>
-            <Layers className="w-4 h-4 text-slate-400" />
+        <div className="apple-glass-card p-4 rounded-2xl relative overflow-hidden">
+          <div className="apple-specular-rim" />
+          <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-1">
+            <span className="text-xs font-semibold uppercase tracking-wider">Required</span>
+            <Layers className="w-4 h-4 text-slate-400 dark:text-slate-400" />
           </div>
-          <div className="text-2xl font-bold text-slate-900">{validation.totalRequiredPositions}</div>
-          <div className="text-[11px] text-slate-500 mt-0.5">
+          <div className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">{validation.totalRequiredPositions}</div>
+          <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
             57 / day across 3 JRS sessions
           </div>
         </div>
 
         {/* Filled Positions */}
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs">
-          <div className="flex items-center justify-between text-slate-500 mb-1">
-            <span className="text-xs font-medium uppercase tracking-wider">Filled</span>
+        <div className="apple-glass-card p-4 rounded-2xl relative overflow-hidden">
+          <div className="apple-specular-rim" />
+          <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-1">
+            <span className="text-xs font-semibold uppercase tracking-wider">Filled</span>
             <CheckCircle2
               className={`w-4 h-4 ${
                 validation.totalFilledPositions === validation.totalRequiredPositions
@@ -249,67 +248,70 @@ export const Dashboard: React.FC = () => {
             />
           </div>
           <div
-            className={`text-2xl font-bold ${
+            className={`text-2xl font-black tracking-tight ${
               validation.totalFilledPositions === validation.totalRequiredPositions
-                ? 'text-emerald-600'
-                : 'text-amber-600'
+                ? 'text-emerald-600 dark:text-emerald-400'
+                : 'text-amber-600 dark:text-amber-400'
             }`}
           >
             {validation.totalFilledPositions}
           </div>
-          <div className="text-[11px] text-slate-500 mt-0.5">
+          <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
             {validation.unfilledPositions > 0 ? (
-              <span className="text-rose-600 font-semibold">{validation.unfilledPositions} unfilled</span>
+              <span className="text-rose-600 dark:text-rose-400 font-semibold">{validation.unfilledPositions} unfilled</span>
             ) : (
-              <span className="text-emerald-600 font-medium">100% Staffed</span>
+              <span className="text-emerald-600 dark:text-emerald-400 font-medium">100% Staffed</span>
             )}
           </div>
         </div>
 
         {/* Hard Conflicts */}
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs">
-          <div className="flex items-center justify-between text-slate-500 mb-1">
-            <span className="text-xs font-medium uppercase tracking-wider">Hard Conflicts</span>
+        <div className="apple-glass-card p-4 rounded-2xl relative overflow-hidden">
+          <div className="apple-specular-rim" />
+          <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-1">
+            <span className="text-xs font-semibold uppercase tracking-wider">Hard Conflicts</span>
             <AlertCircle
               className={`w-4 h-4 ${validation.hardConflictsCount > 0 ? 'text-rose-500' : 'text-emerald-500'}`}
             />
           </div>
           <div
-            className={`text-2xl font-bold ${
-              validation.hardConflictsCount > 0 ? 'text-rose-600' : 'text-emerald-600'
+            className={`text-2xl font-black tracking-tight ${
+              validation.hardConflictsCount > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'
             }`}
           >
             {validation.hardConflictsCount}
           </div>
-          <div className="text-[11px] text-slate-500 mt-0.5">
-            {validation.hardConflictsCount === 0 ? 'Strict Constraints Met' : 'Violation(s) detected'}
+          <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+            {validation.hardConflictsCount === 0 ? 'Strict Rules Met' : 'Violation(s) detected'}
           </div>
         </div>
 
         {/* Workload Range */}
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs">
-          <div className="flex items-center justify-between text-slate-500 mb-1">
-            <span className="text-xs font-medium uppercase tracking-wider">Workload</span>
-            <FileSpreadsheet className="w-4 h-4 text-slate-400" />
+        <div className="apple-glass-card p-4 rounded-2xl relative overflow-hidden">
+          <div className="apple-specular-rim" />
+          <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-1">
+            <span className="text-xs font-semibold uppercase tracking-wider">Workload</span>
+            <FileSpreadsheet className="w-4 h-4 text-slate-400 dark:text-slate-400" />
           </div>
-          <div className="text-2xl font-bold text-slate-900">{avgWorkload}</div>
-          <div className="text-[11px] text-slate-500 mt-0.5">
+          <div className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">{avgWorkload}</div>
+          <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
             Min: {minWorkload} • Max: {maxWorkload}
           </div>
         </div>
       </div>
 
       {/* Prominent Validation Summary Panel */}
-      <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+      <div className="apple-glass-card rounded-3xl border border-white/60 dark:border-white/10 p-6 md:p-8 shadow-glass dark:shadow-glass-dark relative overflow-hidden">
+        <div className="apple-specular-rim" />
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200/60 dark:border-white/10 pb-4">
           <div>
             <div className="flex items-center space-x-2">
-              <ShieldCheck className="w-5 h-5 text-sky-600" />
-              <h3 className="text-base font-bold text-slate-900">
+              <ShieldCheck className="w-5 h-5 text-sky-600 dark:text-sky-400" />
+              <h3 className="text-base font-bold text-slate-900 dark:text-white">
                 Mathematical Validation & Rule Verification Engine
               </h3>
             </div>
-            <p className="text-xs text-slate-500 mt-0.5">
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
               Independent audit against institutional business rules and hard constraints
             </p>
           </div>
@@ -317,17 +319,17 @@ export const Dashboard: React.FC = () => {
           <div className="flex items-center space-x-2">
             <button
               onClick={() => setIsWhyValidModalOpen(true)}
-              className="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 transition cursor-pointer flex items-center space-x-1.5"
+              className="px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-emerald-500/10 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20 border border-emerald-500/30 transition cursor-pointer flex items-center space-x-1.5"
             >
-              <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
               <span>Why is this schedule valid?</span>
             </button>
             {project.alternatives.length > 0 && (
               <button
                 onClick={() => setIsAlternativesModalOpen(true)}
-                className="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-sky-50 text-sky-700 hover:bg-sky-100 border border-sky-200 transition cursor-pointer flex items-center space-x-1.5"
+                className="px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-sky-500/10 dark:bg-sky-500/15 text-sky-700 dark:text-sky-300 hover:bg-sky-500/20 border border-sky-500/30 transition cursor-pointer flex items-center space-x-1.5"
               >
-                <Sparkles className="w-4 h-4 text-sky-600" />
+                <Sparkles className="w-4 h-4 text-sky-600 dark:text-sky-400" />
                 <span>View 5 Alternatives</span>
               </button>
             )}
@@ -335,63 +337,63 @@ export const Dashboard: React.FC = () => {
         </div>
 
         {/* Dynamic Verification Matrix */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
-          <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/60">
-            <div className="text-xs font-semibold text-slate-600">Positions Allocation</div>
-            <div className="text-lg font-bold text-slate-900 mt-1">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-5">
+          <div className="p-4 rounded-2xl bg-slate-100/70 dark:bg-slate-800/60 border border-slate-200/70 dark:border-slate-700/60 backdrop-blur-xs">
+            <div className="text-xs font-semibold text-slate-600 dark:text-slate-400">Positions Allocation</div>
+            <div className="text-xl font-black text-slate-900 dark:text-white mt-1">
               {validation.totalFilledPositions} / {validation.totalRequiredPositions}
             </div>
-            <div className="text-xs text-slate-500 mt-0.5 flex items-center space-x-1">
+            <div className="text-xs text-slate-500 dark:text-slate-400 mt-1 flex items-center space-x-1">
               {validation.unfilledPositions === 0 ? (
-                <span className="text-emerald-600 font-medium">✓ 100% Positions Staffed</span>
+                <span className="text-emerald-600 dark:text-emerald-400 font-semibold">✓ 100% Positions Staffed</span>
               ) : (
-                <span className="text-rose-600 font-medium">⚠ {validation.unfilledPositions} unallocated</span>
+                <span className="text-rose-600 dark:text-rose-400 font-semibold">⚠ {validation.unfilledPositions} unallocated</span>
               )}
             </div>
           </div>
 
-          <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/60">
-            <div className="text-xs font-semibold text-slate-600">Regular Faculty Target (6/6)</div>
-            <div className="text-lg font-bold text-slate-900 mt-1">
+          <div className="p-4 rounded-2xl bg-slate-100/70 dark:bg-slate-800/60 border border-slate-200/70 dark:border-slate-700/60 backdrop-blur-xs">
+            <div className="text-xs font-semibold text-slate-600 dark:text-slate-400">Regular Faculty Target (6/6)</div>
+            <div className="text-xl font-black text-slate-900 dark:text-white mt-1">
               {validation.regularAtTargetCount} / {validation.regularCount}
             </div>
-            <div className="text-xs text-slate-500 mt-0.5">
+            <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">
               {validation.regularAtTargetCount === validation.regularCount ? (
-                <span className="text-emerald-600 font-medium">✓ All 49 faculty at exactly 6</span>
+                <span className="text-emerald-600 dark:text-emerald-400 font-semibold">✓ All 49 faculty at exactly 6</span>
               ) : (
-                <span className="text-amber-600 font-medium">
+                <span className="text-amber-600 dark:text-amber-400 font-semibold">
                   {validation.regularCount - validation.regularAtTargetCount} deviating from target
                 </span>
               )}
             </div>
           </div>
 
-          <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/60">
-            <div className="text-xs font-semibold text-slate-600">HOD Target (4/4)</div>
-            <div className="text-lg font-bold text-slate-900 mt-1">
+          <div className="p-4 rounded-2xl bg-slate-100/70 dark:bg-slate-800/60 border border-slate-200/70 dark:border-slate-700/60 backdrop-blur-xs">
+            <div className="text-xs font-semibold text-slate-600 dark:text-slate-400">HOD Target (4/4)</div>
+            <div className="text-xl font-black text-slate-900 dark:text-white mt-1">
               {validation.hodAtTargetCount} / {validation.hodCount}
             </div>
-            <div className="text-xs text-slate-500 mt-0.5">
+            <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">
               {validation.hodAtTargetCount === validation.hodCount ? (
-                <span className="text-emerald-600 font-medium">✓ All 12 HODs at exactly 4</span>
+                <span className="text-emerald-600 dark:text-emerald-400 font-semibold">✓ All 12 HODs at exactly 4</span>
               ) : (
-                <span className="text-amber-600 font-medium">
+                <span className="text-amber-600 dark:text-amber-400 font-semibold">
                   {validation.hodCount - validation.hodAtTargetCount} deviating from target
                 </span>
               )}
             </div>
           </div>
 
-          <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/60">
-            <div className="text-xs font-semibold text-slate-600">Constraint Violations</div>
-            <div className="text-lg font-bold text-slate-900 mt-1">
+          <div className="p-4 rounded-2xl bg-slate-100/70 dark:bg-slate-800/60 border border-slate-200/70 dark:border-slate-700/60 backdrop-blur-xs">
+            <div className="text-xs font-semibold text-slate-600 dark:text-slate-400">Constraint Violations</div>
+            <div className="text-xl font-black text-slate-900 dark:text-white mt-1">
               {validation.hardConflictsCount} Hard • {validation.softWarningsCount} Soft
             </div>
-            <div className="text-xs text-slate-500 mt-0.5">
+            <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">
               {validation.hardConflictsCount === 0 ? (
-                <span className="text-emerald-600 font-medium">✓ 0 Rule Violations</span>
+                <span className="text-emerald-600 dark:text-emerald-400 font-semibold">✓ 0 Rule Violations</span>
               ) : (
-                <span className="text-rose-600 font-medium">{validation.hardConflictsCount} critical errors</span>
+                <span className="text-rose-600 dark:text-rose-400 font-semibold">{validation.hardConflictsCount} critical errors</span>
               )}
             </div>
           </div>
@@ -400,26 +402,26 @@ export const Dashboard: React.FC = () => {
         {/* Conflicts List if any */}
         {validation.conflicts.length > 0 && (
           <div className="mt-5 space-y-2">
-            <div className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+            <div className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
               Detected Notifications ({validation.conflicts.length})
             </div>
             <div className="max-h-56 overflow-y-auto space-y-2 pr-1">
               {validation.conflicts.map((c) => (
                 <div
                   key={c.id}
-                  className={`p-3 rounded-lg text-xs flex items-start space-x-2.5 border ${
+                  className={`p-3 rounded-xl text-xs flex items-start space-x-2.5 border ${
                     c.type === 'hard'
-                      ? 'bg-rose-50 border-rose-200 text-rose-800'
-                      : 'bg-amber-50 border-amber-200 text-amber-800'
+                      ? 'bg-rose-500/10 border-rose-500/30 text-rose-800 dark:text-rose-300'
+                      : 'bg-amber-500/10 border-amber-500/30 text-amber-800 dark:text-amber-300'
                   }`}
                 >
                   {c.type === 'hard' ? (
-                    <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                    <AlertCircle className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
                   ) : (
-                    <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                    <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
                   )}
                   <div className="flex-1">
-                    <span className="font-semibold uppercase text-[10px] tracking-wider px-1.5 py-0.5 rounded mr-2 bg-white/70">
+                    <span className="font-bold uppercase text-[10px] tracking-wider px-1.5 py-0.5 rounded mr-2 bg-white/70 dark:bg-white/10">
                       {c.type}
                     </span>
                     <span>{c.message}</span>
@@ -432,68 +434,89 @@ export const Dashboard: React.FC = () => {
       </div>
 
       {/* Navigation Quick Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         <div
           onClick={() => setActiveTab('faculty')}
-          className="bg-white p-5 rounded-xl border border-slate-200 shadow-2xs hover:border-sky-300 hover:shadow-md transition cursor-pointer group"
+          className="apple-glass-card p-5 rounded-2xl border border-white/60 dark:border-white/10 shadow-glass dark:shadow-glass-dark hover:border-sky-400 transition cursor-pointer group relative overflow-hidden"
         >
-          <div className="w-10 h-10 rounded-lg bg-sky-50 text-sky-600 flex items-center justify-center mb-3 group-hover:scale-105 transition">
+          <div className="apple-specular-rim" />
+          <div className="w-10 h-10 rounded-xl bg-sky-500/15 text-sky-600 dark:text-sky-400 flex items-center justify-center mb-3 group-hover:scale-105 transition">
             <Users className="w-5 h-5" />
           </div>
-          <h4 className="text-sm font-bold text-slate-900 flex items-center justify-between">
+          <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center justify-between">
             <span>Faculty Management</span>
-            <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-sky-600 group-hover:translate-x-1 transition" />
+            <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-sky-600 dark:group-hover:text-sky-400 group-hover:translate-x-1 transition" />
           </h4>
-          <p className="text-xs text-slate-500 mt-1">
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
             Import CSV, configure previous counts, manage individual HOD maximums and arrival categories.
           </p>
         </div>
 
         <div
           onClick={() => setActiveTab('period')}
-          className="bg-white p-5 rounded-xl border border-slate-200 shadow-2xs hover:border-sky-300 hover:shadow-md transition cursor-pointer group"
+          className="apple-glass-card p-5 rounded-2xl border border-white/60 dark:border-white/10 shadow-glass dark:shadow-glass-dark hover:border-indigo-400 transition cursor-pointer group relative overflow-hidden"
         >
-          <div className="w-10 h-10 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center mb-3 group-hover:scale-105 transition">
+          <div className="apple-specular-rim" />
+          <div className="w-10 h-10 rounded-xl bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 flex items-center justify-center mb-3 group-hover:scale-105 transition">
             <Calendar className="w-5 h-5" />
           </div>
-          <h4 className="text-sm font-bold text-slate-900 flex items-center justify-between">
+          <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center justify-between">
             <span>Examination Period</span>
-            <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-indigo-600 group-hover:translate-x-1 transition" />
+            <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 group-hover:translate-x-1 transition" />
           </h4>
-          <p className="text-xs text-slate-500 mt-1">
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
             Generate exam dates, exclude holidays/no-exam dates, and configure JRS 1, 2, 3 timings and staffing.
           </p>
         </div>
 
         <div
           onClick={() => setActiveTab('availability')}
-          className="bg-white p-5 rounded-xl border border-slate-200 shadow-2xs hover:border-sky-300 hover:shadow-md transition cursor-pointer group"
+          className="apple-glass-card p-5 rounded-2xl border border-white/60 dark:border-white/10 shadow-glass dark:shadow-glass-dark hover:border-emerald-400 transition cursor-pointer group relative overflow-hidden"
         >
-          <div className="w-10 h-10 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center mb-3 group-hover:scale-105 transition">
+          <div className="apple-specular-rim" />
+          <div className="w-10 h-10 rounded-xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mb-3 group-hover:scale-105 transition">
             <CheckCircle2 className="w-5 h-5" />
           </div>
-          <h4 className="text-sm font-bold text-slate-900 flex items-center justify-between">
+          <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center justify-between">
             <span>Availability Matrix</span>
-            <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-emerald-600 group-hover:translate-x-1 transition" />
+            <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 group-hover:translate-x-1 transition" />
           </h4>
-          <p className="text-xs text-slate-500 mt-1">
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
             Interactive grid to quickly mark faculty leaves, copy availability across dates, or batch update.
           </p>
         </div>
 
         <div
           onClick={() => setActiveTab('schedule')}
-          className="bg-white p-5 rounded-xl border border-slate-200 shadow-2xs hover:border-sky-300 hover:shadow-md transition cursor-pointer group"
+          className="apple-glass-card p-5 rounded-2xl border border-white/60 dark:border-white/10 shadow-glass dark:shadow-glass-dark hover:border-amber-400 transition cursor-pointer group relative overflow-hidden"
         >
-          <div className="w-10 h-10 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center mb-3 group-hover:scale-105 transition">
+          <div className="apple-specular-rim" />
+          <div className="w-10 h-10 rounded-xl bg-amber-500/15 text-amber-600 dark:text-amber-400 flex items-center justify-center mb-3 group-hover:scale-105 transition">
             <FileSpreadsheet className="w-5 h-5" />
           </div>
-          <h4 className="text-sm font-bold text-slate-900 flex items-center justify-between">
+          <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center justify-between">
             <span>Schedule Views</span>
-            <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-amber-600 group-hover:translate-x-1 transition" />
+            <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-amber-600 dark:group-hover:text-amber-400 group-hover:translate-x-1 transition" />
           </h4>
-          <p className="text-xs text-slate-500 mt-1">
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
             Faculty Schedule View, Date/Session Duty Rosters, and Workload Target Distribution.
+          </p>
+        </div>
+
+        <div
+          onClick={() => setActiveTab('instructions')}
+          className="apple-glass-card p-5 rounded-2xl border border-white/60 dark:border-white/10 shadow-glass dark:shadow-glass-dark hover:border-purple-400 transition cursor-pointer group relative overflow-hidden"
+        >
+          <div className="apple-specular-rim" />
+          <div className="w-10 h-10 rounded-xl bg-purple-500/15 text-purple-600 dark:text-purple-400 flex items-center justify-center mb-3 group-hover:scale-105 transition">
+            <BookOpen className="w-5 h-5" />
+          </div>
+          <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center justify-between">
+            <span>Instructions &amp; Guide</span>
+            <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-purple-600 dark:group-hover:text-purple-400 group-hover:translate-x-1 transition" />
+          </h4>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+            Full administration workflow, CSV templates, policy constraints, and user manual.
           </p>
         </div>
       </div>

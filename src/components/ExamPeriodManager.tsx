@@ -170,7 +170,7 @@ export const ExamPeriodManager: React.FC = () => {
   const activeDates = project.examPeriod.dates.filter((d) => !d.isExcluded);
   const totalPeriodPositions = activeDates.reduce((sum, d) => {
     const daySum = (project.sessions || []).reduce(
-      (sSum, s) => sSum + (d.sessionRequirements[s.id] || 0),
+      (sSum, s) => sSum + (d.sessionRequirements?.[s.id] || 0),
       0
     );
     return sum + daySum;
@@ -179,60 +179,60 @@ export const ExamPeriodManager: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Period Setup Card */}
-      <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-2xs space-y-4">
+      <div className="apple-glass-card p-6 space-y-4">
         <div>
-          <h2 className="text-xl font-bold text-slate-900">Examination Period Setup</h2>
-          <p className="text-xs text-slate-500 mt-1">
+          <h2 className="text-xl font-bold text-slate-900 dark:text-white">Examination Period Setup</h2>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
             Specify the exam date boundaries and generate active dates. Dates can be individually marked as holidays or non-examination days.
           </p>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
           <div>
-            <label className="text-xs font-semibold text-slate-700 block mb-1">
+            <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
               Examination Period Name
             </label>
             <input
               type="text"
               value={periodName}
               onChange={(e) => setPeriodName(e.target.value)}
-              className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500"
+              className="w-full px-3 py-1.5 text-xs bg-white/70 dark:bg-slate-900/70 border border-slate-300 dark:border-white/10 rounded-lg text-slate-900 dark:text-white focus:ring-2 focus:ring-sky-500 transition"
             />
           </div>
 
           <div>
-            <label className="text-xs font-semibold text-slate-700 block mb-1">
+            <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
               START DATE
             </label>
             <input
               type="date"
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
-              className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500"
+              className="w-full px-3 py-1.5 text-xs bg-white/70 dark:bg-slate-900/70 border border-slate-300 dark:border-white/10 rounded-lg text-slate-900 dark:text-white focus:ring-2 focus:ring-sky-500 transition"
             />
           </div>
 
           <div>
-            <label className="text-xs font-semibold text-slate-700 block mb-1">
+            <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
               END DATE
             </label>
             <input
               type="date"
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
-              className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500"
+              className="w-full px-3 py-1.5 text-xs bg-white/70 dark:bg-slate-900/70 border border-slate-300 dark:border-white/10 rounded-lg text-slate-900 dark:text-white focus:ring-2 focus:ring-sky-500 transition"
             />
           </div>
         </div>
 
-        <div className="flex justify-between items-center pt-2">
-          <div className="text-xs text-slate-500">
-            Current configuration: <strong className="text-slate-800">{activeDates.length}</strong> active exam dates,{' '}
-            <strong className="text-slate-800">{totalPeriodPositions}</strong> total positions required.
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pt-2">
+          <div className="text-xs text-slate-500 dark:text-slate-400">
+            Current configuration: <strong className="text-slate-800 dark:text-slate-200">{activeDates.length}</strong> active exam dates,{' '}
+            <strong className="text-slate-800 dark:text-slate-200">{totalPeriodPositions}</strong> total positions required.
           </div>
           <button
             onClick={handleGenerateDates}
-            className="px-4 py-2 text-xs font-semibold text-white bg-sky-600 hover:bg-sky-700 rounded-lg shadow-sm transition"
+            className="px-4 py-2 text-xs font-semibold text-white bg-sky-600 hover:bg-sky-500 active:scale-98 rounded-lg shadow-sm hover:shadow transition"
           >
             GENERATE DATES
           </button>
@@ -240,17 +240,17 @@ export const ExamPeriodManager: React.FC = () => {
       </div>
 
       {/* Global Staffing Template & Apply All */}
-      <div className="bg-sky-50/70 p-5 rounded-xl border border-sky-200/70 flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="apple-glass-card p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 border-sky-200/50 dark:border-sky-500/20 bg-sky-50/40 dark:bg-sky-950/20">
         <div>
           <div className="flex items-center space-x-2">
-            <h3 className="text-xs font-bold text-sky-900 uppercase tracking-wider">
+            <h3 className="text-xs font-bold text-sky-900 dark:text-sky-300 uppercase tracking-wider">
               Daily Staffing Requirements
             </h3>
-            <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-sky-200 text-sky-800">
+            <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-sky-100 dark:bg-sky-900/60 text-sky-700 dark:text-sky-300 border border-sky-200 dark:border-sky-800/40">
               {(project.sessions || []).length} Sessions Configured
             </span>
           </div>
-          <p className="text-xs text-sky-700 mt-0.5">
+          <p className="text-xs text-sky-700 dark:text-sky-400/80 mt-0.5">
             Default: JRS 1 = 17, JRS 2 = 25, JRS 3 = 15. Set values below and click to apply universally to all active dates.
           </p>
         </div>
@@ -259,22 +259,22 @@ export const ExamPeriodManager: React.FC = () => {
           {(project.sessions || []).map((s) => (
             <div
               key={s.id}
-              className="flex items-center space-x-1.5 text-xs bg-white px-3 py-1.5 rounded-lg border border-sky-200 shadow-2xs"
+              className="flex items-center space-x-1.5 text-xs bg-white/80 dark:bg-slate-900/80 px-3 py-1.5 rounded-lg border border-sky-200/70 dark:border-white/10 shadow-2xs backdrop-blur-sm"
             >
-              <span className="font-semibold text-slate-700">{s.name}:</span>
+              <span className="font-semibold text-slate-700 dark:text-slate-300">{s.name}:</span>
               <input
                 type="number"
                 min="0"
                 value={getTemplateReq(s.id, s.defaultRequirement)}
                 onChange={(e) => setTemplateReq(s.id, parseInt(e.target.value, 10) || 0)}
-                className="w-14 text-center font-bold text-slate-900 border-b border-sky-300 focus:outline-none"
+                className="w-14 text-center font-bold text-slate-900 dark:text-white bg-transparent border-b border-sky-300 dark:border-sky-600 focus:outline-none"
               />
             </div>
           ))}
 
           <button
             onClick={handleApplyToAllActiveDates}
-            className="px-3.5 py-1.5 text-xs font-semibold bg-sky-600 hover:bg-sky-700 text-white rounded-lg shadow-sm transition"
+            className="px-3.5 py-1.5 text-xs font-semibold bg-sky-600 hover:bg-sky-500 text-white rounded-lg shadow-sm hover:shadow transition"
           >
             Apply to all dates
           </button>
@@ -282,30 +282,30 @@ export const ExamPeriodManager: React.FC = () => {
           {/* Manage Sessions & Timings Modal Trigger */}
           <button
             onClick={() => setIsSessionManagerModalOpen(true)}
-            className="inline-flex items-center space-x-1.5 px-3 py-1.5 text-xs font-semibold text-purple-700 bg-purple-100 hover:bg-purple-200 border border-purple-300 rounded-lg shadow-2xs transition"
+            className="inline-flex items-center space-x-1.5 px-3 py-1.5 text-xs font-semibold text-purple-700 dark:text-purple-300 bg-purple-100/80 dark:bg-purple-950/40 hover:bg-purple-200 dark:hover:bg-purple-900/50 border border-purple-300/80 dark:border-purple-800/40 rounded-lg shadow-2xs transition"
             title="Add additional JRS sessions (e.g. JRS 4) or edit timings"
           >
-            <Clock className="w-3.5 h-3.5 text-purple-600" />
+            <Clock className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
             <span>MANAGE SESSIONS (JRS)</span>
           </button>
         </div>
       </div>
 
       {/* Date-by-Date Configuration Table */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-2xs overflow-hidden">
-        <div className="p-4 border-b border-slate-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+      <div className="apple-glass-card overflow-hidden">
+        <div className="p-4 border-b border-slate-100 dark:border-white/5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
           <div>
-            <h3 className="text-sm font-bold text-slate-900">
+            <h3 className="text-sm font-bold text-slate-900 dark:text-white">
               Individual Date Roster & Exclusions ({project.examPeriod.dates.length} Dates)
             </h3>
-            <span className="text-xs text-slate-500">
+            <span className="text-xs text-slate-500 dark:text-slate-400">
               Excluded dates require zero supervisors and cannot receive assignments.
             </span>
           </div>
 
           <button
             onClick={() => setIsSessionManagerModalOpen(true)}
-            className="inline-flex items-center space-x-1.5 text-xs font-semibold text-purple-700 hover:text-purple-800 transition"
+            className="inline-flex items-center space-x-1.5 text-xs font-semibold text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 transition"
           >
             <Clock className="w-3.5 h-3.5" />
             <span>Add / Edit JRS Sessions & Timings &rarr;</span>
@@ -314,7 +314,7 @@ export const ExamPeriodManager: React.FC = () => {
 
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
-            <thead className="bg-slate-50 text-slate-600 font-semibold uppercase tracking-wider border-b border-slate-200 text-[11px]">
+            <thead className="bg-slate-50/60 dark:bg-slate-800/60 text-slate-600 dark:text-slate-300 font-semibold uppercase tracking-wider border-b border-slate-200/60 dark:border-white/5 text-[11px]">
               <tr>
                 <th className="py-3 px-4">Status</th>
                 <th className="py-3 px-4">Date</th>
@@ -323,7 +323,7 @@ export const ExamPeriodManager: React.FC = () => {
                 {(project.sessions || []).map((s) => (
                   <th key={s.id} className="py-3 px-3 text-center">
                     <div>{s.name}</div>
-                    <div className="text-[10px] text-slate-400 font-normal">
+                    <div className="text-[10px] text-slate-400 dark:text-slate-500 font-normal">
                       {s.defaultTiming.start}-{s.defaultTiming.end}
                     </div>
                   </th>
@@ -331,10 +331,10 @@ export const ExamPeriodManager: React.FC = () => {
                 <th className="py-3 px-4 text-center">Total Staffing</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-slate-100 dark:divide-white/5">
               {project.examPeriod.dates.map((d) => {
                 const dayTotal = (project.sessions || []).reduce(
-                  (acc, s) => acc + (d.sessionRequirements[s.id] || 0),
+                  (acc, s) => acc + (d.sessionRequirements?.[s.id] || 0),
                   0
                 );
 
@@ -342,7 +342,9 @@ export const ExamPeriodManager: React.FC = () => {
                   <tr
                     key={d.date}
                     className={`transition ${
-                      d.isExcluded ? 'bg-slate-50/70 text-slate-400' : 'hover:bg-slate-50/80 text-slate-800'
+                      d.isExcluded
+                        ? 'bg-slate-50/40 dark:bg-slate-900/30 text-slate-400 dark:text-slate-500'
+                        : 'hover:bg-sky-50/30 dark:hover:bg-white/5 text-slate-800 dark:text-slate-200'
                     }`}
                   >
                     {/* Checkbox toggle */}
@@ -352,20 +354,20 @@ export const ExamPeriodManager: React.FC = () => {
                           type="checkbox"
                           checked={!d.isExcluded}
                           onChange={() => handleToggleExclusion(d.date)}
-                          className="rounded text-sky-600 focus:ring-sky-500 h-4 w-4"
+                          className="rounded text-sky-600 focus:ring-sky-500 h-4 w-4 bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700"
                         />
                         <span className="text-[11px] font-medium">
                           {!d.isExcluded ? (
-                            <span className="text-emerald-700 font-bold">Active</span>
+                            <span className="text-emerald-600 dark:text-emerald-400 font-bold">Active</span>
                           ) : (
-                            <span className="text-slate-400">Excluded</span>
+                            <span className="text-slate-400 dark:text-slate-500">Excluded</span>
                           )}
                         </span>
                       </label>
                     </td>
 
                     <td className="py-3 px-4 font-semibold">{d.displayDate}</td>
-                    <td className="py-3 px-4">{d.dayOfWeek}</td>
+                    <td className="py-3 px-4 text-slate-600 dark:text-slate-400">{d.dayOfWeek}</td>
 
                     {/* Exclusion Reason selector */}
                     <td className="py-3 px-4">
@@ -375,14 +377,14 @@ export const ExamPeriodManager: React.FC = () => {
                           onChange={(e) =>
                             handleChangeExclusionReason(d.date, e.target.value as ExclusionReason)
                           }
-                          className="text-xs bg-white border border-slate-300 rounded px-2 py-1 text-slate-700 font-medium"
+                          className="text-xs bg-white/80 dark:bg-slate-900/80 border border-slate-300 dark:border-white/10 rounded px-2 py-1 text-slate-700 dark:text-slate-300 font-medium"
                         >
                           <option value="Holiday">HOLIDAY</option>
                           <option value="No Examination">NO EXAMINATION</option>
                           <option value="Other">OTHER</option>
                         </select>
                       ) : (
-                        <span className="text-slate-400 italic text-[11px]">Examination Active</span>
+                        <span className="text-slate-400 dark:text-slate-500 italic text-[11px]">Examination Active</span>
                       )}
                     </td>
 
@@ -393,11 +395,11 @@ export const ExamPeriodManager: React.FC = () => {
                           type="number"
                           disabled={d.isExcluded}
                           min="0"
-                          value={d.sessionRequirements[s.id] ?? 0}
+                          value={d.sessionRequirements?.[s.id] ?? 0}
                           onChange={(e) =>
                             handleUpdateRequirement(d.date, s.id, parseInt(e.target.value, 10) || 0)
                           }
-                          className="w-14 text-center font-bold px-1.5 py-1 border border-slate-200 rounded disabled:bg-slate-100 disabled:text-slate-400"
+                          className="w-14 text-center font-bold px-1.5 py-1 bg-white/70 dark:bg-slate-900/70 border border-slate-200 dark:border-white/10 rounded text-slate-900 dark:text-white disabled:bg-slate-100/50 dark:disabled:bg-slate-950/40 disabled:text-slate-400 dark:disabled:text-slate-600"
                         />
                       </td>
                     ))}
@@ -405,9 +407,9 @@ export const ExamPeriodManager: React.FC = () => {
                     {/* Total */}
                     <td className="py-3 px-4 text-center font-mono font-bold">
                       {d.isExcluded ? (
-                        <span className="text-slate-400">0</span>
+                        <span className="text-slate-400 dark:text-slate-600">0</span>
                       ) : (
-                        <span className="text-sky-700">{dayTotal}</span>
+                        <span className="text-sky-600 dark:text-sky-400">{dayTotal}</span>
                       )}
                     </td>
                   </tr>

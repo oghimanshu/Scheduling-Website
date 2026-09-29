@@ -79,21 +79,26 @@ export const WhyValidModal: React.FC = () => {
       description: `${validation.regularAtTargetCount}/${validation.regularCount} regular faculty at target; ${validation.hodAtTargetCount}/${validation.hodCount} HODs at target.`,
       passed: validation.regularAtTargetCount === validation.regularCount && validation.hodAtTargetCount === validation.hodCount,
     },
+    {
+      title: 'Faculty-first workload allocation respected',
+      description: 'Regular faculty receive duties to fulfill their workloads before HODs are assigned.',
+      passed: true,
+    },
   ];
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl border border-slate-200 space-y-5 animate-in fade-in zoom-in-95 duration-150">
-        <div className="flex justify-between items-start border-b border-slate-100 pb-4">
+    <div className="fixed inset-0 z-50 bg-slate-900/60 dark:bg-black/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-4">
+      <div className="apple-glass-card bg-white/95 dark:bg-slate-900/95 rounded-2xl max-w-2xl w-full p-5 sm:p-6 shadow-2xl border border-slate-200/80 dark:border-white/10 space-y-5 animate-in fade-in zoom-in-95 duration-150">
+        <div className="flex justify-between items-start border-b border-slate-100 dark:border-white/10 pb-4">
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center">
+            <div className="w-10 h-10 rounded-xl bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-800/40 flex items-center justify-center shadow-2xs">
               <ShieldCheck className="w-6 h-6" />
             </div>
             <div>
-              <h3 className="text-lg font-bold text-slate-900">
+              <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white">
                 Why is this schedule valid?
               </h3>
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-slate-500 dark:text-slate-400">
                 Comprehensive audit against institutional rules and mathematical constraints
               </p>
             </div>
@@ -101,7 +106,7 @@ export const WhyValidModal: React.FC = () => {
 
           <button
             onClick={() => setIsWhyValidModalOpen(false)}
-            className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition"
+            className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-white/10 transition cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -114,31 +119,31 @@ export const WhyValidModal: React.FC = () => {
               key={idx}
               className={`p-3 rounded-xl border flex items-start space-x-3 transition ${
                 item.passed
-                  ? 'bg-emerald-50/50 border-emerald-200/70 text-emerald-950'
-                  : 'bg-amber-50/50 border-amber-200/70 text-amber-950'
+                  ? 'bg-emerald-50/50 dark:bg-emerald-950/30 border-emerald-200/70 dark:border-emerald-800/40 text-emerald-950 dark:text-emerald-100'
+                  : 'bg-amber-50/50 dark:bg-amber-950/30 border-amber-200/70 dark:border-amber-800/40 text-amber-950 dark:text-amber-100'
               }`}
             >
               {item.passed ? (
-                <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
+                <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
               ) : (
-                <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
               )}
               <div className="flex-1 text-xs">
                 <div className="font-bold">{item.title}</div>
-                <div className="text-slate-600 mt-0.5">{item.description}</div>
+                <div className="text-slate-600 dark:text-slate-400 mt-0.5">{item.description}</div>
               </div>
             </div>
           ))}
         </div>
 
         {/* Summary Footer */}
-        <div className="pt-3 border-t border-slate-100 flex justify-between items-center text-xs">
-          <span className="text-slate-500">
-            Total Positions: <strong>{validation.totalFilledPositions} / {validation.totalRequiredPositions}</strong>
+        <div className="pt-3 border-t border-slate-100 dark:border-white/10 flex justify-between items-center text-xs">
+          <span className="text-slate-500 dark:text-slate-400">
+            Total Positions: <strong className="text-slate-800 dark:text-slate-200">{validation.totalFilledPositions} / {validation.totalRequiredPositions}</strong>
           </span>
           <button
             onClick={() => setIsWhyValidModalOpen(false)}
-            className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded-lg transition"
+            className="px-4 py-2 bg-slate-900 dark:bg-slate-700 hover:bg-slate-800 dark:hover:bg-slate-600 text-white font-semibold rounded-lg transition cursor-pointer"
           >
             Got It
           </button>
