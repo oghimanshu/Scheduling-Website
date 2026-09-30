@@ -13,9 +13,12 @@ import {
   Sparkles,
   Users,
   Shield,
+  ArrowRightLeft,
+  Scale,
 } from 'lucide-react';
 import { useScheduler } from '../context/SchedulerContext';
 import { SessionType, Assignment, Faculty } from '../types';
+import { WorkloadAnalytics } from './WorkloadAnalytics';
 
 export const ScheduleViewer: React.FC = () => {
   const {
@@ -26,11 +29,14 @@ export const ScheduleViewer: React.FC = () => {
     setSelectedAssignmentForInspect,
     setManualEditSlot,
     validation,
+    setSelectedForSubstitute,
+    setIsSubstituteModalOpen,
   } = useScheduler();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [sessionFilter, setSessionFilter] = useState<'All' | SessionType>('All');
   const [onlyDoubleAssignments, setOnlyDoubleAssignments] = useState(false);
+  const [showAnalytics, setShowAnalytics] = useState(false);
 
   const activeDates = useMemo(
     () => project.examPeriod.dates.filter((d) => !d.isExcluded),
@@ -124,6 +130,20 @@ export const ScheduleViewer: React.FC = () => {
             <BarChart3 className="w-3.5 h-3.5" />
             <span>C. Workload View</span>
           </button>
+
+          {/* Workload Fairness & Analytics Toggle */}
+          <button
+            onClick={() => setShowAnalytics(!showAnalytics)}
+            className={`flex items-center justify-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer border ${
+              showAnalytics
+                ? 'bg-sky-100 dark:bg-sky-950/70 text-sky-800 dark:text-sky-200 border-sky-300 dark:border-sky-800 shadow-2xs'
+                : 'bg-white/80 dark:bg-slate-900/80 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-white/10 hover:bg-slate-100'
+            }`}
+            title="Toggle Workload Equity & Distribution Analytics"
+          >
+            <Scale className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
+            <span>Equity Analytics</span>
+          </button>
         </div>
 
         {/* Filters */}
@@ -150,6 +170,9 @@ export const ScheduleViewer: React.FC = () => {
           </label>
         </div>
       </div>
+
+      {/* Real-time Workload Fairness & Analytics Panel */}
+      {showAnalytics && <WorkloadAnalytics />}
 
       {/* VIEW A: FACULTY VIEW */}
       {scheduleViewMode === 'faculty' && (
@@ -231,18 +254,32 @@ export const ScheduleViewer: React.FC = () => {
                                       {a.isReserve && <Shield className="w-2.5 h-2.5 text-amber-600 dark:text-amber-400 shrink-0" />}
                                       <span className="truncate">{a.session}{a.isReserve ? ' (R)' : ''}</span>
                                     </div>
-                                    {a.isLocked ? (
-                                      <span title="Locked Assignment">
-                                        <Lock className="w-3 h-3 text-slate-600 dark:text-slate-400 shrink-0 ml-1" />
-                                      </span>
-                                    ) : a.isOverride ? (
-                                      <span
-                                        className="text-[8px] px-1 rounded bg-amber-500 text-white font-bold"
-                                        title={`Override: ${a.overrideReason || ''}`}
+                                    <div className="flex items-center space-x-1 shrink-0 ml-1">
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setSelectedForSubstitute(a);
+                                          setIsSubstituteModalOpen(true);
+                                        }}
+                                        className="p-0.5 hover:bg-black/10 dark:hover:bg-white/10 rounded transition cursor-pointer"
+                                        title="Find Substitute / Swap Colleague"
                                       >
-                                        OVR
-                                      </span>
-                                    ) : null}
+                                        <ArrowRightLeft className="w-2.5 h-2.5 opacity-70 hover:opacity-100" />
+                                      </button>
+                                      {a.isLocked ? (
+                                        <span title="Locked Assignment">
+                                          <Lock className="w-3 h-3 text-slate-600 dark:text-slate-400 shrink-0" />
+                                        </span>
+                                      ) : a.isOverride ? (
+                                        <span
+                                          className="text-[8px] px-1 rounded bg-amber-500 text-white font-bold"
+                                          title={`Override: ${a.overrideReason || ''}`}
+                                        >
+                                          OVR
+                                        </span>
+                                      ) : null}
+                                    </div>
                                   </div>
                                 ))}
                                 {isDouble && (
@@ -386,6 +423,18 @@ export const ScheduleViewer: React.FC = () => {
                                     {fac?.isHod && (
                                       <span className="text-[9px] font-bold text-indigo-600 dark:text-indigo-400">HOD</span>
                                     )}
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setSelectedForSubstitute(a);
+                                        setIsSubstituteModalOpen(true);
+                                      }}
+                                      className="p-0.5 hover:bg-black/10 dark:hover:bg-white/10 rounded transition cursor-pointer"
+                                      title="Find Substitute / Swap Colleague"
+                                    >
+                                      <ArrowRightLeft className="w-2.5 h-2.5 text-slate-400 hover:text-sky-600" />
+                                    </button>
                                     {a.isLocked && (
                                       <Lock className="w-3 h-3 text-slate-500 dark:text-slate-400" />
                                     )}

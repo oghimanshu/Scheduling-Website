@@ -19,10 +19,73 @@ export interface SessionDefinition {
   eligibleArrivals: ArrivalCategory[]; // which arrival categories can supervise this session
 }
 
+export type HodAssignmentPriority = 'regular_first_hod_last' | 'hod_first' | 'proportional_equal';
+
+export interface CustomRoleDefinition {
+  id: string;
+  name: string;             // e.g. 'Professor', 'Associate Professor', 'Assistant Professor', 'Visiting'
+  defaultTarget: number;    // e.g. 4, 6, 8
+  defaultMax: number;       // e.g. 4, 6, 8
+  concessionDelta: number;  // negative for concession (fewer duties), positive for additional duties
+  schedulingPriority: 'concession_last' | 'standard' | 'priority_first';
+  color?: string;           // Badge color e.g. 'indigo', 'sky', 'emerald', 'amber', 'purple'
+}
+
+export const DEFAULT_CUSTOM_ROLES: CustomRoleDefinition[] = [
+  {
+    id: 'hod',
+    name: 'HOD',
+    defaultTarget: 4,
+    defaultMax: 4,
+    concessionDelta: -2,
+    schedulingPriority: 'concession_last',
+    color: 'indigo',
+  },
+  {
+    id: 'professor',
+    name: 'Senior Professor',
+    defaultTarget: 4,
+    defaultMax: 4,
+    concessionDelta: -2,
+    schedulingPriority: 'concession_last',
+    color: 'purple',
+  },
+  {
+    id: 'regular',
+    name: 'Regular Faculty',
+    defaultTarget: 6,
+    defaultMax: 6,
+    concessionDelta: 0,
+    schedulingPriority: 'standard',
+    color: 'sky',
+  },
+  {
+    id: 'assistant_prof',
+    name: 'Assistant Professor',
+    defaultTarget: 6,
+    defaultMax: 6,
+    concessionDelta: 0,
+    schedulingPriority: 'standard',
+    color: 'emerald',
+  },
+  {
+    id: 'adjunct',
+    name: 'Visiting / Additional Duty',
+    defaultTarget: 8,
+    defaultMax: 8,
+    concessionDelta: 2,
+    schedulingPriority: 'priority_first',
+    color: 'amber',
+  },
+];
+
 export interface Faculty {
   srNo: number;             // Preserves original Sr. No. from CSV (e.g., starts at 4)
   name: string;
   isHod: boolean;
+  role?: string;            // Segregated custom role name (e.g. 'HOD', 'Regular', 'Senior Professor', etc.)
+  concessionOrAdditionalDuties?: number; // Delta to baseline workload (+ for additional, - for concession)
+  department?: string;      // Optional department / discipline
   arrival: ArrivalCategory;
   previousSupervisions: number; // Carried in from previous period
   targetSupervisions: number;   // Target workload (default: 6 for regular, 4 for HOD)
@@ -43,6 +106,18 @@ export interface ExamDateConfig {
   exclusionReason?: ExclusionReason;
   sessionRequirements: Record<SessionType, number>; // e.g. { 'JRS 1': 17, 'JRS 2': 25, 'JRS 3': 15, 'JRS 4': 10 }
   sessionTimings: Record<SessionType, SessionTiming>;
+  sessionArrivals?: Record<SessionType, ArrivalCategory[]>; // Overrides per date-session, fallback to session.eligibleArrivals
+}
+
+export interface SubstituteCandidate {
+  faculty: Faculty;
+  currentDutyCount: number;
+  isAvailable: boolean;
+  isEligibleArrival: boolean;
+  hasOverlappingDuty: boolean;
+  isEligible: boolean;
+  score: number;
+  conflictReasons: string[];
 }
 
 export interface Assignment {
@@ -134,10 +209,44 @@ export interface AdministratorOverride {
   adminName?: string;
 }
 
+export type TabType =
+  | 'dashboard'
+  | 'faculty'
+  | 'roles'
+  | 'period'
+  | 'availability'
+  | 'schedule'
+  | 'instructions';
+
+export interface CloudUser {
+  uid: string;
+  displayName: string | null;
+  email: string | null;
+  photoURL: string | null;
+}
+
+export interface CloudSessionSummary {
+  id: string;
+  projectName: string;
+  examPeriodName: string;
+  facultyCount: number;
+  assignmentsCount: number;
+  updatedAt: string;
+  savedBy?: string;
+  savedByEmail?: string;
+}
+
 export interface SchedulerSettings {
   allowJrs1Jrs3Double: boolean; // Default false
   defaultRegularMax: number;    // Default 6
   defaultHodMax: number;        // Default 4
+  hodAssignmentPriority: HodAssignmentPriority; // 'regular_first_hod_last' | 'hod_first' | 'proportional_equal'
+  customRoles: CustomRoleDefinition[];
+  avoidConsecutiveDays: boolean;            // Avoid duties on back-to-back days
+  minimizeDoubleDuties: boolean;            // Minimize 2 duties on same day
+  balanceSeniorityPerSession: boolean;      // Mix senior faculty with junior faculty in each session
+  strictWorkloadEqualization: boolean;      // Keep duty counts identical across peers
+  promptGenerationOptions: boolean;         // Show options popup before generating
   defaultJrs1Required: number;  // Default 17
   defaultJrs2Required: number;  // Default 25
   defaultJrs3Required: number;  // Default 15

@@ -72,15 +72,23 @@
   background: rgba(100, 116, 139, 0.8);
 }
 
-/* Print Friendly Styles (Requirement 26) */
+/* Print Friendly Styles (Clean Paper & PDF Output) */
 @media print {
-  header, footer, nav, button, input[type="file"], .no-print {
+  header, footer, nav, button, input, select, .no-print {
     display: none !important;
   }
 
-  body {
+  body, html {
     background: white !important;
     color: black !important;
+    overflow: visible !important;
+    font-size: 10pt !important;
+  }
+
+  #root {
+    width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
   }
 
   main {
@@ -89,13 +97,26 @@
     margin: 0 !important;
   }
 
+  .overflow-x-auto, .overflow-y-auto {
+    overflow: visible !important;
+    max-height: none !important;
+  }
+
   table {
     border-collapse: collapse !important;
     width: 100% !important;
+    page-break-inside: auto !important;
+  }
+
+  tr {
+    page-break-inside: avoid !important;
+    page-break-after: auto !important;
   }
 
   th, td {
-    border: 1px solid #cbd5e1 !important;
+    border: 1px solid #64748b !important;
+    color: #0f172a !important;
     padding: 4px 6px !important;
+    background: white !important;
   }
 }

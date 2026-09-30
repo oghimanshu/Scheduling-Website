@@ -16,9 +16,10 @@ import {
   Calendar,
   CalendarX,
   X,
+  Users,
 } from 'lucide-react';
 import { useScheduler } from '../context/SchedulerContext';
-import { Faculty, ArrivalCategory } from '../types';
+import { Faculty, ArrivalCategory, DEFAULT_CUSTOM_ROLES } from '../types';
 import {
   parseFacultyCSV,
   generateSampleFacultyCSV,
@@ -29,7 +30,9 @@ export const FacultyManager: React.FC = () => {
   const {
     project,
     updateFacultyList,
+    setActiveTab,
     setIsReassignHodsModalOpen,
+    setIsRoleSegregationModalOpen,
     toggleFacultyHod,
     toggleFacultyExclusion,
     updateFacultyExcludedDates,
@@ -37,7 +40,7 @@ export const FacultyManager: React.FC = () => {
   } = useScheduler();
 
   const [searchTerm, setSearchTerm] = useState('');
-  const [roleFilter, setRoleFilter] = useState<'All' | 'Regular' | 'HOD'>('All');
+  const [roleFilter, setRoleFilter] = useState<string>('All');
   const [arrivalFilter, setArrivalFilter] = useState<'All' | ArrivalCategory>('All');
   const [inclusionFilter, setInclusionFilter] = useState<'All' | 'Active' | 'Excluded'>('All');
   const [editingFaculty, setEditingFaculty] = useState<Faculty | null>(null);
@@ -88,8 +91,15 @@ export const FacultyManager: React.FC = () => {
       const matchSearch =
         f.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         f.srNo.toString().includes(searchTerm);
+      const currentRole = f.role || (f.isHod ? 'HOD' : 'Regular');
       const matchRole =
-        roleFilter === 'All' ? true : roleFilter === 'HOD' ? f.isHod : !f.isHod;
+        roleFilter === 'All'
+          ? true
+          : roleFilter === 'HOD'
+          ? f.isHod
+          : roleFilter === 'Regular'
+          ? !f.isHod
+          : currentRole.toLowerCase() === roleFilter.toLowerCase();
       const matchArrival =
         arrivalFilter === 'All' ? true : f.arrival === arrivalFilter;
       const matchInclusion =
@@ -270,6 +280,16 @@ export const FacultyManager: React.FC = () => {
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5">
+          {/* Segregate Faculty Roles */}
+          <button
+            onClick={() => setActiveTab('roles')}
+            className="inline-flex items-center space-x-1.5 px-3.5 py-2 text-xs font-bold text-purple-700 dark:text-purple-300 bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/30 rounded-xl transition cursor-pointer"
+            title="Open Role Manager workspace to customize role tiers, duty caps, and concessions"
+          >
+            <Users className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
+            <span>ROLE MANAGER</span>
+          </button>
+
           {/* Reassign HODs Button */}
           <button
             onClick={() => setIsReassignHodsModalOpen(true)}
@@ -426,11 +446,16 @@ export const FacultyManager: React.FC = () => {
             <select
               value={roleFilter}
               onChange={(e) => setRoleFilter(e.target.value as any)}
-              className="text-xs bg-white/70 dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl px-2.5 py-1.5 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-sky-500"
+              className="text-xs bg-white/70 dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl px-2.5 py-1.5 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-sky-500 font-medium"
             >
               <option value="All">All Roles</option>
               <option value="Regular">Regular Faculty</option>
               <option value="HOD">HODs Only</option>
+              {(project.settings.customRoles || DEFAULT_CUSTOM_ROLES).map((r) => (
+                <option key={r.id} value={r.name}>
+                  {r.name}
+                </option>
+              ))}
             </select>
 
             {/* Arrival Filter */}
@@ -524,18 +549,40 @@ export const FacultyManager: React.FC = () => {
                       )}
                     </td>
                     <td className="py-3 px-3">
-                      <button
-                        type="button"
-                        onClick={() => toggleFacultyHod(f.srNo)}
-                        title="Click to toggle between Regular and HOD designation"
-                        className={`px-2 py-0.5 rounded-full text-[10px] font-bold transition cursor-pointer ${
-                          f.isHod
-                            ? 'bg-indigo-100 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/60 hover:bg-indigo-200'
-                            : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-200'
-                        }`}
-                      >
-                        {f.isHod ? 'HOD' : 'Regular'}
-                      </button>
+                      <div className="flex flex-col items-start gap-1">
+                        <button
+                          type="button"
+                          onClick={() => toggleFacultyHod(f.srNo)}
+                          title="Click to toggle between Regular and HOD designation, or edit faculty to assign custom role"
+                          className={`px-2 py-0.5 rounded-full text-[10px] font-bold transition cursor-pointer text-left ${
+                            f.isHod
+                              ? 'bg-indigo-100 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/60 hover:bg-indigo-200'
+                              : f.role && f.role !== 'Regular'
+                              ? 'bg-purple-100 dark:bg-purple-950/80 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800/60 hover:bg-purple-200'
+                              : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-200'
+                          }`}
+                        >
+                          {f.role || (f.isHod ? 'HOD' : 'Regular')}
+                        </button>
+                        {f.concessionOrAdditionalDuties !== undefined && f.concessionOrAdditionalDuties !== 0 && (
+                          <span
+                            className={`px-1.5 py-0.2 rounded text-[9px] font-mono font-bold ${
+                              f.concessionOrAdditionalDuties < 0
+                                ? 'bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800/60'
+                                : 'bg-sky-100 dark:bg-sky-950/80 text-sky-700 dark:text-sky-300 border border-sky-300 dark:border-sky-800/60'
+                            }`}
+                            title={
+                              f.concessionOrAdditionalDuties < 0
+                                ? `Concession: ${Math.abs(f.concessionOrAdditionalDuties)} fewer duties allocated`
+                                : `Additional: +${f.concessionOrAdditionalDuties} extra duties allocated`
+                            }
+                          >
+                            {f.concessionOrAdditionalDuties < 0
+                              ? `${f.concessionOrAdditionalDuties} Concession`
+                              : `+${f.concessionOrAdditionalDuties} Extra`}
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="py-3 px-3 text-center">
                       <div className="flex flex-col items-center gap-1">
@@ -1026,27 +1073,74 @@ export const FacultyManager: React.FC = () => {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">HOD Designation</label>
+                  <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                    Designation / Segregated Role
+                  </label>
                   <select
-                    value={editingFaculty.isHod ? 'Yes' : 'No'}
+                    value={editingFaculty.role || (editingFaculty.isHod ? 'Head of Department' : 'Regular Faculty')}
                     onChange={(e) => {
-                      const isHod = e.target.value === 'Yes';
+                      const selectedRoleName = e.target.value;
+                      const matchedRole = (project.settings.customRoles || DEFAULT_CUSTOM_ROLES).find(
+                        (r) => r.name === selectedRoleName
+                      );
+                      const isHod = matchedRole
+                        ? matchedRole.id === 'hod' || matchedRole.name.toLowerCase().includes('hod')
+                        : selectedRoleName.toLowerCase().includes('hod');
+                      const concession = matchedRole ? matchedRole.concessionDelta : (isHod ? -2 : 0);
+                      const maxCap = matchedRole ? matchedRole.defaultMax : (isHod ? 4 : 6);
+                      const targetCap = matchedRole ? matchedRole.defaultTarget : (isHod ? 4 : 6);
+
                       setEditingFaculty({
                         ...editingFaculty,
+                        role: selectedRoleName,
                         isHod,
-                        targetSupervisions: isHod ? 4 : 6,
-                        maxSupervisions: isHod ? 4 : 6,
+                        concessionOrAdditionalDuties: concession,
+                        maxSupervisions: maxCap,
+                        targetSupervisions: targetCap,
                       });
                     }}
-                    className="w-full px-3 py-1.5 bg-white/80 dark:bg-slate-800/80 border border-slate-300 dark:border-white/10 rounded-xl text-slate-900 dark:text-white"
+                    className="w-full px-3 py-1.5 bg-white/80 dark:bg-slate-800/80 border border-slate-300 dark:border-white/10 rounded-xl text-slate-900 dark:text-white font-medium"
                   >
-                    <option value="No">No (Regular Faculty)</option>
-                    <option value="Yes">Yes (HOD)</option>
+                    {(project.settings.customRoles || DEFAULT_CUSTOM_ROLES).map((role) => (
+                      <option key={role.id} value={role.name}>
+                        {role.name} {role.id === 'hod' ? '(HOD)' : ''}
+                      </option>
+                    ))}
                   </select>
                 </div>
 
+                <div>
+                  <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                    Role Concession / Extra Duties
+                  </label>
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="number"
+                      min="-10"
+                      max="10"
+                      value={editingFaculty.concessionOrAdditionalDuties ?? 0}
+                      onChange={(e) =>
+                        setEditingFaculty({
+                          ...editingFaculty,
+                          concessionOrAdditionalDuties: parseInt(e.target.value, 10) || 0,
+                        })
+                      }
+                      className="w-24 px-3 py-1.5 bg-white/80 dark:bg-slate-800/80 border border-slate-300 dark:border-white/10 rounded-xl text-slate-900 dark:text-white font-mono font-bold"
+                    />
+                    <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                      {(editingFaculty.concessionOrAdditionalDuties ?? 0) < 0
+                        ? 'Fewer duties (concession)'
+                        : (editingFaculty.concessionOrAdditionalDuties ?? 0) > 0
+                        ? 'Additional duties'
+                        : 'Standard quota'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">Arrival Category</label>
                   <select
@@ -1063,6 +1157,24 @@ export const FacultyManager: React.FC = () => {
                     <option value="Mid">Mid (JRS 1, JRS 2, JRS 3)</option>
                     <option value="Afternoon">Afternoon (JRS 2, JRS 3)</option>
                   </select>
+                </div>
+
+                <div>
+                  <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                    Department
+                  </label>
+                  <input
+                    type="text"
+                    value={editingFaculty.department || ''}
+                    onChange={(e) =>
+                      setEditingFaculty({
+                        ...editingFaculty,
+                        department: e.target.value,
+                      })
+                    }
+                    placeholder="e.g. Computer Science"
+                    className="w-full px-3 py-1.5 bg-white/80 dark:bg-slate-800/80 border border-slate-300 dark:border-white/10 rounded-xl text-slate-900 dark:text-white"
+                  />
                 </div>
               </div>
 

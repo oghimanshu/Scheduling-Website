@@ -16,9 +16,21 @@ import { SettingsModal } from './components/SettingsModal';
 import { ReassignHodsModal } from './components/ReassignHodsModal';
 import { SessionManagerModal } from './components/SessionManagerModal';
 import { InstructionsView } from './components/InstructionsView';
+import { ResetSessionConfirmModal } from './components/ResetSessionConfirmModal';
+import { RoleSegregationModal } from './components/RoleSegregationModal';
+import { DutySlipsModal } from './components/DutySlipsModal';
+import { RoleManagerView } from './components/RoleManagerView';
+import { GenerationOptionsModal } from './components/GenerationOptionsModal';
+import { GoogleAuthModal } from './components/GoogleAuthModal';
+import { SubstituteModal } from './components/SubstituteModal';
 
 const AppContent: React.FC = () => {
-  const { activeTab } = useScheduler();
+  const {
+    activeTab,
+    selectedForSubstitute,
+    isSubstituteModalOpen,
+    setIsSubstituteModalOpen,
+  } = useScheduler();
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 transition-colors duration-300 relative overflow-hidden">
@@ -36,6 +48,7 @@ const AppContent: React.FC = () => {
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 relative z-10">
         {activeTab === 'dashboard' && <Dashboard />}
         {activeTab === 'faculty' && <FacultyManager />}
+        {activeTab === 'roles' && <RoleManagerView />}
         {activeTab === 'period' && <ExamPeriodManager />}
         {activeTab === 'availability' && <AvailabilityManager />}
         {activeTab === 'schedule' && <ScheduleViewer />}
@@ -74,6 +87,16 @@ const AppContent: React.FC = () => {
       <SettingsModal />
       <ReassignHodsModal />
       <SessionManagerModal />
+      <ResetSessionConfirmModal />
+      <RoleSegregationModal />
+      <DutySlipsModal />
+      <GenerationOptionsModal />
+      <GoogleAuthModal />
+      <SubstituteModal
+        assignment={selectedForSubstitute}
+        isOpen={isSubstituteModalOpen}
+        onClose={() => setIsSubstituteModalOpen(false)}
+      />
     </div>
   );
 };

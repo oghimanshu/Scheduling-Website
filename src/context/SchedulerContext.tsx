@@ -10,17 +10,23 @@ import {
   ValidationSummary,
   SessionDefinition,
   SessionTiming,
+  CustomRoleDefinition,
+  HodAssignmentPriority,
+  TabType,
+  CloudUser,
+  SchedulerSettings,
 } from '../types';
-import { INITIAL_PROJECT_STATE, DEFAULT_SESSIONS } from '../data/defaultData';
+import { INITIAL_PROJECT_STATE, EMPTY_SESSION_PROJECT_STATE, DEFAULT_SESSIONS } from '../data/defaultData';
 import { validateSchedule } from '../services/validation/validator';
 import { analyzeInfeasibility, InfeasibilityReport } from '../services/validation/infeasibility';
 import { generateFiveAlternatives, generateSingleAlternative } from '../services/scheduler/alternatives';
 import { rebalanceSchedule } from '../services/scheduler/rebalance';
-import { saveProjectToStorage, loadProjectFromStorage } from '../services/storage/localStorage';
+import { saveProjectToStorage, loadProjectFromStorage, clearProjectStorage } from '../services/storage/localStorage';
+import { FirebaseManager, CloudSyncStatus } from '../services/storage/firebase';
 
 interface SchedulerContextType {
   project: ProjectState;
-  activeTab: 'dashboard' | 'faculty' | 'period' | 'availability' | 'schedule' | 'instructions';
+  activeTab: TabType;
   scheduleViewMode: 'faculty' | 'session' | 'workload';
   validation: ValidationSummary;
   isGenerating: boolean;
@@ -33,12 +39,20 @@ interface SchedulerContextType {
   isSettingsModalOpen: boolean;
   isReassignHodsModalOpen: boolean;
   isSessionManagerModalOpen: boolean;
+  isDutySlipsModalOpen: boolean;
+  isRoleSegregationModalOpen: boolean;
+  isResetConfirmModalOpen: boolean;
+  isGenerationOptionsModalOpen: boolean;
+  isGoogleAuthModalOpen: boolean;
+  isPrintViewActive: boolean;
   infeasibilityReport: InfeasibilityReport | null;
+  currentUser: CloudUser | null;
+  cloudSyncStatus: CloudSyncStatus;
   isDarkMode: boolean;
   toggleDarkMode: () => void;
 
   // Setters
-  setActiveTab: (tab: 'dashboard' | 'faculty' | 'period' | 'availability' | 'schedule' | 'instructions') => void;
+  setActiveTab: (tab: TabType) => void;
   setScheduleViewMode: (mode: 'faculty' | 'session' | 'workload') => void;
   setSelectedAssignmentForInspect: (assignment: Assignment | null) => void;
   setManualEditSlot: (slot: { facultySrNo?: number; date: string; session: SessionType } | null) => void;
@@ -48,13 +62,25 @@ interface SchedulerContextType {
   setIsSettingsModalOpen: (open: boolean) => void;
   setIsReassignHodsModalOpen: (open: boolean) => void;
   setIsSessionManagerModalOpen: (open: boolean) => void;
+  setIsDutySlipsModalOpen: (open: boolean) => void;
+  setIsRoleSegregationModalOpen: (open: boolean) => void;
+  setIsResetConfirmModalOpen: (open: boolean) => void;
+  setIsGenerationOptionsModalOpen: (open: boolean) => void;
+  setIsGoogleAuthModalOpen: (open: boolean) => void;
+  selectedForSubstitute: Assignment | null;
+  setSelectedForSubstitute: (assignment: Assignment | null) => void;
+  isSubstituteModalOpen: boolean;
+  setIsSubstituteModalOpen: (open: boolean) => void;
+  setIsPrintViewActive: (active: boolean) => void;
   setInfeasibilityReport: (report: InfeasibilityReport | null) => void;
 
   // Core Operations
   generateAlternatives: () => void;
+  executeGenerateAlternatives: (overrideSettings?: Partial<SchedulerSettings>) => void;
   generateAnotherAlternative: (customSeed?: number) => void;
   selectAlternative: (alternativeId: string) => void;
   rebalanceCurrentSchedule: () => void;
+  loadProjectFromCloudSession: (cloudState: ProjectState) => void;
   toggleLockAssignment: (assignmentId: string) => void;
   addOrUpdateAssignment: (
     facultySrNo: number,
@@ -64,6 +90,7 @@ interface SchedulerContextType {
     overrideReason?: string
   ) => { success: boolean; error?: string };
   removeAssignment: (assignmentId: string) => void;
+  updateAssignments: (assignments: Assignment[]) => void;
   swapFacultyAssignments: (
     srNo1: number,
     date1: string,
@@ -90,7 +117,12 @@ interface SchedulerContextType {
   updateSettings: (updater: Partial<ProjectState['settings']>) => void;
   importProjectData: (newState: ProjectState) => void;
   resetProject: () => void;
+  resetSessionToZero: () => void;
   clearAssignments: () => void;
+  updateFacultyRole: (srNo: number, role: string, concession?: number, target?: number, max?: number) => void;
+  bulkSegregateRoles: (srNos: number[], role: string, concession?: number, target?: number, max?: number) => void;
+  updateCustomRoles: (roles: CustomRoleDefinition[]) => void;
+  updateHodAssignmentPriority: (priority: HodAssignmentPriority) => void;
 }
 
 const SchedulerContext = createContext<SchedulerContextType | undefined>(undefined);
@@ -105,7 +137,7 @@ export const SchedulerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     return st;
   });
 
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'faculty' | 'period' | 'availability' | 'schedule' | 'instructions'>('dashboard');
+  const [activeTab, setActiveTab] = useState<TabType>('dashboard');
   const [scheduleViewMode, setScheduleViewMode] = useState<'faculty' | 'session' | 'workload'>('faculty');
   const [isGenerating, setIsGenerating] = useState(false);
   const [lastSaved, setLastSaved] = useState<string>(project.lastSavedTimestamp || 'Not saved yet');
@@ -117,7 +149,27 @@ export const SchedulerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [isReassignHodsModalOpen, setIsReassignHodsModalOpen] = useState(false);
   const [isSessionManagerModalOpen, setIsSessionManagerModalOpen] = useState(false);
+  const [isDutySlipsModalOpen, setIsDutySlipsModalOpen] = useState(false);
+  const [isRoleSegregationModalOpen, setIsRoleSegregationModalOpen] = useState(false);
+  const [isResetConfirmModalOpen, setIsResetConfirmModalOpen] = useState(false);
+  const [isGenerationOptionsModalOpen, setIsGenerationOptionsModalOpen] = useState(false);
+  const [isGoogleAuthModalOpen, setIsGoogleAuthModalOpen] = useState(false);
+  const [selectedForSubstitute, setSelectedForSubstitute] = useState<Assignment | null>(null);
+  const [isSubstituteModalOpen, setIsSubstituteModalOpen] = useState(false);
+  const [isPrintViewActive, setIsPrintViewActive] = useState(false);
   const [infeasibilityReport, setInfeasibilityReport] = useState<InfeasibilityReport | null>(null);
+
+  // Cloud Sync & Auth State
+  const [cloudSyncStatus, setCloudSyncStatus] = useState<CloudSyncStatus>(() => FirebaseManager.getInstance().getStatus());
+  const [currentUser, setCurrentUser] = useState<CloudUser | null>(() => FirebaseManager.getInstance().getStatus().user);
+
+  useEffect(() => {
+    const unsub = FirebaseManager.getInstance().subscribe((s) => {
+      setCloudSyncStatus(s);
+      setCurrentUser(s.user);
+    });
+    return unsub;
+  }, []);
 
   // Dark Mode State
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
@@ -184,10 +236,14 @@ export const SchedulerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
   }, [validation.isValid, validation.totalFilledPositions, validation.totalRequiredPositions]);
 
-  // Generate 5 alternative schedules
-  const generateAlternatives = useCallback(() => {
+  // Execute alternative generation with current or override settings
+  const executeGenerateAlternatives = useCallback((overrideSettings?: Partial<SchedulerSettings>) => {
     setIsGenerating(true);
     setInfeasibilityReport(null);
+
+    const effectiveSettings = overrideSettings
+      ? { ...project.settings, ...overrideSettings }
+      : project.settings;
 
     setTimeout(() => {
       try {
@@ -196,7 +252,7 @@ export const SchedulerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           project.faculty,
           project.examPeriod.dates,
           project.availability,
-          project.settings,
+          effectiveSettings,
           locked,
           project.sessions
         );
@@ -207,7 +263,7 @@ export const SchedulerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             project.examPeriod.dates,
             locked,
             project.availability,
-            project.settings,
+            effectiveSettings,
             project.sessions
           );
           setInfeasibilityReport(report);
@@ -219,6 +275,7 @@ export const SchedulerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         const bestAlt = alternatives[0];
         setProject((prev) => ({
           ...prev,
+          settings: effectiveSettings,
           activeScheduleId: bestAlt.id,
           assignments: bestAlt.assignments,
           alternatives,
@@ -231,6 +288,22 @@ export const SchedulerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       }
     }, 50);
   }, [project.faculty, project.examPeriod.dates, project.availability, project.settings, project.assignments, project.sessions]);
+
+  // Generate 5 alternative schedules (triggers interactive modal if promptGenerationOptions is true)
+  const generateAlternatives = useCallback(() => {
+    if (project.settings.promptGenerationOptions !== false) {
+      setIsGenerationOptionsModalOpen(true);
+    } else {
+      executeGenerateAlternatives();
+    }
+  }, [project.settings.promptGenerationOptions, executeGenerateAlternatives]);
+
+  // Load project from cloud session
+  const loadProjectFromCloudSession = useCallback((cloudState: ProjectState) => {
+    setProject(cloudState);
+    saveProjectToStorage(cloudState);
+    confetti({ particleCount: 40, spread: 60, origin: { y: 0.6 } });
+  }, []);
 
   // Generate another alternative with custom or next seed
   const generateAnotherAlternative = useCallback((customSeed?: number) => {
@@ -395,6 +468,19 @@ export const SchedulerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         return a;
       });
       return { ...prev, assignments: newAssignments };
+    });
+  }, []);
+
+  // Bulk update assignments directly (e.g. from Substitute modal)
+  const updateAssignments = useCallback((newAssignments: Assignment[]) => {
+    setProject((prev) => {
+      const updated = {
+        ...prev,
+        assignments: newAssignments,
+        lastSavedTimestamp: new Date().toLocaleTimeString('en-GB'),
+      };
+      saveProjectToStorage(updated);
+      return updated;
     });
   }, []);
 
@@ -700,6 +786,14 @@ export const SchedulerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setProject(INITIAL_PROJECT_STATE);
   }, []);
 
+  // Complete Reset Everything to Zero & Clear Storage
+  const resetSessionToZero = useCallback(() => {
+    clearProjectStorage();
+    setProject(EMPTY_SESSION_PROJECT_STATE);
+    setIsResetConfirmModalOpen(false);
+    setActiveTab('faculty');
+  }, []);
+
   // Clear assignments
   const clearAssignments = useCallback(() => {
     setProject((prev) => ({
@@ -707,6 +801,79 @@ export const SchedulerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       assignments: [],
       alternatives: [],
       activeScheduleId: null,
+    }));
+  }, []);
+
+  // Update individual faculty role
+  const updateFacultyRole = useCallback((
+    srNo: number,
+    role: string,
+    concession?: number,
+    target?: number,
+    max?: number
+  ) => {
+    setProject((prev) => ({
+      ...prev,
+      faculty: prev.faculty.map((f) => {
+        if (f.srNo !== srNo) return f;
+        const isHodRole = role.toLowerCase().includes('hod') || role.toLowerCase().includes('head');
+        return {
+          ...f,
+          role,
+          isHod: isHodRole,
+          concessionOrAdditionalDuties: concession !== undefined ? concession : (f.concessionOrAdditionalDuties ?? 0),
+          targetSupervisions: target !== undefined ? target : f.targetSupervisions,
+          maxSupervisions: max !== undefined ? max : f.maxSupervisions,
+        };
+      }),
+    }));
+  }, []);
+
+  // Bulk segregate roles
+  const bulkSegregateRoles = useCallback((
+    srNos: number[],
+    role: string,
+    concession?: number,
+    target?: number,
+    max?: number
+  ) => {
+    const targetSet = new Set(srNos);
+    const isHodRole = role.toLowerCase().includes('hod') || role.toLowerCase().includes('head');
+    setProject((prev) => ({
+      ...prev,
+      faculty: prev.faculty.map((f) => {
+        if (!targetSet.has(f.srNo)) return f;
+        return {
+          ...f,
+          role,
+          isHod: isHodRole,
+          concessionOrAdditionalDuties: concession !== undefined ? concession : (f.concessionOrAdditionalDuties ?? 0),
+          targetSupervisions: target !== undefined ? target : f.targetSupervisions,
+          maxSupervisions: max !== undefined ? max : f.maxSupervisions,
+        };
+      }),
+    }));
+  }, []);
+
+  // Update custom roles in settings
+  const updateCustomRoles = useCallback((roles: CustomRoleDefinition[]) => {
+    setProject((prev) => ({
+      ...prev,
+      settings: {
+        ...prev.settings,
+        customRoles: roles,
+      },
+    }));
+  }, []);
+
+  // Update HOD assignment priority
+  const updateHodAssignmentPriority = useCallback((priority: HodAssignmentPriority) => {
+    setProject((prev) => ({
+      ...prev,
+      settings: {
+        ...prev.settings,
+        hodAssignmentPriority: priority,
+      },
     }));
   }, []);
 
@@ -727,7 +894,19 @@ export const SchedulerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         isSettingsModalOpen,
         isReassignHodsModalOpen,
         isSessionManagerModalOpen,
+        isDutySlipsModalOpen,
+        isRoleSegregationModalOpen,
+        isResetConfirmModalOpen,
+        isGenerationOptionsModalOpen,
+        isGoogleAuthModalOpen,
+        selectedForSubstitute,
+        setSelectedForSubstitute,
+        isSubstituteModalOpen,
+        setIsSubstituteModalOpen,
+        isPrintViewActive,
         infeasibilityReport,
+        currentUser,
+        cloudSyncStatus,
         isDarkMode,
         toggleDarkMode,
         setActiveTab,
@@ -740,14 +919,23 @@ export const SchedulerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         setIsSettingsModalOpen,
         setIsReassignHodsModalOpen,
         setIsSessionManagerModalOpen,
+        setIsDutySlipsModalOpen,
+        setIsRoleSegregationModalOpen,
+        setIsResetConfirmModalOpen,
+        setIsGenerationOptionsModalOpen,
+        setIsGoogleAuthModalOpen,
+        setIsPrintViewActive,
         setInfeasibilityReport,
         generateAlternatives,
+        executeGenerateAlternatives,
         generateAnotherAlternative,
         selectAlternative,
         rebalanceCurrentSchedule,
+        loadProjectFromCloudSession,
         toggleLockAssignment,
         addOrUpdateAssignment,
         removeAssignment,
+        updateAssignments,
         swapFacultyAssignments,
         updateFacultyList,
         toggleFacultyHod,
@@ -767,7 +955,12 @@ export const SchedulerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         updateSettings,
         importProjectData,
         resetProject,
+        resetSessionToZero,
         clearAssignments,
+        updateFacultyRole,
+        bulkSegregateRoles,
+        updateCustomRoles,
+        updateHodAssignmentPriority,
       }}
     >
       {children}

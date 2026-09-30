@@ -76,10 +76,19 @@ export const DEFAULT_DATES_CONFIG: ExamDateConfig[] = [
   },
 ];
 
+import { DEFAULT_CUSTOM_ROLES } from '../types';
+
 export const DEFAULT_SETTINGS: SchedulerSettings = {
   allowJrs1Jrs3Double: false,
   defaultRegularMax: 6,
   defaultHodMax: 4,
+  hodAssignmentPriority: 'regular_first_hod_last',
+  customRoles: DEFAULT_CUSTOM_ROLES,
+  avoidConsecutiveDays: true,
+  minimizeDoubleDuties: true,
+  balanceSeniorityPerSession: true,
+  strictWorkloadEqualization: true,
+  promptGenerationOptions: true,
   defaultJrs1Required: 17,
   defaultJrs2Required: 25,
   defaultJrs3Required: 15,
@@ -125,6 +134,25 @@ export const INITIAL_PROJECT_STATE: ProjectState = {
     dates: DEFAULT_DATES_CONFIG,
   },
   availability: {}, // Default is available
+  activeScheduleId: null,
+  assignments: [],
+  alternatives: [],
+  overrides: [],
+  settings: DEFAULT_SETTINGS,
+};
+
+export const EMPTY_SESSION_PROJECT_STATE: ProjectState = {
+  version: '1.0.0',
+  projectName: 'Examination Supervision Scheduler - Fresh Session',
+  faculty: [],
+  sessions: DEFAULT_SESSIONS,
+  examPeriod: {
+    name: 'New Examination Period',
+    startDate: '',
+    endDate: '',
+    dates: [],
+  },
+  availability: {},
   activeScheduleId: null,
   assignments: [],
   alternatives: [],

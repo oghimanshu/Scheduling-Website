@@ -8,13 +8,18 @@ import {
   ArrivalCategory,
   SessionType,
   SessionDefinition,
+  SessionTiming,
 } from '../../types';
 
 export function isFacultyEligibleForSession(
   arrival: ArrivalCategory,
   session: SessionType,
-  sessionDefinitions?: SessionDefinition[]
+  sessionDefinitions?: SessionDefinition[],
+  dateConfig?: ExamDateConfig
 ): boolean {
+  if (dateConfig?.sessionArrivals && dateConfig.sessionArrivals[session]) {
+    return dateConfig.sessionArrivals[session].includes(arrival);
+  }
   if (sessionDefinitions && sessionDefinitions.length > 0) {
     const def = sessionDefinitions.find((s) => s.id === session || s.name === session);
     if (def) {
@@ -31,6 +36,67 @@ export function isFacultyEligibleForSession(
     return session === 'JRS 2' || session === 'JRS 3';
   }
   return true;
+}
+
+export interface TimingOverlapWarning {
+  sessionA: SessionType;
+  sessionB: SessionType;
+  type: 'overlap' | 'tight_turnaround';
+  message: string;
+}
+
+export function checkSessionTimingsOverlap(
+  sessionTimings?: Record<SessionType, SessionTiming>
+): TimingOverlapWarning[] {
+  if (!sessionTimings) return [];
+  const warnings: TimingOverlapWarning[] = [];
+  const sessionEntries = Object.entries(sessionTimings);
+
+  for (let i = 0; i < sessionEntries.length; i++) {
+    for (let j = i + 1; j < sessionEntries.length; j++) {
+      const [sA, tA] = sessionEntries[i];
+      const [sB, tB] = sessionEntries[j];
+      if (!tA?.start || !tA?.end || !tB?.start || !tB?.end) continue;
+
+      const [startAH, startAM] = tA.start.split(':').map(Number);
+      const [endAH, endAM] = tA.end.split(':').map(Number);
+      const [startBH, startBM] = tB.start.split(':').map(Number);
+      const [endBH, endBM] = tB.end.split(':').map(Number);
+
+      const startAMin = (startAH || 0) * 60 + (startAM || 0);
+      const endAMin = (endAH || 0) * 60 + (endAM || 0);
+      const startBMin = (startBH || 0) * 60 + (startBM || 0);
+      const endBMin = (endBH || 0) * 60 + (endBM || 0);
+
+      // Check overlap
+      if (Math.max(startAMin, startBMin) < Math.min(endAMin, endBMin)) {
+        warnings.push({
+          sessionA: sA,
+          sessionB: sB,
+          type: 'overlap',
+          message: `${sA} (${tA.start}-${tA.end}) and ${sB} (${tB.start}-${tB.end}) timings overlap!`,
+        });
+      } else {
+        // Check turnaround break between end of earlier session and start of next
+        let gap = -1;
+        if (endAMin <= startBMin) {
+          gap = startBMin - endAMin;
+        } else if (endBMin <= startAMin) {
+          gap = startAMin - endBMin;
+        }
+        if (gap >= 0 && gap < 15) {
+          warnings.push({
+            sessionA: sA,
+            sessionB: sB,
+            type: 'tight_turnaround',
+            message: `Turnaround break between ${sA} and ${sB} is only ${gap} min(s) (recommended ≥ 15 mins).`,
+          });
+        }
+      }
+    }
+  }
+
+  return warnings;
 }
 
 export function validateSchedule(
@@ -156,6 +222,7 @@ export function validateSchedule(
 
   assignments.forEach((a) => {
     const fac = facultyMap.get(a.facultySrNo);
+    const dateCfg = dateConfigMap.get(a.date);
     if (!fac) {
       conflicts.push({
         id: `unknown-faculty-${a.id}`,
@@ -199,7 +266,7 @@ export function validateSchedule(
     }
 
     // Eligibility check
-    const eligible = isFacultyEligibleForSession(fac.arrival, a.session, sessionDefinitions);
+    const eligible = isFacultyEligibleForSession(fac.arrival, a.session, sessionDefinitions, dateCfg);
     if (!eligible && !a.isOverride) {
       conflicts.push({
         id: `inelig-${a.id}`,

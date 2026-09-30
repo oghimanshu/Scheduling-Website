@@ -53,6 +53,15 @@ export function solveExaminationSchedule(
   const rng = createRng(seed);
 
   const activeDates = datesConfig.filter((d) => !d.isExcluded);
+  const facultyMap = new Map<number, Faculty>(facultyList.map((f) => [f.srNo, f]));
+  const dateConfigMap = new Map<string, ExamDateConfig>(datesConfig.map((d) => [d.date, d]));
+
+  const prevActiveDateMap = new Map<string, string>();
+  const nextActiveDateMap = new Map<string, string>();
+  for (let i = 0; i < activeDates.length; i++) {
+    if (i > 0) prevActiveDateMap.set(activeDates[i].date, activeDates[i - 1].date);
+    if (i < activeDates.length - 1) nextActiveDateMap.set(activeDates[i].date, activeDates[i + 1].date);
+  }
 
   // Determine all active sessions
   const allSessionsSet = new Set<string>();
@@ -159,7 +168,8 @@ export function solveExaminationSchedule(
     if (availability[availKey] === false || (faculty.excludedDates && faculty.excludedDates.includes(date))) return false;
 
     // Eligibility check
-    if (!isFacultyEligibleForSession(faculty.arrival, session, options.sessionDefinitions)) return false;
+    const dateCfg = dateConfigMap.get(date);
+    if (!isFacultyEligibleForSession(faculty.arrival, session, options.sessionDefinitions, dateCfg)) return false;
 
     // Duplicate check in same session
     const sessionSet = assignmentsByDateSession.get(date)?.get(session);
@@ -240,11 +250,30 @@ export function solveExaminationSchedule(
     const target = facultyTarget.get(faculty.srNo) || 0;
     const maxCap = facultyMaxCap.get(faculty.srNo) || 0;
 
-    // Strict Role Tiering:
-    // Regular faculty with remaining workload to target gets highest tier (+1,000,000)
-    // Regular faculty with remaining capacity up to max gets tier (+500,000)
-    // HODs get lowest tier (-1,000,000) so regular faculty are assigned every slot first!
-    if (!faculty.isHod) {
+    const hodPriority = settings.hodAssignmentPriority || 'regular_first_hod_last';
+
+    // Role Tiering & Priority:
+    if (hodPriority === 'hod_first') {
+      // HODs are prioritized first
+      if (faculty.isHod) {
+        if (currentNew < target) {
+          score += 1_000_000;
+          score += (target - currentNew) * 5_000;
+        } else if (currentNew < maxCap) {
+          score += 500_000;
+          score += (maxCap - currentNew) * 1_000;
+        }
+      } else {
+        // Regular faculty assigned secondary
+        if (currentNew < target) {
+          score += 200_000;
+          score += (target - currentNew) * 2_000;
+        } else if (currentNew < maxCap) {
+          score += 100_000;
+        }
+      }
+    } else if (hodPriority === 'proportional_equal') {
+      // Proportional: everyone treated equally according to remaining distance to target
       if (currentNew < target) {
         score += 1_000_000;
         score += (target - currentNew) * 5_000;
@@ -255,17 +284,76 @@ export function solveExaminationSchedule(
         score -= 200_000;
       }
     } else {
-      // HOD tier: strictly lower than any regular faculty who can take the slot
-      score -= 1_000_000;
-      score += (target - currentNew) * 1_000;
-      if (currentNew >= target) {
-        score -= 50_000 * (currentNew - target + 1);
+      // 'regular_first_hod_last' (default):
+      if (!faculty.isHod) {
+        if (currentNew < target) {
+          score += 1_000_000;
+          score += (target - currentNew) * 5_000;
+        } else if (currentNew < maxCap) {
+          score += 500_000;
+          score += (maxCap - currentNew) * 1_000;
+        } else {
+          score -= 200_000;
+        }
+      } else {
+        // HOD tier: lower priority as concession
+        score -= 1_000_000;
+        score += (target - currentNew) * 1_000;
+        if (currentNew >= target) {
+          score -= 50_000 * (currentNew - target + 1);
+        }
       }
     }
 
-    // Heavy penalty for second assignment of the day (within its tier)
+    // Role Concession / Additional Duty Delta adjustments:
+    if (faculty.concessionOrAdditionalDuties) {
+      score += faculty.concessionOrAdditionalDuties * 2_500;
+    }
+
+    // 1. Consecutive Days Rest Rule (give rest days between exam duties):
+    if (settings.avoidConsecutiveDays) {
+      const fDateMap = facultyDateSessions.get(faculty.srNo);
+      if (fDateMap) {
+        const prevD = prevActiveDateMap.get(_date);
+        const nextD = nextActiveDateMap.get(_date);
+        const workedPrev = prevD ? (fDateMap.get(prevD)?.size || 0) > 0 : false;
+        const workedNext = nextD ? (fDateMap.get(nextD)?.size || 0) > 0 : false;
+        if (workedPrev || workedNext) {
+          score -= 35_000;
+        }
+      }
+    }
+
+    // 2. Double Duty Policy:
     if (isSecondOfDay) {
-      score -= 80_000;
+      score -= settings.minimizeDoubleDuties ? 250_000 : 80_000;
+    }
+
+    // 3. Seniority & Experience Balance per Session:
+    if (settings.balanceSeniorityPerSession) {
+      const isSenior = faculty.isHod || (faculty.role && faculty.role.toLowerCase().includes('professor'));
+      const sessionAssigned = assignmentsByDateSession.get(_date)?.get(session);
+      if (sessionAssigned && sessionAssigned.size > 0) {
+        let seniorCount = 0;
+        sessionAssigned.forEach((sr) => {
+          const fac = facultyMap.get(sr);
+          if (fac && (fac.isHod || (fac.role && fac.role.toLowerCase().includes('professor')))) {
+            seniorCount++;
+          }
+        });
+        if (isSenior) {
+          if (seniorCount >= 2) {
+            score -= 15_000; // room already has senior supervision; save for other rooms
+          } else {
+            score += 15_000; // room needs senior presence
+          }
+        }
+      }
+    }
+
+    // 4. Strict Workload Equalization:
+    if (settings.strictWorkloadEqualization) {
+      score -= (currentNew * currentNew) * 6_000;
     }
 
     // Category specialization preference:
@@ -372,7 +460,7 @@ export function solveExaminationSchedule(
 
         for (const session of sessionOrder) {
           if (uDateSessions.has(session)) continue; // Already in this session
-          if (!isFacultyEligibleForSession(under.arrival, session, options.sessionDefinitions)) continue;
+          if (!isFacultyEligibleForSession(under.arrival, session, options.sessionDefinitions, d)) continue;
 
           // Check double duty combination rule if under already has 1 duty today
           if (uDateSessions.size === 1) {
@@ -477,7 +565,7 @@ export function solveExaminationSchedule(
             if (f.excludedDates && f.excludedDates.includes(d.date)) return false;
             const availKey = `${f.srNo}_${d.date}`;
             if (availability[availKey] === false) return false;
-            if (!isFacultyEligibleForSession(f.arrival, session, options.sessionDefinitions)) return false;
+            if (!isFacultyEligibleForSession(f.arrival, session, options.sessionDefinitions, d)) return false;
 
             // Cannot be already assigned in this session (neither primary nor reserve)
             const sessionSet = assignmentsByDateSession.get(d.date)?.get(session);

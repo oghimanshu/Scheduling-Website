@@ -29,6 +29,8 @@ export const Dashboard: React.FC = () => {
     setIsAlternativesModalOpen,
     setIsWhyValidModalOpen,
     setIsExportModalOpen,
+    setIsRoleSegregationModalOpen,
+    updateHodAssignmentPriority,
     isGenerating,
   } = useScheduler();
 
@@ -122,7 +124,31 @@ export const Dashboard: React.FC = () => {
             </p>
           </div>
 
-          <div className="flex flex-wrap gap-2.5">
+          <div className="flex flex-wrap items-center gap-2.5">
+            {/* Duty Order / Concession Preference Selector */}
+            <div className="inline-flex items-center space-x-1.5 bg-sky-950/70 border border-sky-400/40 rounded-xl px-2.5 py-1.5 text-xs text-white shadow-xs">
+              <span className="text-sky-300 font-semibold whitespace-nowrap text-[11px]">Duty Priority:</span>
+              <select
+                value={project.settings.hodAssignmentPriority || 'regular_first_hod_last'}
+                onChange={(e) => updateHodAssignmentPriority(e.target.value as any)}
+                className="bg-sky-900/90 text-white rounded-lg px-2 py-1 text-xs border border-sky-400/40 focus:outline-none focus:ring-1 focus:ring-sky-300 font-semibold cursor-pointer"
+                title="Determine whether duties are assigned to regular faculty first (HOD concession) or to HODs first"
+              >
+                <option value="regular_first_hod_last">Regular First, HODs Last (Concession)</option>
+                <option value="hod_first">HODs First (Priority)</option>
+                <option value="proportional_equal">Proportional / Equal Balance</option>
+              </select>
+            </div>
+
+            <button
+              onClick={() => setActiveTab('roles')}
+              className="inline-flex items-center space-x-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-sky-800/80 hover:bg-sky-700 text-sky-100 border border-sky-400/30 transition cursor-pointer"
+              title="Open Role Manager workspace to customize role tiers, duty caps, and concessions"
+            >
+              <Users className="w-3.5 h-3.5 text-sky-300" />
+              <span>Role Manager</span>
+            </button>
+
             <button
               onClick={generateAlternatives}
               disabled={isGenerating || project.faculty.length === 0}

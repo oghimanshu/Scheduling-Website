@@ -7,6 +7,7 @@ import {
   Printer,
   FileCode,
   FileText,
+  FileCheck2,
   CheckCircle2,
 } from 'lucide-react';
 import { useScheduler } from '../context/SchedulerContext';
@@ -23,6 +24,8 @@ export const ExportModal: React.FC = () => {
     isExportModalOpen,
     setIsExportModalOpen,
     importProjectData,
+    setActiveTab,
+    setIsDutySlipsModalOpen,
   } = useScheduler();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -50,7 +53,11 @@ export const ExportModal: React.FC = () => {
   };
 
   const handlePrint = () => {
-    window.print();
+    setIsExportModalOpen(false);
+    setActiveTab('schedule');
+    setTimeout(() => {
+      window.print();
+    }, 200);
   };
 
   return (
@@ -150,6 +157,36 @@ export const ExportModal: React.FC = () => {
               <span>Open Print Dialog</span>
               <span>&rarr;</span>
             </button>
+          </div>
+
+          {/* Individual Faculty Duty Slips */}
+          <div
+            onClick={() => {
+              setIsExportModalOpen(false);
+              setIsDutySlipsModalOpen(true);
+            }}
+            className="p-4 rounded-xl border border-slate-200 dark:border-white/10 bg-white/70 dark:bg-slate-800/60 hover:border-emerald-400 dark:hover:border-emerald-500 hover:bg-emerald-50/40 dark:hover:bg-emerald-950/30 transition cursor-pointer group space-y-2 backdrop-blur-xs sm:col-span-2"
+          >
+            <div className="flex items-start space-x-3">
+              <div className="w-9 h-9 rounded-xl bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-800/40 flex items-center justify-center group-hover:scale-105 transition shadow-2xs shrink-0">
+                <FileCheck2 className="w-5 h-5" />
+              </div>
+              <div className="flex-1">
+                <div className="flex items-center space-x-2">
+                  <h4 className="font-bold text-slate-900 dark:text-white">Individual Faculty Duty Slips &amp; Appointment Orders</h4>
+                  <span className="px-2 py-0.2 rounded-full text-[9px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+                    Official Printable
+                  </span>
+                </div>
+                <p className="text-slate-500 dark:text-slate-400 text-[11px] mt-0.5">
+                  Print official invigilation orders per faculty member with reporting times, examination session details, and formal signature blocks.
+                </p>
+                <div className="pt-1 text-emerald-700 dark:text-emerald-400 font-semibold text-[11px] flex items-center space-x-1">
+                  <span>Open Slips &amp; Batch Print Assistant</span>
+                  <span>&rarr;</span>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 

@@ -1,4 +1,3 @@
-import React from 'react';
 import {
   Calendar,
   Users,
@@ -14,6 +13,10 @@ import {
   Sun,
   Moon,
   BookOpen,
+  Trash2,
+  Award,
+  Cloud,
+  User,
 } from 'lucide-react';
 import { useScheduler } from '../context/SchedulerContext';
 
@@ -30,6 +33,10 @@ export const Navbar: React.FC = () => {
     setIsWhyValidModalOpen,
     setIsExportModalOpen,
     setIsSettingsModalOpen,
+    setIsResetConfirmModalOpen,
+    setIsGoogleAuthModalOpen,
+    currentUser,
+    cloudSyncStatus,
     isDarkMode,
     toggleDarkMode,
   } = useScheduler();
@@ -40,14 +47,18 @@ export const Navbar: React.FC = () => {
       {/* Top Banner */}
       <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16 sm:h-18 gap-2">
-          {/* Logo, Title & Himanshu Gaur Attribution */}
-          <div className="flex items-center space-x-2.5 sm:space-x-3 min-w-0">
-            <div className="w-9 h-9 sm:w-10 sm:h-10 shrink-0 rounded-2xl bg-gradient-to-tr from-sky-500 via-indigo-500 to-purple-600 flex items-center justify-center text-white shadow-lg shadow-sky-500/25 ring-1 ring-white/30">
+          {/* Logo, Title & Hero Navigation */}
+          <button
+            onClick={() => setActiveTab('dashboard')}
+            className="flex items-center space-x-2.5 sm:space-x-3 min-w-0 text-left cursor-pointer group rounded-2xl p-1 -m-1 hover:bg-slate-100/60 dark:hover:bg-white/5 transition"
+            title="Go to Hero Dashboard"
+          >
+            <div className="w-9 h-9 sm:w-10 sm:h-10 shrink-0 rounded-2xl bg-gradient-to-tr from-sky-500 via-indigo-500 to-purple-600 flex items-center justify-center text-white shadow-lg shadow-sky-500/25 ring-1 ring-white/30 group-hover:scale-105 transition-transform duration-200">
               <Calendar className="w-4 h-4 sm:w-5 sm:h-5 drop-shadow" />
             </div>
             <div className="min-w-0">
               <div className="flex items-center space-x-1.5 sm:space-x-2 flex-wrap">
-                <h1 className="text-xs sm:text-base font-extrabold text-slate-900 dark:text-white tracking-tight truncate">
+                <h1 className="text-xs sm:text-base font-extrabold text-slate-900 dark:text-white tracking-tight truncate group-hover:text-sky-600 dark:group-hover:text-sky-400 transition-colors">
                   EXAM SCHEDULER
                 </h1>
                 <span className="hidden md:inline-block text-[10px] font-bold tracking-wider uppercase px-2 py-0.5 rounded-full bg-sky-100/80 dark:bg-sky-500/20 text-sky-700 dark:text-sky-300 border border-sky-300/40 dark:border-sky-400/30">
@@ -60,7 +71,7 @@ export const Navbar: React.FC = () => {
                 <span className="font-mono text-[10px] sm:text-[11px] text-slate-400 dark:text-slate-500">Saved: {lastSaved}</span>
               </p>
             </div>
-          </div>
+          </button>
 
           {/* Center: Validation badge (Desktop/Tablet) */}
           <div className="hidden lg:flex items-center space-x-2">
@@ -114,6 +125,38 @@ export const Navbar: React.FC = () => {
               </span>
             </button>
 
+            {/* Google Sign-In / Cloud Sync Button */}
+            <button
+              onClick={() => setIsGoogleAuthModalOpen(true)}
+              className={`inline-flex items-center space-x-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer border ${
+                currentUser
+                  ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-800 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800/60 hover:bg-emerald-100'
+                  : 'bg-white/80 dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-slate-300 dark:border-white/10 hover:bg-slate-50'
+              }`}
+              title={
+                currentUser
+                  ? `Signed in as ${currentUser.displayName} (${currentUser.email}). Click to manage cloud sessions.`
+                  : 'Sign in with Google to save & share sessions across users (Free)'
+              }
+            >
+              {currentUser?.photoURL ? (
+                <img
+                  src={currentUser.photoURL}
+                  alt=""
+                  className="w-4 h-4 rounded-full border border-emerald-400"
+                />
+              ) : currentUser ? (
+                <div className="w-4 h-4 rounded-full bg-emerald-600 text-white text-[9px] font-bold flex items-center justify-center">
+                  {currentUser.displayName ? currentUser.displayName[0].toUpperCase() : 'U'}
+                </div>
+              ) : (
+                <Cloud className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
+              )}
+              <span className="hidden md:inline font-bold">
+                {currentUser ? currentUser.displayName?.split(' ')[0] : 'Sign In'}
+              </span>
+            </button>
+
             <button
               onClick={() => setIsWhyValidModalOpen(true)}
               className="p-2 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-white/60 dark:hover:bg-white/10 rounded-xl transition cursor-pointer"
@@ -125,9 +168,17 @@ export const Navbar: React.FC = () => {
             <button
               onClick={() => setIsSettingsModalOpen(true)}
               className="p-2 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-white/60 dark:hover:bg-white/10 rounded-xl transition cursor-pointer"
-              title="Settings & Firebase Config"
+              title="Settings & Constraints Configuration"
             >
               <Settings className="w-4 h-4" />
+            </button>
+
+            <button
+              onClick={() => setIsResetConfirmModalOpen(true)}
+              className="p-2 text-rose-500/80 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-xl transition cursor-pointer"
+              title="Reset Everything to Zero & Start Fresh Session"
+            >
+              <Trash2 className="w-4 h-4" />
             </button>
 
             <button
@@ -166,6 +217,7 @@ export const Navbar: React.FC = () => {
           {[
             { id: 'dashboard', label: 'Dashboard', icon: Calendar },
             { id: 'faculty', label: 'Faculty Management', icon: Users },
+            { id: 'roles', label: 'Role Manager', icon: Award },
             { id: 'period', label: 'Examination Period', icon: Clock },
             { id: 'availability', label: 'Availability Matrix', icon: CheckCircle2 },
             { id: 'schedule', label: 'Schedule Views', icon: FileSpreadsheet },

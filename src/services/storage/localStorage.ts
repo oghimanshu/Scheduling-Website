@@ -1,5 +1,5 @@
 import { ProjectState } from '../../types';
-import { INITIAL_PROJECT_STATE, DEFAULT_SESSIONS, DEFAULT_SESSION_TIMINGS } from '../../data/defaultData';
+import { INITIAL_PROJECT_STATE, DEFAULT_SETTINGS, DEFAULT_SESSIONS, DEFAULT_SESSION_TIMINGS } from '../../data/defaultData';
 
 const SESSION_STORAGE_KEY = 'EXAM_SCHEDULER_SESSION_STATE_V1';
 
@@ -45,6 +45,27 @@ export function loadProjectFromStorage(): { state: ProjectState; loadedFromStora
           }
           if (parsed.settings.reserveCanExceedCap === undefined) {
             parsed.settings.reserveCanExceedCap = false;
+          }
+          if (!parsed.settings.hodAssignmentPriority) {
+            parsed.settings.hodAssignmentPriority = DEFAULT_SETTINGS.hodAssignmentPriority;
+          }
+          if (!parsed.settings.customRoles || !Array.isArray(parsed.settings.customRoles)) {
+            parsed.settings.customRoles = DEFAULT_SETTINGS.customRoles;
+          }
+          if (parsed.settings.avoidConsecutiveDays === undefined) {
+            parsed.settings.avoidConsecutiveDays = DEFAULT_SETTINGS.avoidConsecutiveDays;
+          }
+          if (parsed.settings.minimizeDoubleDuties === undefined) {
+            parsed.settings.minimizeDoubleDuties = DEFAULT_SETTINGS.minimizeDoubleDuties;
+          }
+          if (parsed.settings.balanceSeniorityPerSession === undefined) {
+            parsed.settings.balanceSeniorityPerSession = DEFAULT_SETTINGS.balanceSeniorityPerSession;
+          }
+          if (parsed.settings.strictWorkloadEqualization === undefined) {
+            parsed.settings.strictWorkloadEqualization = DEFAULT_SETTINGS.strictWorkloadEqualization;
+          }
+          if (parsed.settings.promptGenerationOptions === undefined) {
+            parsed.settings.promptGenerationOptions = DEFAULT_SETTINGS.promptGenerationOptions;
           }
           if (!Array.isArray(parsed.assignments)) {
             parsed.assignments = [];

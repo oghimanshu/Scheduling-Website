@@ -110,7 +110,7 @@ export function analyzeInfeasibility(
           return;
         }
 
-        const isEligible = isFacultyEligibleForSession(f.arrival, session);
+        const isEligible = isFacultyEligibleForSession(f.arrival, session, sessionDefinitions, d);
         if (isEligible) {
           eligibleCount++;
           eligibleNames.push(f.name);

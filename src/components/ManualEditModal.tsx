@@ -48,7 +48,7 @@ export const ManualEditModal: React.FC = () => {
 
   // Check conflicts before adding
   const isEligible = currentFaculty
-    ? isFacultyEligibleForSession(currentFaculty.arrival, selectedSession)
+    ? isFacultyEligibleForSession(currentFaculty.arrival, selectedSession, project.sessions, dateConfig)
     : true;
   const isAvailable = currentFaculty
     ? project.availability[`${currentFaculty.srNo}_${selectedDate}`] !== false

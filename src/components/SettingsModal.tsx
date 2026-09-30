@@ -12,7 +12,7 @@ import {
   Shield,
 } from 'lucide-react';
 import { useScheduler } from '../context/SchedulerContext';
-import { SessionType } from '../types';
+import { SessionType, HodAssignmentPriority } from '../types';
 import { FirebaseManager } from '../services/storage/firebase';
 
 export const SettingsModal: React.FC = () => {
@@ -26,6 +26,9 @@ export const SettingsModal: React.FC = () => {
   } = useScheduler();
 
   const [allowJrs1Jrs3, setAllowJrs1Jrs3] = useState(project.settings.allowJrs1Jrs3Double);
+  const [hodPriority, setHodPriority] = useState<HodAssignmentPriority>(
+    project.settings.hodAssignmentPriority || 'regular_first_hod_last'
+  );
   const [randomSeed, setRandomSeed] = useState(project.settings.randomSeed || 42);
   const [reservePerSession, setReservePerSession] = useState(project.settings.reserveSupervisorsPerSession || 0);
   const [reserveCanExceed, setReserveCanExceed] = useState(project.settings.reserveCanExceedCap || false);
@@ -45,6 +48,7 @@ export const SettingsModal: React.FC = () => {
   const handleSaveSettings = () => {
     updateSettings({
       allowJrs1Jrs3Double: allowJrs1Jrs3,
+      hodAssignmentPriority: hodPriority,
       randomSeed,
       reserveSupervisorsPerSession: reservePerSession,
       reserveCanExceedCap: reserveCanExceed,
@@ -127,6 +131,75 @@ export const SettingsModal: React.FC = () => {
                 </span>
               </div>
             </label>
+
+            {/* HOD Priority Strategy */}
+            <div className="p-3.5 rounded-2xl border border-slate-200/80 dark:border-white/10 bg-slate-50/80 dark:bg-slate-800/60 space-y-2.5">
+              <label className="font-bold text-slate-800 dark:text-slate-200 block">
+                HOD Duty Allocation Strategy
+              </label>
+              <p className="text-slate-500 dark:text-slate-400 text-[11px]">
+                Choose whether HODs receive concessions by being assigned last, or are assigned first, or proportionally alongside regular faculty:
+              </p>
+
+              <div className="space-y-2 pt-1">
+                <label className="flex items-start space-x-2.5 p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-white/10 cursor-pointer hover:border-sky-500/50 transition">
+                  <input
+                    type="radio"
+                    name="hodPriority"
+                    value="regular_first_hod_last"
+                    checked={hodPriority === 'regular_first_hod_last'}
+                    onChange={() => setHodPriority('regular_first_hod_last')}
+                    className="mt-0.5 text-sky-600 focus:ring-sky-500 cursor-pointer"
+                  />
+                  <div>
+                    <span className="font-bold text-slate-800 dark:text-slate-200 block">
+                      Regular Faculty First, HODs Last (Default Concession)
+                    </span>
+                    <span className="text-slate-500 dark:text-slate-400 text-[11px] block mt-0.5">
+                      Regular faculty fulfill duties first. HODs are scheduled last only if remaining slot demand cannot be met by regular faculty.
+                    </span>
+                  </div>
+                </label>
+
+                <label className="flex items-start space-x-2.5 p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-white/10 cursor-pointer hover:border-sky-500/50 transition">
+                  <input
+                    type="radio"
+                    name="hodPriority"
+                    value="hod_first"
+                    checked={hodPriority === 'hod_first'}
+                    onChange={() => setHodPriority('hod_first')}
+                    className="mt-0.5 text-sky-600 focus:ring-sky-500 cursor-pointer"
+                  />
+                  <div>
+                    <span className="font-bold text-slate-800 dark:text-slate-200 block">
+                      HODs First (Priority Allocation)
+                    </span>
+                    <span className="text-slate-500 dark:text-slate-400 text-[11px] block mt-0.5">
+                      Schedules HODs first until their target caps are satisfied, followed by regular faculty for remaining slots.
+                    </span>
+                  </div>
+                </label>
+
+                <label className="flex items-start space-x-2.5 p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-white/10 cursor-pointer hover:border-sky-500/50 transition">
+                  <input
+                    type="radio"
+                    name="hodPriority"
+                    value="proportional_equal"
+                    checked={hodPriority === 'proportional_equal'}
+                    onChange={() => setHodPriority('proportional_equal')}
+                    className="mt-0.5 text-sky-600 focus:ring-sky-500 cursor-pointer"
+                  />
+                  <div>
+                    <span className="font-bold text-slate-800 dark:text-slate-200 block">
+                      Proportional / Equal Balance
+                    </span>
+                    <span className="text-slate-500 dark:text-slate-400 text-[11px] block mt-0.5">
+                      Assigns HODs and regular faculty concurrently, balancing workloads proportionally to their relative caps.
+                    </span>
+                  </div>
+                </label>
+              </div>
+            </div>
 
             <div>
               <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">

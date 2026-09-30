@@ -11,6 +11,7 @@ import {
   Calendar,
   Users,
   Shield,
+  ArrowRightLeft,
 } from 'lucide-react';
 import { useScheduler } from '../context/SchedulerContext';
 import { isFacultyEligibleForSession } from '../services/validation/validator';
@@ -22,6 +23,8 @@ export const AssignmentInspectorModal: React.FC = () => {
     setSelectedAssignmentForInspect,
     toggleLockAssignment,
     removeAssignment,
+    setSelectedForSubstitute,
+    setIsSubstituteModalOpen,
   } = useScheduler();
 
   if (!selectedAssignmentForInspect) return null;
@@ -30,7 +33,7 @@ export const AssignmentInspectorModal: React.FC = () => {
   const faculty = project.faculty.find((f) => f.srNo === a.facultySrNo);
   const dateConfig = project.examPeriod.dates.find((d) => d.date === a.date);
 
-  const isEligible = faculty ? isFacultyEligibleForSession(faculty.arrival, a.session) : false;
+  const isEligible = faculty ? isFacultyEligibleForSession(faculty.arrival, a.session, project.sessions, dateConfig) : false;
   const isDateExcluded = Array.isArray(faculty?.excludedDates) && faculty.excludedDates.includes(a.date);
   const isAvailable = faculty ? ((project.availability || {})[`${faculty.srNo}_${a.date}`] !== false) && !isDateExcluded : true;
 
@@ -171,6 +174,19 @@ export const AssignmentInspectorModal: React.FC = () => {
           </button>
 
           <div className="flex items-center space-x-2">
+            <button
+              onClick={() => {
+                setSelectedForSubstitute(a);
+                setSelectedAssignmentForInspect(null);
+                setIsSubstituteModalOpen(true);
+              }}
+              className="inline-flex items-center space-x-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-300 hover:bg-sky-100 dark:hover:bg-sky-900/50 border border-sky-200 dark:border-sky-800/40 transition cursor-pointer"
+              title="Search and assign a conflict-free substitute colleague"
+            >
+              <ArrowRightLeft className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
+              <span>Find Substitute / Swap</span>
+            </button>
+
             <button
               onClick={() => {
                 toggleLockAssignment(a.id);

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   Calendar,
   Clock,
@@ -10,9 +10,16 @@ import {
   Sliders,
   Sparkles,
   Layers,
+  ChevronDown,
+  ChevronUp,
+  AlertTriangle,
+  Check,
+  Users,
 } from 'lucide-react';
 import { useScheduler } from '../context/SchedulerContext';
-import { ExamDateConfig, ExclusionReason, SessionType } from '../types';
+import { ExamDateConfig, ExclusionReason, SessionType, ArrivalCategory, SessionTiming } from '../types';
+import { DateSessionModal } from './DateSessionModal';
+import { checkSessionTimingsOverlap } from '../services/validation/validator';
 
 export const ExamPeriodManager: React.FC = () => {
   const {
@@ -26,6 +33,10 @@ export const ExamPeriodManager: React.FC = () => {
   const [periodName, setPeriodName] = useState(project.examPeriod.name);
   const [startDate, setStartDate] = useState(project.examPeriod.startDate);
   const [endDate, setEndDate] = useState(project.examPeriod.endDate);
+
+  const [expandedDate, setExpandedDate] = useState<string | null>(null);
+  const [customizingDate, setCustomizingDate] = useState<ExamDateConfig | null>(null);
+  const [isDateSessionModalOpen, setIsDateSessionModalOpen] = useState(false);
 
   // Template session requirements for "Apply to all dates"
   const [templateReqs, setTemplateReqs] = useState<Record<string, number>>(() => {
@@ -164,6 +175,69 @@ export const ExamPeriodManager: React.FC = () => {
     });
     updateExamDates(updated);
     alert('Applied template requirements to all active dates!');
+  };
+
+  // Inline update for a session timing on a specific date
+  const handleUpdateDateTiming = (
+    dateStr: string,
+    sessionId: string,
+    field: 'start' | 'end',
+    val: string
+  ) => {
+    const updated = project.examPeriod.dates.map((d) => {
+      if (d.date !== dateStr) return d;
+      const currentTimings = { ...(d.sessionTimings || {}) };
+      currentTimings[sessionId] = {
+        ...(currentTimings[sessionId] || { start: '08:00', end: '10:00' }),
+        [field]: val,
+      };
+      return { ...d, sessionTimings: currentTimings };
+    });
+    updateExamDates(updated);
+  };
+
+  // Inline toggle for arrival eligibility on a specific date and session
+  const handleToggleDateArrival = (
+    dateStr: string,
+    sessionId: string,
+    arrival: ArrivalCategory
+  ) => {
+    const updated = project.examPeriod.dates.map((d) => {
+      if (d.date !== dateStr) return d;
+      const currentArrivals = { ...(d.sessionArrivals || {}) };
+      const sessionDef = project.sessions?.find((s) => s.id === sessionId);
+      const list = currentArrivals[sessionId]
+        ? [...currentArrivals[sessionId]]
+        : [...(sessionDef?.eligibleArrivals || ['Morning', 'Mid', 'Afternoon'])];
+
+      let newList: ArrivalCategory[];
+      if (list.includes(arrival)) {
+        if (list.length <= 1) return d; // Keep at least one category
+        newList = list.filter((a) => a !== arrival);
+      } else {
+        newList = [...list, arrival];
+      }
+      currentArrivals[sessionId] = newList;
+      return { ...d, sessionArrivals: currentArrivals };
+    });
+    updateExamDates(updated);
+  };
+
+  // Calculate live capacity details for a date session
+  const getDateCapacity = (d: ExamDateConfig, sessionId: string) => {
+    const sessionDef = project.sessions?.find((s) => s.id === sessionId);
+    const eligibleArrivals = d.sessionArrivals?.[sessionId] || sessionDef?.eligibleArrivals || ['Morning', 'Mid'];
+    const required = d.sessionRequirements?.[sessionId] || 0;
+
+    const availableCount = project.faculty.filter((f) => {
+      if (f.isExcluded) return false;
+      if (f.excludedDates && f.excludedDates.includes(d.date)) return false;
+      const isAvail = project.availability?.[`${f.srNo}_${d.date}`] !== false;
+      return isAvail && eligibleArrivals.includes(f.arrival);
+    }).length;
+
+    const surplus = availableCount - required;
+    return { availableCount, required, surplus, isDeficit: surplus < 0 };
   };
 
   // Calculate total positions dynamically across all configured sessions
@@ -316,9 +390,10 @@ export const ExamPeriodManager: React.FC = () => {
           <table className="w-full text-left text-xs">
             <thead className="bg-slate-50/60 dark:bg-slate-800/60 text-slate-600 dark:text-slate-300 font-semibold uppercase tracking-wider border-b border-slate-200/60 dark:border-white/5 text-[11px]">
               <tr>
-                <th className="py-3 px-4">Status</th>
+                <th className="py-3 px-2 w-8 text-center"></th>
+                <th className="py-3 px-3">Status</th>
                 <th className="py-3 px-4">Date</th>
-                <th className="py-3 px-4">Day</th>
+                <th className="py-3 px-3">Day</th>
                 <th className="py-3 px-4">Exclusion Reason</th>
                 {(project.sessions || []).map((s) => (
                   <th key={s.id} className="py-3 px-3 text-center">
@@ -328,97 +403,314 @@ export const ExamPeriodManager: React.FC = () => {
                     </div>
                   </th>
                 ))}
-                <th className="py-3 px-4 text-center">Total Staffing</th>
+                <th className="py-3 px-4 text-center">Staffing</th>
+                <th className="py-3 px-3 text-center">Custom JRS</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-white/5">
               {project.examPeriod.dates.map((d) => {
+                const isExpanded = expandedDate === d.date;
+                const timingWarnings = checkSessionTimingsOverlap(d.sessionTimings);
+                const hasCustomTimings = Boolean(d.sessionTimings);
+                const hasCustomArrivals = Boolean(d.sessionArrivals && Object.keys(d.sessionArrivals).length > 0);
+
                 const dayTotal = (project.sessions || []).reduce(
                   (acc, s) => acc + (d.sessionRequirements?.[s.id] || 0),
                   0
                 );
 
                 return (
-                  <tr
-                    key={d.date}
-                    className={`transition ${
-                      d.isExcluded
-                        ? 'bg-slate-50/40 dark:bg-slate-900/30 text-slate-400 dark:text-slate-500'
-                        : 'hover:bg-sky-50/30 dark:hover:bg-white/5 text-slate-800 dark:text-slate-200'
-                    }`}
-                  >
-                    {/* Checkbox toggle */}
-                    <td className="py-3 px-4">
-                      <label className="flex items-center space-x-2 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={!d.isExcluded}
-                          onChange={() => handleToggleExclusion(d.date)}
-                          className="rounded text-sky-600 focus:ring-sky-500 h-4 w-4 bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700"
-                        />
-                        <span className="text-[11px] font-medium">
-                          {!d.isExcluded ? (
-                            <span className="text-emerald-600 dark:text-emerald-400 font-bold">Active</span>
-                          ) : (
-                            <span className="text-slate-400 dark:text-slate-500">Excluded</span>
-                          )}
-                        </span>
-                      </label>
-                    </td>
-
-                    <td className="py-3 px-4 font-semibold">{d.displayDate}</td>
-                    <td className="py-3 px-4 text-slate-600 dark:text-slate-400">{d.dayOfWeek}</td>
-
-                    {/* Exclusion Reason selector */}
-                    <td className="py-3 px-4">
-                      {d.isExcluded ? (
-                        <select
-                          value={d.exclusionReason || 'No Examination'}
-                          onChange={(e) =>
-                            handleChangeExclusionReason(d.date, e.target.value as ExclusionReason)
-                          }
-                          className="text-xs bg-white/80 dark:bg-slate-900/80 border border-slate-300 dark:border-white/10 rounded px-2 py-1 text-slate-700 dark:text-slate-300 font-medium"
-                        >
-                          <option value="Holiday">HOLIDAY</option>
-                          <option value="No Examination">NO EXAMINATION</option>
-                          <option value="Other">OTHER</option>
-                        </select>
-                      ) : (
-                        <span className="text-slate-400 dark:text-slate-500 italic text-[11px]">Examination Active</span>
-                      )}
-                    </td>
-
-                    {/* Dynamic Session Columns */}
-                    {(project.sessions || []).map((s) => (
-                      <td key={s.id} className="py-3 px-3 text-center">
-                        <input
-                          type="number"
-                          disabled={d.isExcluded}
-                          min="0"
-                          value={d.sessionRequirements?.[s.id] ?? 0}
-                          onChange={(e) =>
-                            handleUpdateRequirement(d.date, s.id, parseInt(e.target.value, 10) || 0)
-                          }
-                          className="w-14 text-center font-bold px-1.5 py-1 bg-white/70 dark:bg-slate-900/70 border border-slate-200 dark:border-white/10 rounded text-slate-900 dark:text-white disabled:bg-slate-100/50 dark:disabled:bg-slate-950/40 disabled:text-slate-400 dark:disabled:text-slate-600"
-                        />
+                  <React.Fragment key={d.date}>
+                    <tr
+                      className={`transition ${
+                        d.isExcluded
+                          ? 'bg-slate-50/40 dark:bg-slate-900/30 text-slate-400 dark:text-slate-500'
+                          : 'hover:bg-sky-50/30 dark:hover:bg-white/5 text-slate-800 dark:text-slate-200'
+                      }`}
+                    >
+                      {/* Expand / Collapse Accordion Chevron */}
+                      <td className="py-3 px-2 text-center">
+                        {!d.isExcluded ? (
+                          <button
+                            type="button"
+                            onClick={() => setExpandedDate(isExpanded ? null : d.date)}
+                            className="p-1 rounded-lg text-slate-400 hover:text-sky-600 dark:hover:text-sky-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
+                            title={isExpanded ? 'Collapse inline session controls' : 'Expand inline timings & arrivals'}
+                          >
+                            <ChevronDown
+                              className={`w-4 h-4 transition-transform duration-200 ${
+                                isExpanded ? 'rotate-180 text-sky-600 dark:text-sky-400' : ''
+                              }`}
+                            />
+                          </button>
+                        ) : null}
                       </td>
-                    ))}
 
-                    {/* Total */}
-                    <td className="py-3 px-4 text-center font-mono font-bold">
-                      {d.isExcluded ? (
-                        <span className="text-slate-400 dark:text-slate-600">0</span>
-                      ) : (
-                        <span className="text-sky-600 dark:text-sky-400">{dayTotal}</span>
-                      )}
-                    </td>
-                  </tr>
+                      {/* Checkbox toggle */}
+                      <td className="py-3 px-3">
+                        <label className="flex items-center space-x-1.5 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={!d.isExcluded}
+                            onChange={() => handleToggleExclusion(d.date)}
+                            className="rounded text-sky-600 focus:ring-sky-500 h-4 w-4 bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 cursor-pointer"
+                          />
+                          <span className="text-[11px] font-medium">
+                            {!d.isExcluded ? (
+                              <span className="text-emerald-600 dark:text-emerald-400 font-bold">Active</span>
+                            ) : (
+                              <span className="text-slate-400 dark:text-slate-500">Excluded</span>
+                            )}
+                          </span>
+                        </label>
+                      </td>
+
+                      {/* Date with quick modal launcher */}
+                      <td className="py-3 px-4 font-semibold">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (!d.isExcluded) {
+                              setCustomizingDate(d);
+                              setIsDateSessionModalOpen(true);
+                            }
+                          }}
+                          disabled={d.isExcluded}
+                          className="inline-flex items-center space-x-1 hover:text-sky-600 dark:hover:text-sky-400 text-left transition disabled:cursor-not-allowed group cursor-pointer"
+                          title="Open Date Session Customizer dialog"
+                        >
+                          <span>{d.displayDate}</span>
+                          {!d.isExcluded && (
+                            <Sliders className="w-3 h-3 text-slate-400 group-hover:text-sky-500 opacity-60 group-hover:opacity-100 transition" />
+                          )}
+                        </button>
+                      </td>
+
+                      <td className="py-3 px-3 text-slate-600 dark:text-slate-400">{d.dayOfWeek}</td>
+
+                      {/* Exclusion Reason selector */}
+                      <td className="py-3 px-4">
+                        {d.isExcluded ? (
+                          <select
+                            value={d.exclusionReason || 'No Examination'}
+                            onChange={(e) =>
+                              handleChangeExclusionReason(d.date, e.target.value as ExclusionReason)
+                            }
+                            className="text-xs bg-white/80 dark:bg-slate-900/80 border border-slate-300 dark:border-white/10 rounded px-2 py-1 text-slate-700 dark:text-slate-300 font-medium"
+                          >
+                            <option value="Holiday">HOLIDAY</option>
+                            <option value="No Examination">NO EXAMINATION</option>
+                            <option value="Other">OTHER</option>
+                          </select>
+                        ) : (
+                          <div className="flex items-center space-x-1.5">
+                            <span className="text-slate-400 dark:text-slate-500 italic text-[11px]">Examination Active</span>
+                            {(hasCustomTimings || hasCustomArrivals) && (
+                              <span className="text-[10px] px-1.5 py-0.5 rounded bg-sky-100 dark:bg-sky-950 text-sky-700 dark:text-sky-300 font-bold border border-sky-300/40">
+                                Customized
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </td>
+
+                      {/* Dynamic Session Columns with Quota Inputs */}
+                      {(project.sessions || []).map((s) => {
+                        const timing = d.sessionTimings?.[s.id] || s.defaultTiming;
+                        return (
+                          <td key={s.id} className="py-3 px-3 text-center">
+                            <div className="flex flex-col items-center space-y-1">
+                              <input
+                                type="number"
+                                disabled={d.isExcluded}
+                                min="0"
+                                value={d.sessionRequirements?.[s.id] ?? 0}
+                                onChange={(e) =>
+                                  handleUpdateRequirement(d.date, s.id, parseInt(e.target.value, 10) || 0)
+                                }
+                                className="w-14 text-center font-bold px-1.5 py-1 bg-white/70 dark:bg-slate-900/70 border border-slate-200 dark:border-white/10 rounded text-slate-900 dark:text-white disabled:bg-slate-100/50 dark:disabled:bg-slate-950/40 disabled:text-slate-400 dark:disabled:text-slate-600"
+                              />
+                              {!d.isExcluded && (
+                                <span className="text-[10px] font-mono text-slate-400">
+                                  {timing.start}-{timing.end}
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                        );
+                      })}
+
+                      {/* Total */}
+                      <td className="py-3 px-4 text-center font-mono font-bold">
+                        {d.isExcluded ? (
+                          <span className="text-slate-400 dark:text-slate-600">0</span>
+                        ) : (
+                          <span className="text-sky-600 dark:text-sky-400">{dayTotal}</span>
+                        )}
+                      </td>
+
+                      {/* Action Button */}
+                      <td className="py-3 px-3 text-center">
+                        {!d.isExcluded ? (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setCustomizingDate(d);
+                              setIsDateSessionModalOpen(true);
+                            }}
+                            className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-lg text-xs font-semibold text-sky-700 dark:text-sky-300 bg-sky-50 dark:bg-sky-950/50 hover:bg-sky-100 border border-sky-200 dark:border-sky-800/40 transition cursor-pointer"
+                            title="Edit JRS timings and arrivals for this date"
+                          >
+                            <Sliders className="w-3 h-3 text-sky-600" />
+                            <span>Edit</span>
+                          </button>
+                        ) : (
+                          <span className="text-slate-400 text-[11px]">—</span>
+                        )}
+                      </td>
+                    </tr>
+
+                    {/* Inline Expandable Accordion Sub-Row */}
+                    {isExpanded && !d.isExcluded && (
+                      <tr className="bg-sky-50/40 dark:bg-sky-950/20 border-y border-sky-200/80 dark:border-sky-800/40 animate-in fade-in duration-150">
+                        <td colSpan={100} className="p-4">
+                          <div className="space-y-3">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-sky-200/60 dark:border-sky-800/30 pb-2">
+                              <div className="flex items-center space-x-2">
+                                <Clock className="w-4 h-4 text-sky-600 dark:text-sky-400" />
+                                <span className="font-bold text-xs text-sky-900 dark:text-sky-200">
+                                  Inline JRS Timings &amp; Arrival Eligibility for {d.displayDate}
+                                </span>
+                              </div>
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setCustomizingDate(d);
+                                  setIsDateSessionModalOpen(true);
+                                }}
+                                className="inline-flex items-center space-x-1 text-xs font-semibold text-purple-700 dark:text-purple-300 hover:underline cursor-pointer"
+                              >
+                                <Sliders className="w-3.5 h-3.5" />
+                                <span>Open Full Dialog &amp; Copy to Other Dates &rarr;</span>
+                              </button>
+                            </div>
+
+                            {/* Timing Warnings if any */}
+                            {timingWarnings.length > 0 && (
+                              <div className="p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/60 border border-amber-300/80 text-amber-900 dark:text-amber-200 text-xs space-y-1">
+                                <div className="font-bold flex items-center space-x-1.5">
+                                  <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
+                                  <span>Timing Alert:</span>
+                                </div>
+                                {timingWarnings.map((w, idx) => (
+                                  <p key={idx} className="text-[11px] pl-5">• {w.message}</p>
+                                ))}
+                              </div>
+                            )}
+
+                            {/* Session Cards */}
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                              {(project.sessions || []).map((s) => {
+                                const currentTiming = d.sessionTimings?.[s.id] || s.defaultTiming;
+                                const currentArrivalsList =
+                                  d.sessionArrivals?.[s.id] || s.eligibleArrivals || ['Morning', 'Mid'];
+                                const capacity = getDateCapacity(d, s.id);
+
+                                return (
+                                  <div
+                                    key={s.id}
+                                    className="p-3 rounded-2xl bg-white/90 dark:bg-slate-900/90 border border-sky-200/80 dark:border-white/10 shadow-2xs space-y-2.5"
+                                  >
+                                    <div className="flex items-center justify-between border-b border-slate-100 dark:border-white/5 pb-1.5">
+                                      <span className="font-bold text-xs text-slate-900 dark:text-white">
+                                        {s.name}
+                                      </span>
+                                      <span
+                                        className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                                          capacity.isDeficit
+                                            ? 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300'
+                                            : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
+                                        }`}
+                                        title={`${capacity.availableCount} eligible faculty available for ${capacity.required} duties`}
+                                      >
+                                        {capacity.availableCount} Avail / {capacity.required} Req
+                                      </span>
+                                    </div>
+
+                                    {/* Timings */}
+                                    <div className="space-y-1">
+                                      <span className="text-[10px] font-semibold text-slate-500 uppercase block">
+                                        Session Timings
+                                      </span>
+                                      <div className="flex items-center space-x-1.5 text-xs">
+                                        <input
+                                          type="time"
+                                          value={currentTiming.start}
+                                          onChange={(e) =>
+                                            handleUpdateDateTiming(d.date, s.id, 'start', e.target.value)
+                                          }
+                                          className="px-2 py-1 text-xs font-mono font-bold bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-white/10 rounded-lg text-slate-900 dark:text-white"
+                                        />
+                                        <span className="text-slate-400 font-bold">to</span>
+                                        <input
+                                          type="time"
+                                          value={currentTiming.end}
+                                          onChange={(e) =>
+                                            handleUpdateDateTiming(d.date, s.id, 'end', e.target.value)
+                                          }
+                                          className="px-2 py-1 text-xs font-mono font-bold bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-white/10 rounded-lg text-slate-900 dark:text-white"
+                                        />
+                                      </div>
+                                    </div>
+
+                                    {/* Arrival Category Chips */}
+                                    <div className="space-y-1">
+                                      <span className="text-[10px] font-semibold text-slate-500 uppercase block">
+                                        Eligible Arrivals
+                                      </span>
+                                      <div className="flex flex-wrap gap-1">
+                                        {(['Morning', 'Mid', 'Afternoon'] as ArrivalCategory[]).map((cat) => {
+                                          const isSelected = currentArrivalsList.includes(cat);
+                                          return (
+                                            <button
+                                              key={cat}
+                                              type="button"
+                                              onClick={() => handleToggleDateArrival(d.date, s.id, cat)}
+                                              className={`px-2 py-0.5 rounded-lg text-[10px] font-bold border transition cursor-pointer ${
+                                                isSelected
+                                                  ? 'bg-sky-600 text-white border-sky-600'
+                                                  : 'bg-slate-100 dark:bg-slate-800 text-slate-400 border-slate-200 dark:border-white/10'
+                                              }`}
+                                            >
+                                              {cat}
+                                            </button>
+                                          );
+                                        })}
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
                 );
               })}
             </tbody>
           </table>
         </div>
       </div>
+
+      {/* Date Session Customizer Modal */}
+      <DateSessionModal
+        dateConfig={customizingDate}
+        isOpen={isDateSessionModalOpen}
+        onClose={() => setIsDateSessionModalOpen(false)}
+      />
     </div>
   );
 };

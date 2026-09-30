@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { DEFAULT_DATES_CONFIG, DEFAULT_SETTINGS, INITIAL_PROJECT_STATE } from '../data/defaultData';
 import { MOCK_FACULTY_LIST as DEFAULT_FACULTY_LIST } from './fixtures/mockFaculty';
 import { solveExaminationSchedule } from '../services/scheduler/solver';
-import { validateSchedule, isFacultyEligibleForSession } from '../services/validation/validator';
+import { validateSchedule, isFacultyEligibleForSession, checkSessionTimingsOverlap } from '../services/validation/validator';
 import { generateFiveAlternatives } from '../services/scheduler/alternatives';
 import { rebalanceSchedule } from '../services/scheduler/rebalance';
 import { parseFacultyCSV, generateSampleFacultyCSV } from '../services/csvParser';
@@ -78,6 +78,36 @@ describe('Examination Supervision Scheduler Engine', () => {
     expect(isFacultyEligibleForSession('Afternoon', 'JRS 1')).toBe(false);
     expect(isFacultyEligibleForSession('Afternoon', 'JRS 2')).toBe(true);
     expect(isFacultyEligibleForSession('Afternoon', 'JRS 3')).toBe(true);
+  });
+
+  it('should support date-specific arrival eligibility overrides', () => {
+    const customDateConfig = {
+      ...DEFAULT_DATES_CONFIG[1],
+      sessionArrivals: {
+        'JRS 1': ['Afternoon'] as any, // Only afternoon allowed on this special day
+      },
+    };
+
+    // Afternoon is normally ineligible for JRS 1, but this date specifically allows it
+    expect(isFacultyEligibleForSession('Afternoon', 'JRS 1', undefined, customDateConfig)).toBe(true);
+    // Morning is normally eligible for JRS 1, but this date excludes it
+    expect(isFacultyEligibleForSession('Morning', 'JRS 1', undefined, customDateConfig)).toBe(false);
+  });
+
+  it('should detect timing overlap and tight turnaround intervals', () => {
+    const overlappingTimings = {
+      'JRS 1': { start: '08:00', end: '10:30' },
+      'JRS 2': { start: '10:00', end: '12:00' }, // Overlaps with JRS 1
+    };
+    const overlapWarnings = checkSessionTimingsOverlap(overlappingTimings);
+    expect(overlapWarnings.some((w) => w.type === 'overlap')).toBe(true);
+
+    const tightTimings = {
+      'JRS 1': { start: '08:00', end: '10:00' },
+      'JRS 2': { start: '10:10', end: '12:00' }, // 10 mins turnaround (< 15 mins)
+    };
+    const tightWarnings = checkSessionTimingsOverlap(tightTimings);
+    expect(tightWarnings.some((w) => w.type === 'tight_turnaround')).toBe(true);
   });
 
   it('should correctly balance 6 active dates × 57 positions = 342 positions with 61 faculty', () => {
@@ -359,4 +389,111 @@ describe('Examination Supervision Scheduler Engine', () => {
       });
     });
   });
+
+  it('should prioritize HOD assignments when hodAssignmentPriority is "hod_first"', () => {
+    const hodPrioritySettings = {
+      ...DEFAULT_SETTINGS,
+      hodAssignmentPriority: 'hod_first' as const,
+    };
+
+    const regularPrioritySettings = {
+      ...DEFAULT_SETTINGS,
+      hodAssignmentPriority: 'regular_first_hod_last' as const,
+    };
+
+    const resultHodFirst = solveExaminationSchedule(
+      DEFAULT_FACULTY_LIST,
+      DEFAULT_DATES_CONFIG,
+      {},
+      hodPrioritySettings,
+      { seed: 42 }
+    );
+
+    const resultRegularFirst = solveExaminationSchedule(
+      DEFAULT_FACULTY_LIST,
+      DEFAULT_DATES_CONFIG,
+      {},
+      regularPrioritySettings,
+      { seed: 42 }
+    );
+
+    expect(resultHodFirst.success).toBe(true);
+    expect(resultRegularFirst.success).toBe(true);
+
+    const hodSrNos = new Set(DEFAULT_FACULTY_LIST.filter((f) => f.isHod).map((f) => f.srNo));
+
+    const hodDutiesInHodFirst = resultHodFirst.assignments.filter((a) => !a.isReserve && hodSrNos.has(a.facultySrNo)).length;
+    const hodDutiesInRegularFirst = resultRegularFirst.assignments.filter((a) => !a.isReserve && hodSrNos.has(a.facultySrNo)).length;
+
+    // HODs should receive as many or more duties when prioritized first compared to regular first
+    expect(hodDutiesInHodFirst).toBeGreaterThanOrEqual(hodDutiesInRegularFirst);
+  });
+
+  it('should honor custom role concession deltas during scheduling', () => {
+    // Use 5 active dates so there is capacity slack for role concessions
+    const fiveDatesConfig = DEFAULT_DATES_CONFIG.map((d, idx) =>
+      idx === 5 ? { ...d, isExcluded: true } : d
+    );
+
+    const testFaculty = DEFAULT_FACULTY_LIST.map((f) => {
+      if (f.srNo === 4) {
+        return {
+          ...f,
+          role: 'Visiting Professor',
+          concessionOrAdditionalDuties: -3,
+        };
+      }
+      return f;
+    });
+
+    const result = solveExaminationSchedule(
+      testFaculty,
+      fiveDatesConfig,
+      {},
+      DEFAULT_SETTINGS,
+      { seed: 42 }
+    );
+
+    expect(result.success).toBe(true);
+    const faculty4Assignments = result.assignments.filter((a) => a.facultySrNo === 4);
+    // Faculty #4 with -3 concession receives reduced duties
+    expect(faculty4Assignments.length).toBeLessThanOrEqual(3);
+  });
+
+  it('should avoid consecutive day assignments when avoidConsecutiveDays is enabled and capacity allows', () => {
+    // Active dates with light requirement (2 duties per day = 10 total duties across 61 faculty)
+    const lightDatesConfig = DEFAULT_DATES_CONFIG.map((d) => ({
+      ...d,
+      sessionRequirements: { 'JRS 1': 2, 'JRS 2': 0, 'JRS 3': 0 },
+    }));
+
+    const result = solveExaminationSchedule(
+      DEFAULT_FACULTY_LIST,
+      lightDatesConfig,
+      {},
+      { ...DEFAULT_SETTINGS, avoidConsecutiveDays: true },
+      { seed: 42 }
+    );
+
+    expect(result.success).toBe(true);
+
+    // Count consecutive assignments across all faculty
+    const activeDates = lightDatesConfig.filter((d) => !d.isExcluded).map((d) => d.date);
+    let consecutiveCount = 0;
+
+    DEFAULT_FACULTY_LIST.forEach((f) => {
+      const datesWorked = new Set(
+        result.assignments.filter((a) => a.facultySrNo === f.srNo).map((a) => a.date)
+      );
+      for (let i = 0; i < activeDates.length - 1; i++) {
+        if (datesWorked.has(activeDates[i]) && datesWorked.has(activeDates[i + 1])) {
+          consecutiveCount++;
+        }
+      }
+    });
+
+    // When capacity allows, consecutive assignments should be strictly avoided (0)
+    expect(consecutiveCount).toBe(0);
+  });
 });
+
