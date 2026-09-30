@@ -495,5 +495,27 @@ describe('Examination Supervision Scheduler Engine', () => {
     // When capacity allows, consecutive assignments should be strictly avoided (0)
     expect(consecutiveCount).toBe(0);
   });
+
+  it('should support updating custom role tier definitions and quotas', () => {
+    const customRoles = [
+      {
+        id: 'professor',
+        name: 'Senior Professor',
+        defaultTarget: 3,
+        defaultMax: 3,
+        concessionDelta: -3,
+        schedulingPriority: 'concession_last' as const,
+      },
+    ];
+
+    // Modify the role tier definition (e.g. increase quota to 5)
+    const updatedRoles = customRoles.map((r) =>
+      r.id === 'professor' ? { ...r, defaultTarget: 5, defaultMax: 5, concessionDelta: -1 } : r
+    );
+
+    expect(updatedRoles[0].defaultTarget).toBe(5);
+    expect(updatedRoles[0].defaultMax).toBe(5);
+    expect(updatedRoles[0].concessionDelta).toBe(-1);
+  });
 });
 

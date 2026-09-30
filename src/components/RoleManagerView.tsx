@@ -13,12 +13,14 @@ import {
   CheckSquare,
   Square,
   Info,
+  Pencil,
+  X,
 } from 'lucide-react';
 import { useScheduler } from '../context/SchedulerContext';
 import { CustomRoleDefinition, DEFAULT_CUSTOM_ROLES } from '../types';
 
 export const RoleManagerView: React.FC = () => {
-  const { project, bulkSegregateRoles, updateCustomRoles } = useScheduler();
+  const { project, bulkSegregateRoles, updateCustomRoles, updateFacultyList } = useScheduler();
 
   const [activeSubTab, setActiveSubTab] = useState<'assign' | 'manage_roles'>('assign');
   const [searchTerm, setSearchTerm] = useState('');
@@ -26,6 +28,17 @@ export const RoleManagerView: React.FC = () => {
   const [selectedSrNos, setSelectedSrNos] = useState<number[]>([]);
   const [targetRoleToApply, setTargetRoleToApply] = useState<string>('assistant_prof');
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  // Edit existing role state
+  const [editingRole, setEditingRole] = useState<CustomRoleDefinition | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editRoleName, setEditRoleName] = useState('');
+  const [editRoleTarget, setEditRoleTarget] = useState(6);
+  const [editRoleMax, setEditRoleMax] = useState(6);
+  const [editRoleConcession, setEditRoleConcession] = useState(0);
+  const [editRolePriority, setEditRolePriority] = useState<'concession_last' | 'standard' | 'priority_first'>('standard');
+  const [editRoleColor, setEditRoleColor] = useState('sky');
+  const [editSyncToFaculty, setEditSyncToFaculty] = useState(true);
 
   // Custom roles management state
   const rolesList: CustomRoleDefinition[] = useMemo(() => {
@@ -153,6 +166,70 @@ export const RoleManagerView: React.FC = () => {
     if (confirm('Delete this role definition? Existing faculty assigned to this role will preserve their title until re-assigned.')) {
       updateCustomRoles(rolesList.filter((r) => r.id !== id));
     }
+  };
+
+  // Launch edit role dialog
+  const handleStartEditRole = (role: CustomRoleDefinition) => {
+    setEditingRole(role);
+    setEditRoleName(role.name);
+    setEditRoleTarget(role.defaultTarget);
+    setEditRoleMax(role.defaultMax);
+    setEditRoleConcession(role.concessionDelta);
+    setEditRolePriority(role.schedulingPriority);
+    setEditRoleColor(role.color || 'sky');
+    setEditSyncToFaculty(true);
+    setIsEditModalOpen(true);
+  };
+
+  // Save edited role and cascade updates
+  const handleSaveRoleEdit = () => {
+    if (!editingRole) return;
+    if (!editRoleName.trim()) {
+      alert('Please enter a role name.');
+      return;
+    }
+
+    const updatedRole: CustomRoleDefinition = {
+      ...editingRole,
+      name: editRoleName.trim(),
+      defaultTarget: Math.max(1, editRoleTarget),
+      defaultMax: Math.max(1, editRoleMax),
+      concessionDelta: editRoleConcession,
+      schedulingPriority: editRolePriority,
+      color: editRoleColor,
+    };
+
+    // Update settings custom roles
+    const updatedRolesList = rolesList.map((r) => (r.id === editingRole.id ? updatedRole : r));
+    updateCustomRoles(updatedRolesList);
+
+    // If requested, synchronize the updated quotas to all faculty holding this role
+    if (editSyncToFaculty) {
+      const updatedFaculty = project.faculty.map((f) => {
+        const matchesRole =
+          f.role === editingRole.id ||
+          f.role === editingRole.name ||
+          (editingRole.id === 'hod' && f.isHod) ||
+          (editingRole.id === 'regular' && !f.isHod && (!f.role || f.role === 'regular'));
+
+        if (matchesRole) {
+          return {
+            ...f,
+            role: updatedRole.name,
+            targetSupervisions: updatedRole.defaultTarget,
+            maxSupervisions: updatedRole.defaultMax,
+            concessionOrAdditionalDuties: updatedRole.concessionDelta,
+          };
+        }
+        return f;
+      });
+      updateFacultyList(updatedFaculty);
+    }
+
+    setIsEditModalOpen(false);
+    setEditingRole(null);
+    setSuccessMessage(`Successfully updated role tier "${updatedRole.name}"!`);
+    setTimeout(() => setSuccessMessage(null), 4000);
   };
 
   return (
@@ -427,16 +504,27 @@ export const RoleManagerView: React.FC = () => {
                         </span>
                       </div>
 
-                      {role.id !== 'hod' && role.id !== 'regular' && (
+                      <div className="flex items-center space-x-1">
                         <button
                           type="button"
-                          onClick={() => handleDeleteRole(role.id)}
-                          className="p-1 text-slate-400 hover:text-rose-600 rounded-lg transition"
-                          title="Delete Custom Role"
+                          onClick={() => handleStartEditRole(role)}
+                          className="p-1.5 text-slate-400 hover:text-sky-600 dark:hover:text-sky-400 hover:bg-slate-100 dark:hover:bg-white/10 rounded-lg transition cursor-pointer"
+                          title="Edit Role Tier & Rules"
                         >
-                          <Trash2 className="w-4 h-4" />
+                          <Pencil className="w-3.5 h-3.5" />
                         </button>
-                      )}
+
+                        {role.id !== 'hod' && role.id !== 'regular' && (
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteRole(role.id)}
+                            className="p-1.5 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-slate-100 dark:hover:bg-white/10 rounded-lg transition cursor-pointer"
+                            title="Delete Custom Role"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
                     </div>
 
                     <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-100 dark:border-white/5 text-center">
@@ -579,6 +667,158 @@ export const RoleManagerView: React.FC = () => {
                 className="w-full py-2 bg-sky-600 hover:bg-sky-500 text-white font-bold rounded-xl shadow-sm transition cursor-pointer mt-2"
               >
                 Create Role Tier
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Role Tier & Rules Modal */}
+      {isEditModalOpen && editingRole && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+          <div className="apple-glass-card bg-white dark:bg-slate-900 rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-sky-300/80 dark:border-sky-900/50 space-y-5 animate-in fade-in zoom-in-95 duration-150 my-auto">
+            <div className="flex items-start justify-between border-b border-slate-100 dark:border-white/10 pb-4">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 rounded-2xl bg-sky-100 dark:bg-sky-950 text-sky-600 dark:text-sky-400 flex items-center justify-center shadow-xs">
+                  <Pencil className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center space-x-2">
+                    <span>Edit Role Tier &amp; Rules</span>
+                    <span className="text-xs px-2.5 py-0.5 rounded-full font-bold bg-sky-100 dark:bg-sky-950 text-sky-700 dark:text-sky-300">
+                      {editingRole.name}
+                    </span>
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                    Modify target quotas, maximum allowed supervision caps, and concession policies.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsEditModalOpen(false)}
+                className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-white/10 transition cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4 text-xs">
+              <div>
+                <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                  Role Title / Designation
+                </label>
+                <input
+                  type="text"
+                  value={editRoleName}
+                  onChange={(e) => setEditRoleName(e.target.value)}
+                  className="w-full px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-white/10 rounded-xl text-slate-900 dark:text-white font-medium"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                    Target Quota (Standard Load)
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="15"
+                    value={editRoleTarget}
+                    onChange={(e) => setEditRoleTarget(parseInt(e.target.value, 10) || 1)}
+                    className="w-full px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-white/10 rounded-xl font-mono font-bold"
+                  />
+                </div>
+
+                <div>
+                  <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                    Maximum Allowed Cap
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="15"
+                    value={editRoleMax}
+                    onChange={(e) => setEditRoleMax(parseInt(e.target.value, 10) || 1)}
+                    className="w-full px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-white/10 rounded-xl font-mono font-bold"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                  Concession Delta (- for fewer duties, + for extra duties)
+                </label>
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="number"
+                    min="-10"
+                    max="10"
+                    value={editRoleConcession}
+                    onChange={(e) => setEditRoleConcession(parseInt(e.target.value, 10) || 0)}
+                    className="w-24 px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-white/10 rounded-xl font-mono font-bold"
+                  />
+                  <span className="text-[11px] text-slate-500">
+                    {editRoleConcession < 0
+                      ? `${Math.abs(editRoleConcession)} duties concession (reduced duties)`
+                      : editRoleConcession > 0
+                      ? `+${editRoleConcession} additional duties (extra load)`
+                      : 'Standard quota (0)'}
+                  </span>
+                </div>
+              </div>
+
+              <div>
+                <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                  Solver Assignment Priority
+                </label>
+                <select
+                  value={editRolePriority}
+                  onChange={(e) => setEditRolePriority(e.target.value as any)}
+                  className="w-full px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-white/10 rounded-xl font-medium"
+                >
+                  <option value="concession_last">Assigned Last (HOD / Senior Concession)</option>
+                  <option value="standard">Standard Priority (Proportional Balance)</option>
+                  <option value="priority_first">Assigned First (Visiting / High Load)</option>
+                </select>
+              </div>
+
+              {/* Cascade sync option */}
+              <div className="pt-2 border-t border-slate-100 dark:border-white/10">
+                <label className="flex items-start space-x-2.5 cursor-pointer text-slate-700 dark:text-slate-300">
+                  <input
+                    type="checkbox"
+                    checked={editSyncToFaculty}
+                    onChange={(e) => setEditSyncToFaculty(e.target.checked)}
+                    className="rounded text-sky-600 focus:ring-sky-500 mt-0.5 cursor-pointer"
+                  />
+                  <div>
+                    <span className="font-bold block">
+                      Sync updated quotas to all assigned faculty members ({stats.roleCounts[editingRole.name] || 0} Faculty)
+                    </span>
+                    <span className="text-[11px] text-slate-500 dark:text-slate-400 block">
+                      Instantly updates target supervisions, max caps, and concessions for all faculty currently designated under this role tier.
+                    </span>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end space-x-3 pt-3 border-t border-slate-100 dark:border-white/10">
+              <button
+                type="button"
+                onClick={() => setIsEditModalOpen(false)}
+                className="px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white rounded-xl transition cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveRoleEdit}
+                className="px-5 py-2 text-xs font-bold text-white bg-sky-600 hover:bg-sky-500 rounded-xl shadow-md shadow-sky-500/25 transition cursor-pointer"
+              >
+                Save Role Changes
               </button>
             </div>
           </div>
