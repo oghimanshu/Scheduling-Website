@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useEffect } from 'react';
+import Lenis from 'lenis';
 import { SchedulerProvider, useScheduler } from './context/SchedulerContext';
 import { Navbar } from './components/Navbar';
 import { Dashboard } from './components/Dashboard';
@@ -32,27 +33,58 @@ const AppContent: React.FC = () => {
     setIsSubstituteModalOpen,
   } = useScheduler();
 
+  // Initialize Lenis Smooth Scroll
+  useEffect(() => {
+    const lenis = new Lenis({
+      duration: 1.15,
+      easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+      orientation: 'vertical',
+      gestureOrientation: 'vertical',
+      smoothWheel: true,
+      touchMultiplier: 1.25,
+    });
+
+    let rafId: number;
+    function raf(time: number) {
+      lenis.raf(time);
+      rafId = requestAnimationFrame(raf);
+    }
+    rafId = requestAnimationFrame(raf);
+
+    return () => {
+      cancelAnimationFrame(rafId);
+      lenis.destroy();
+    };
+  }, []);
+
+  // Smooth scroll to top when changing views
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [activeTab]);
+
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 transition-colors duration-300 relative overflow-hidden">
-      {/* Apple-style Chromatic Ambient Glow Orbs */}
+      {/* Apple-style Chromatic Ambient Glow Orbs with Gentle Floating Motion */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden z-0" aria-hidden="true">
-        <div className="absolute -top-32 -left-32 w-96 h-96 rounded-full bg-gradient-to-tr from-sky-400/20 to-blue-500/15 dark:from-sky-500/15 dark:to-indigo-500/15 blur-3xl transform-gpu"></div>
-        <div className="absolute top-1/3 -right-32 w-[28rem] h-[28rem] rounded-full bg-gradient-to-bl from-indigo-400/20 to-purple-400/15 dark:from-indigo-600/15 dark:to-purple-700/15 blur-3xl transform-gpu"></div>
-        <div className="absolute -bottom-32 left-1/3 w-[32rem] h-[32rem] rounded-full bg-gradient-to-tr from-cyan-400/15 to-sky-300/15 dark:from-teal-500/10 dark:to-blue-600/10 blur-3xl transform-gpu"></div>
+        <div className="absolute -top-32 -left-32 w-96 h-96 rounded-full bg-gradient-to-tr from-sky-400/20 to-blue-500/15 dark:from-sky-500/15 dark:to-indigo-500/15 blur-3xl transform-gpu animate-float-slow"></div>
+        <div className="absolute top-1/3 -right-32 w-[28rem] h-[28rem] rounded-full bg-gradient-to-bl from-indigo-400/20 to-purple-400/15 dark:from-indigo-600/15 dark:to-purple-700/15 blur-3xl transform-gpu animate-float-reverse"></div>
+        <div className="absolute -bottom-32 left-1/3 w-[32rem] h-[32rem] rounded-full bg-gradient-to-tr from-cyan-400/15 to-sky-300/15 dark:from-teal-500/10 dark:to-blue-600/10 blur-3xl transform-gpu animate-float-slow"></div>
       </div>
 
       {/* Navbar with tabs and quick status */}
       <Navbar />
 
-      {/* Main Container */}
+      {/* Main Container with Smooth View Transitions */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-2.5 sm:px-6 lg:px-8 py-4 sm:py-6 relative z-10">
-        {activeTab === 'dashboard' && <Dashboard />}
-        {activeTab === 'faculty' && <FacultyManager />}
-        {activeTab === 'roles' && <RoleManagerView />}
-        {activeTab === 'period' && <ExamPeriodManager />}
-        {activeTab === 'availability' && <AvailabilityManager />}
-        {activeTab === 'schedule' && <ScheduleViewer />}
-        {activeTab === 'instructions' && <InstructionsView />}
+        <div key={activeTab} className="animate-tab-enter">
+          {activeTab === 'dashboard' && <Dashboard />}
+          {activeTab === 'faculty' && <FacultyManager />}
+          {activeTab === 'roles' && <RoleManagerView />}
+          {activeTab === 'period' && <ExamPeriodManager />}
+          {activeTab === 'availability' && <AvailabilityManager />}
+          {activeTab === 'schedule' && <ScheduleViewer />}
+          {activeTab === 'instructions' && <InstructionsView />}
+        </div>
       </main>
 
       {/* Footer with Liquid Glass styling & Himanshu Gaur Attribution */}

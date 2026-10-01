@@ -101,12 +101,14 @@ export const Dashboard: React.FC = () => {
         </div>
       )}
 
-      {/* Top Banner / Callout */}
-      <div className="bg-gradient-to-r from-sky-900 via-sky-800 to-indigo-900 rounded-2xl p-6 text-white shadow-lg">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      {/* Top Hero Banner */}
+      <div className="relative overflow-hidden bg-gradient-to-br from-sky-900/95 via-indigo-950/95 to-slate-900/95 border border-sky-400/30 rounded-3xl p-6 sm:p-7 text-white shadow-2xl backdrop-blur-xl">
+        <div className="apple-specular-rim" />
+        <div className="absolute top-0 right-0 -mr-16 -mt-16 w-64 h-64 rounded-full bg-sky-500/10 blur-3xl pointer-events-none" />
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 relative z-10">
           <div>
             <div className="flex items-center space-x-2">
-              <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-sky-500/20 text-sky-200 border border-sky-400/30">
+              <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-sky-500/20 text-sky-200 border border-sky-400/30 backdrop-blur-xs">
                 Active Period: {project.examPeriod.name}
               </span>
               <span className="text-xs text-sky-300">

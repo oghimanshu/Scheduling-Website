@@ -213,7 +213,10 @@ export const Navbar: React.FC = () => {
         </div>
 
         {/* Mobile & Tablet Optimized Segmented Glass Tab Navigation */}
-        <nav className="flex space-x-1 border-t border-slate-200/50 dark:border-white/5 py-1.5 overflow-x-auto no-scrollbar scroll-smooth touch-scroll">
+        <nav
+          className="flex space-x-1 border-t border-slate-200/50 dark:border-white/5 py-1.5 overflow-x-auto no-scrollbar scroll-smooth touch-scroll"
+          data-lenis-prevent
+        >
           {[
             { id: 'dashboard', label: 'Dashboard', shortLabel: 'Dashboard', icon: Calendar },
             { id: 'faculty', label: 'Faculty Management', shortLabel: 'Faculty', icon: Users },
@@ -229,13 +232,13 @@ export const Navbar: React.FC = () => {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as any)}
-                className={`flex items-center space-x-1.5 sm:space-x-2 px-3 sm:px-4 py-2 text-xs rounded-xl transition duration-200 cursor-pointer shrink-0 whitespace-nowrap min-h-[38px] ${
+                className={`relative flex items-center space-x-1.5 sm:space-x-2 px-3 sm:px-4 py-2 text-xs rounded-xl transition-all duration-300 cursor-pointer shrink-0 whitespace-nowrap min-h-[38px] active:scale-95 ${
                   isActive
-                    ? 'bg-sky-600 dark:bg-sky-500 text-white font-bold shadow-md shadow-sky-500/25'
+                    ? 'bg-gradient-to-r from-sky-600 via-sky-500 to-indigo-600 text-white font-bold shadow-md shadow-sky-500/25 ring-1 ring-white/20'
                     : 'text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-slate-800/60 font-semibold'
                 }`}
               >
-                <Icon className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${isActive ? 'text-white' : 'text-slate-500 dark:text-slate-400'}`} />
+                <Icon className={`w-3.5 h-3.5 sm:w-4 sm:h-4 transition-transform duration-200 ${isActive ? 'text-white scale-110' : 'text-slate-500 dark:text-slate-400'}`} />
                 <span className="sm:hidden">{tab.shortLabel}</span>
                 <span className="hidden sm:inline">{tab.label}</span>
               </button>

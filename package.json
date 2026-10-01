@@ -12,6 +12,7 @@
   "dependencies": {
     "canvas-confetti": "^1.9.4",
     "glpk.js": "^5.0.0",
+    "lenis": "^1.3.26",
     "lucide-react": "^1.16.0",
     "papaparse": "^5.5.3",
     "react": "^19.0.0",

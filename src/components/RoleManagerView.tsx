@@ -675,8 +675,8 @@ export const RoleManagerView: React.FC = () => {
 
       {/* Edit Role Tier & Rules Modal */}
       {isEditModalOpen && editingRole && (
-        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
-          <div className="apple-glass-card bg-white dark:bg-slate-900 rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-sky-300/80 dark:border-sky-900/50 space-y-5 animate-in fade-in zoom-in-95 duration-150 my-auto">
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 overflow-y-auto" data-lenis-prevent>
+          <div className="apple-glass-card bg-white dark:bg-slate-900 rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-sky-300/80 dark:border-sky-900/50 space-y-5 animate-modal-spring my-auto">
             <div className="flex items-start justify-between border-b border-slate-100 dark:border-white/10 pb-4">
               <div className="flex items-center space-x-3">
                 <div className="w-10 h-10 rounded-2xl bg-sky-100 dark:bg-sky-950 text-sky-600 dark:text-sky-400 flex items-center justify-center shadow-xs">

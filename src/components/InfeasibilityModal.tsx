@@ -21,8 +21,8 @@ export const InfeasibilityModal: React.FC = () => {
   if (!infeasibilityReport || !infeasibilityReport.isInfeasible) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
-      <div className="apple-glass-card bg-white/95 dark:bg-slate-900/95 rounded-3xl max-w-2xl w-full max-h-[92dvh] my-auto flex flex-col shadow-2xl border border-rose-300/80 dark:border-rose-900/40 animate-in fade-in zoom-in-95 duration-150 relative overflow-hidden">
+    <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto" data-lenis-prevent>
+      <div className="apple-glass-card bg-white/95 dark:bg-slate-900/95 rounded-3xl max-w-2xl w-full max-h-[92dvh] my-auto flex flex-col shadow-2xl border border-rose-300/80 dark:border-rose-900/40 animate-modal-spring relative overflow-hidden">
         {/* Header */}
         <div className="p-5 sm:p-6 border-b border-rose-200/60 dark:border-rose-900/40 bg-rose-50/70 dark:bg-rose-950/40 rounded-t-3xl flex items-start justify-between">
           <div className="flex items-center space-x-3">

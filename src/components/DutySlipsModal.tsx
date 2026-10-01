@@ -59,8 +59,8 @@ export const DutySlipsModal: React.FC<{ forceOpen?: boolean }> = ({ forceOpen })
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 overflow-y-auto print:p-0 print:bg-white print:static">
-      <div className="apple-glass-card bg-white dark:bg-slate-900 rounded-3xl max-w-5xl w-full max-h-[92vh] flex flex-col shadow-2xl border border-slate-200 dark:border-white/10 relative overflow-hidden my-auto animate-in fade-in zoom-in-95 duration-150 print:border-none print:shadow-none print:max-h-none print:max-w-none print:rounded-none">
+    <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 overflow-y-auto print:p-0 print:bg-white print:static" data-lenis-prevent>
+      <div className="apple-glass-card bg-white dark:bg-slate-900 rounded-3xl max-w-5xl w-full max-h-[92dvh] flex flex-col shadow-2xl border border-slate-200 dark:border-white/10 relative overflow-hidden my-auto animate-modal-spring print:border-none print:shadow-none print:max-h-none print:max-w-none print:rounded-none">
         {/* Header - Hidden during print */}
         <div className="p-5 sm:p-6 border-b border-slate-200/80 dark:border-white/10 flex items-start justify-between no-print">
           <div className="flex items-center space-x-3">

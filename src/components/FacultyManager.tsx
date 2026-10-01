@@ -818,8 +818,8 @@ export const FacultyManager: React.FC = () => {
 
       {/* Date-Specific Faculty Exclusion Modal */}
       {dateExclusionFaculty && (
-        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
-          <div className="apple-glass-card bg-white/95 dark:bg-slate-900/95 rounded-3xl max-w-xl w-full p-4 sm:p-6 shadow-2xl border border-slate-200/80 dark:border-white/10 space-y-5 animate-in fade-in zoom-in-95 duration-150 relative overflow-hidden flex flex-col my-auto max-h-[90dvh]">
+        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto" data-lenis-prevent>
+          <div className="apple-glass-card bg-white/95 dark:bg-slate-900/95 rounded-3xl max-w-xl w-full p-4 sm:p-6 shadow-2xl border border-slate-200/80 dark:border-white/10 space-y-5 animate-modal-spring relative overflow-hidden flex flex-col my-auto max-h-[90dvh]">
             <div className="flex justify-between items-start border-b border-slate-200/60 dark:border-white/10 pb-4">
               <div>
                 <div className="flex items-center space-x-2">
@@ -959,8 +959,8 @@ export const FacultyManager: React.FC = () => {
 
       {/* CSV Import Modal with Initial Supervision Selector */}
       {isImportModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
-          <div className="apple-glass-card bg-white dark:bg-slate-900 rounded-3xl max-w-xl w-full max-h-[90vh] flex flex-col shadow-2xl border border-slate-200 dark:border-white/10 relative overflow-hidden my-auto animate-in fade-in zoom-in-95 duration-150">
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 overflow-y-auto" data-lenis-prevent>
+          <div className="apple-glass-card bg-white dark:bg-slate-900 rounded-3xl max-w-xl w-full max-h-[92dvh] flex flex-col shadow-2xl border border-slate-200 dark:border-white/10 relative overflow-hidden my-auto animate-modal-spring">
             {/* Header */}
             <div className="p-5 sm:p-6 border-b border-slate-200/80 dark:border-white/10 flex items-start justify-between">
               <div className="flex items-center space-x-3">
@@ -1253,8 +1253,8 @@ export const FacultyManager: React.FC = () => {
 
       {/* Faculty Individual Edit Modal */}
       {editingFaculty && (
-        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
-          <div className="apple-glass-card bg-white/95 dark:bg-slate-900/95 rounded-3xl max-w-lg w-full p-4 sm:p-6 shadow-2xl border border-slate-200/80 dark:border-white/10 space-y-4 animate-in fade-in zoom-in-95 duration-150 relative overflow-hidden my-auto max-h-[90dvh] flex flex-col">
+        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto" data-lenis-prevent>
+          <div className="apple-glass-card bg-white/95 dark:bg-slate-900/95 rounded-3xl max-w-lg w-full p-4 sm:p-6 shadow-2xl border border-slate-200/80 dark:border-white/10 space-y-4 animate-modal-spring relative overflow-hidden my-auto max-h-[90dvh] flex flex-col">
             <div className="flex justify-between items-center border-b border-slate-200/60 dark:border-white/10 pb-3">
               <h3 className="text-base font-bold text-slate-900 dark:text-white">
                 Edit Faculty: {editingFaculty.name} (Sr. #{editingFaculty.srNo})

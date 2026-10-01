@@ -1,3 +1,5 @@
+@import 'lenis/dist/lenis.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -6,6 +8,7 @@
   html {
     -webkit-text-size-adjust: 100%;
     -webkit-tap-highlight-color: transparent;
+    scroll-behavior: smooth;
   }
 
   body {
@@ -34,16 +37,17 @@
 @layer components {
   /* Apple Liquid Glass Morphism Utilities */
   .apple-glass {
-    @apply bg-white/85 dark:bg-slate-900/90 backdrop-blur-xl border border-slate-200/80 dark:border-white/10 shadow-sm dark:shadow-2xl transition-colors duration-200;
+    @apply bg-white/85 dark:bg-slate-900/90 backdrop-blur-xl border border-slate-200/80 dark:border-white/10 shadow-sm dark:shadow-2xl transition-colors duration-300;
   }
 
   .apple-glass-card {
-    @apply relative bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border border-slate-200/80 dark:border-white/10 shadow-sm dark:shadow-2xl text-slate-800 dark:text-slate-100 transition-all duration-200;
+    @apply relative bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border border-slate-200/80 dark:border-white/10 shadow-sm dark:shadow-2xl text-slate-800 dark:text-slate-100 transition-all duration-300;
+    transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
   }
 
   .apple-glass-card:hover {
-    @apply border-sky-400/50 dark:border-sky-500/50 shadow-md dark:shadow-sky-500/10;
-    transform: translateY(-1px);
+    @apply border-sky-400/50 dark:border-sky-500/50 shadow-lg dark:shadow-sky-500/10;
+    transform: translateY(-2px);
   }
 
   /* Apple Liquid Top Specular Rim Light */
@@ -86,12 +90,70 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(148, 163, 184, 0.5);
+  background: rgba(148, 163, 184, 0.4);
   border-radius: 9999px;
+  transition: background 0.2s ease;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(100, 116, 139, 0.8);
+  background: rgba(100, 116, 139, 0.7);
+}
+
+/* Keyframes for Smooth Transitions & Fluid Aesthetics */
+@keyframes tabFadeSlide {
+  0% {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-tab-enter {
+  animation: tabFadeSlide 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes modalSpringIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.96) translateY(6px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.animate-modal-spring {
+  animation: modalSpringIn 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes floatSlow {
+  0%, 100% {
+    transform: translate(0px, 0px) scale(1);
+  }
+  50% {
+    transform: translate(16px, -24px) scale(1.06);
+  }
+}
+
+@keyframes floatReverse {
+  0%, 100% {
+    transform: translate(0px, 0px) scale(1);
+  }
+  50% {
+    transform: translate(-20px, 18px) scale(0.95);
+  }
+}
+
+.animate-float-slow {
+  animation: floatSlow 20s ease-in-out infinite alternate;
+}
+
+.animate-float-reverse {
+  animation: floatReverse 24s ease-in-out infinite alternate;
 }
 
 /* Print Friendly Styles (Clean Paper & PDF Output) */
