@@ -18,8 +18,8 @@ export const ResetSessionConfirmModal: React.FC<{ forceOpen?: boolean }> = ({ fo
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4">
-      <div className="apple-glass-card bg-white dark:bg-slate-900 rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-rose-300/80 dark:border-rose-900/50 space-y-5 animate-in fade-in zoom-in-95 duration-150">
+    <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+      <div className="apple-glass-card bg-white dark:bg-slate-900 rounded-3xl max-w-lg w-full p-4 sm:p-6 shadow-2xl border border-rose-300/80 dark:border-rose-900/50 space-y-5 animate-in fade-in zoom-in-95 duration-150 my-auto max-h-[92dvh] flex flex-col">
         {/* Header */}
         <div className="flex items-start justify-between border-b border-slate-100 dark:border-white/10 pb-4">
           <div className="flex items-center space-x-3">

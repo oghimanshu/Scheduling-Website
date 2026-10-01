@@ -213,15 +213,15 @@ export const Navbar: React.FC = () => {
         </div>
 
         {/* Mobile & Tablet Optimized Segmented Glass Tab Navigation */}
-        <nav className="flex space-x-1 border-t border-slate-200/50 dark:border-white/5 py-1.5 overflow-x-auto no-scrollbar scroll-smooth">
+        <nav className="flex space-x-1 border-t border-slate-200/50 dark:border-white/5 py-1.5 overflow-x-auto no-scrollbar scroll-smooth touch-scroll">
           {[
-            { id: 'dashboard', label: 'Dashboard', icon: Calendar },
-            { id: 'faculty', label: 'Faculty Management', icon: Users },
-            { id: 'roles', label: 'Role Manager', icon: Award },
-            { id: 'period', label: 'Examination Period', icon: Clock },
-            { id: 'availability', label: 'Availability Matrix', icon: CheckCircle2 },
-            { id: 'schedule', label: 'Schedule Views', icon: FileSpreadsheet },
-            { id: 'instructions', label: 'Instructions & Guide', icon: BookOpen },
+            { id: 'dashboard', label: 'Dashboard', shortLabel: 'Dashboard', icon: Calendar },
+            { id: 'faculty', label: 'Faculty Management', shortLabel: 'Faculty', icon: Users },
+            { id: 'roles', label: 'Role Manager', shortLabel: 'Roles', icon: Award },
+            { id: 'period', label: 'Examination Period', shortLabel: 'Period', icon: Clock },
+            { id: 'availability', label: 'Availability Matrix', shortLabel: 'Availability', icon: CheckCircle2 },
+            { id: 'schedule', label: 'Schedule Views', shortLabel: 'Schedule', icon: FileSpreadsheet },
+            { id: 'instructions', label: 'Instructions & Guide', shortLabel: 'Guide', icon: BookOpen },
           ].map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -229,14 +229,15 @@ export const Navbar: React.FC = () => {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as any)}
-                className={`flex items-center space-x-1.5 sm:space-x-2 px-3.5 sm:px-4 py-2 text-xs rounded-xl transition duration-200 cursor-pointer shrink-0 whitespace-nowrap min-h-[38px] ${
+                className={`flex items-center space-x-1.5 sm:space-x-2 px-3 sm:px-4 py-2 text-xs rounded-xl transition duration-200 cursor-pointer shrink-0 whitespace-nowrap min-h-[38px] ${
                   isActive
                     ? 'bg-sky-600 dark:bg-sky-500 text-white font-bold shadow-md shadow-sky-500/25'
                     : 'text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-slate-800/60 font-semibold'
                 }`}
               >
                 <Icon className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${isActive ? 'text-white' : 'text-slate-500 dark:text-slate-400'}`} />
-                <span>{tab.label}</span>
+                <span className="sm:hidden">{tab.shortLabel}</span>
+                <span className="hidden sm:inline">{tab.label}</span>
               </button>
             );
           })}

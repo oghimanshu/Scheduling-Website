@@ -61,8 +61,8 @@ export const ExportModal: React.FC = () => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/60 dark:bg-black/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-4">
-      <div className="apple-glass-card bg-white/95 dark:bg-slate-900/95 rounded-2xl max-w-xl w-full p-5 sm:p-6 shadow-2xl border border-slate-200/80 dark:border-white/10 space-y-5 animate-in fade-in zoom-in-95 duration-150">
+    <div className="fixed inset-0 z-50 bg-slate-900/60 dark:bg-black/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+      <div className="apple-glass-card bg-white/95 dark:bg-slate-900/95 rounded-2xl max-w-xl w-full p-4 sm:p-6 shadow-2xl border border-slate-200/80 dark:border-white/10 space-y-5 animate-in fade-in zoom-in-95 duration-150 my-auto max-h-[92dvh] flex flex-col">
         <div className="flex justify-between items-center border-b border-slate-100 dark:border-white/10 pb-3">
           <div className="flex items-center space-x-2">
             <Download className="w-5 h-5 text-sky-600 dark:text-sky-400" />

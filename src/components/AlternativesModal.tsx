@@ -25,8 +25,8 @@ export const AlternativesModal: React.FC = () => {
   if (!isAlternativesModalOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/60 dark:bg-black/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-4">
-      <div className="apple-glass-card bg-white/95 dark:bg-slate-900/95 rounded-2xl max-w-5xl w-full max-h-[90vh] flex flex-col shadow-2xl border border-slate-200/80 dark:border-white/10 animate-in fade-in zoom-in-95 duration-150">
+    <div className="fixed inset-0 z-50 bg-slate-900/60 dark:bg-black/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+      <div className="apple-glass-card bg-white/95 dark:bg-slate-900/95 rounded-2xl max-w-5xl w-full max-h-[92dvh] my-auto flex flex-col shadow-2xl border border-slate-200/80 dark:border-white/10 animate-in fade-in zoom-in-95 duration-150">
         {/* Header */}
         <div className="p-4 sm:p-6 border-b border-slate-100 dark:border-white/10 flex items-center justify-between">
           <div>

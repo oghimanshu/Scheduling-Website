@@ -87,8 +87,8 @@ export const WhyValidModal: React.FC = () => {
   ];
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/60 dark:bg-black/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-4">
-      <div className="apple-glass-card bg-white/95 dark:bg-slate-900/95 rounded-2xl max-w-2xl w-full p-5 sm:p-6 shadow-2xl border border-slate-200/80 dark:border-white/10 space-y-5 animate-in fade-in zoom-in-95 duration-150">
+    <div className="fixed inset-0 z-50 bg-slate-900/60 dark:bg-black/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+      <div className="apple-glass-card bg-white/95 dark:bg-slate-900/95 rounded-2xl max-w-2xl w-full p-4 sm:p-6 shadow-2xl border border-slate-200/80 dark:border-white/10 space-y-5 animate-in fade-in zoom-in-95 duration-150 my-auto max-h-[92dvh] flex flex-col">
         <div className="flex justify-between items-start border-b border-slate-100 dark:border-white/10 pb-4">
           <div className="flex items-center space-x-3">
             <div className="w-10 h-10 rounded-xl bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-800/40 flex items-center justify-center shadow-2xs">

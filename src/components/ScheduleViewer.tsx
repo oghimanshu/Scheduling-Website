@@ -97,44 +97,47 @@ export const ScheduleViewer: React.FC = () => {
         <div className="inline-flex p-1 rounded-xl bg-slate-100/80 dark:bg-slate-800/80 border border-slate-200/60 dark:border-white/10 w-full sm:w-auto">
           <button
             onClick={() => setScheduleViewMode('faculty')}
-            className={`flex items-center justify-center space-x-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+            className={`flex items-center justify-center space-x-1.5 sm:space-x-2 px-2.5 sm:px-3.5 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer flex-1 sm:flex-initial ${
               scheduleViewMode === 'faculty'
                 ? 'bg-white dark:bg-slate-900 text-sky-700 dark:text-sky-300 shadow-xs border border-slate-200/60 dark:border-white/10'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
             <Calendar className="w-3.5 h-3.5" />
-            <span>A. Faculty View</span>
+            <span className="sm:hidden">Faculty</span>
+            <span className="hidden sm:inline">A. Faculty View</span>
           </button>
 
           <button
             onClick={() => setScheduleViewMode('session')}
-            className={`flex items-center justify-center space-x-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+            className={`flex items-center justify-center space-x-1.5 sm:space-x-2 px-2.5 sm:px-3.5 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer flex-1 sm:flex-initial ${
               scheduleViewMode === 'session'
                 ? 'bg-white dark:bg-slate-900 text-sky-700 dark:text-sky-300 shadow-xs border border-slate-200/60 dark:border-white/10'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
             <FileSpreadsheet className="w-3.5 h-3.5" />
-            <span>B. Date / Session View</span>
+            <span className="sm:hidden">Sessions</span>
+            <span className="hidden sm:inline">B. Date / Session View</span>
           </button>
 
           <button
             onClick={() => setScheduleViewMode('workload')}
-            className={`flex items-center justify-center space-x-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+            className={`flex items-center justify-center space-x-1.5 sm:space-x-2 px-2.5 sm:px-3.5 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer flex-1 sm:flex-initial ${
               scheduleViewMode === 'workload'
                 ? 'bg-white dark:bg-slate-900 text-sky-700 dark:text-sky-300 shadow-xs border border-slate-200/60 dark:border-white/10'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
             <BarChart3 className="w-3.5 h-3.5" />
-            <span>C. Workload View</span>
+            <span className="sm:hidden">Workload</span>
+            <span className="hidden sm:inline">C. Workload View</span>
           </button>
 
           {/* Workload Fairness & Analytics Toggle */}
           <button
             onClick={() => setShowAnalytics(!showAnalytics)}
-            className={`flex items-center justify-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer border ${
+            className={`flex items-center justify-center space-x-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer border flex-1 sm:flex-initial ${
               showAnalytics
                 ? 'bg-sky-100 dark:bg-sky-950/70 text-sky-800 dark:text-sky-200 border-sky-300 dark:border-sky-800 shadow-2xs'
                 : 'bg-white/80 dark:bg-slate-900/80 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-white/10 hover:bg-slate-100'
@@ -142,7 +145,8 @@ export const ScheduleViewer: React.FC = () => {
             title="Toggle Workload Equity & Distribution Analytics"
           >
             <Scale className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
-            <span>Equity Analytics</span>
+            <span className="sm:hidden">Equity</span>
+            <span className="hidden sm:inline">Equity Analytics</span>
           </button>
         </div>
 
@@ -177,12 +181,12 @@ export const ScheduleViewer: React.FC = () => {
       {/* VIEW A: FACULTY VIEW */}
       {scheduleViewMode === 'faculty' && (
         <div className="apple-glass-card overflow-hidden">
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto touch-scroll">
             <table className="w-full text-left text-xs border-collapse">
-              <thead className="bg-slate-50/70 dark:bg-slate-800/70 text-slate-700 dark:text-slate-300 font-semibold uppercase tracking-wider border-b border-slate-200/60 dark:border-white/5 text-[11px] sticky top-0 z-10 backdrop-blur-md">
+              <thead className="bg-slate-50/70 dark:bg-slate-800/70 text-slate-700 dark:text-slate-300 font-semibold uppercase tracking-wider border-b border-slate-200/60 dark:border-white/5 text-[11px] sticky top-0 z-20 backdrop-blur-md">
                 <tr>
-                  <th className="py-3 px-3 w-14">Sr.</th>
-                  <th className="py-3 px-3 min-w-[180px]">Faculty Member</th>
+                  <th className="py-3 px-3 w-12 sm:w-14 sticky left-0 z-30 bg-slate-100/95 dark:bg-slate-800/95 backdrop-blur-xs">Sr.</th>
+                  <th className="py-3 px-3 min-w-[150px] sm:min-w-[180px] sticky left-12 sm:left-14 z-30 bg-slate-100/95 dark:bg-slate-800/95 backdrop-blur-xs border-r border-slate-200/80 dark:border-white/10 shadow-[2px_0_5px_rgba(0,0,0,0.04)]">Faculty Member</th>
                   <th className="py-3 px-2 w-20">Arrival</th>
                   {activeDates.map((d) => (
                     <th key={d.date} className="py-3 px-2 text-center min-w-[110px] border-l border-slate-200/60 dark:border-white/5">
@@ -203,15 +207,15 @@ export const ScheduleViewer: React.FC = () => {
                   const isAtTarget = grandTotal === f.targetSupervisions;
 
                   return (
-                    <tr key={f.srNo} className="hover:bg-sky-50/30 dark:hover:bg-white/5 transition">
-                      <td className="py-2 px-3 font-mono font-medium text-slate-400 dark:text-slate-500">
+                    <tr key={f.srNo} className="group hover:bg-sky-50/30 dark:hover:bg-white/5 transition">
+                      <td className="py-2 px-3 font-mono font-medium text-slate-400 dark:text-slate-500 sticky left-0 z-10 bg-white/95 dark:bg-slate-900/95 group-hover:bg-slate-50 dark:group-hover:bg-slate-850">
                         {f.srNo}
                       </td>
-                      <td className="py-2 px-3 font-semibold text-slate-900 dark:text-white">
+                      <td className="py-2 px-3 font-semibold text-slate-900 dark:text-white sticky left-12 sm:left-14 z-10 bg-white/95 dark:bg-slate-900/95 group-hover:bg-slate-50 dark:group-hover:bg-slate-850 border-r border-slate-200/80 dark:border-white/10 shadow-[2px_0_5px_rgba(0,0,0,0.04)]">
                         <div className="flex items-center space-x-1.5">
-                          <span>{f.name}</span>
+                          <span className="truncate max-w-[120px] sm:max-w-none">{f.name}</span>
                           {f.isHod && (
-                            <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200/50 dark:border-indigo-800/40">
+                            <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200/50 dark:border-indigo-800/40 shrink-0">
                               HOD
                             </span>
                           )}
@@ -508,12 +512,12 @@ export const ScheduleViewer: React.FC = () => {
       {/* VIEW C: WORKLOAD VIEW */}
       {scheduleViewMode === 'workload' && (
         <div className="apple-glass-card overflow-hidden">
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto touch-scroll">
             <table className="w-full text-left text-xs">
-              <thead className="bg-slate-50/70 dark:bg-slate-800/70 text-slate-600 dark:text-slate-300 font-semibold uppercase tracking-wider border-b border-slate-200/60 dark:border-white/5 text-[11px]">
+              <thead className="bg-slate-50/70 dark:bg-slate-800/70 text-slate-600 dark:text-slate-300 font-semibold uppercase tracking-wider border-b border-slate-200/60 dark:border-white/5 text-[11px] sticky top-0 z-20 backdrop-blur-md">
                 <tr>
-                  <th className="py-3 px-4">Sr. No.</th>
-                  <th className="py-3 px-4">Faculty Member</th>
+                  <th className="py-3 px-3 w-12 sm:w-16 sticky left-0 z-30 bg-slate-100/95 dark:bg-slate-800/95 backdrop-blur-xs">Sr.</th>
+                  <th className="py-3 px-4 min-w-[150px] sm:min-w-[180px] sticky left-12 sm:left-16 z-30 bg-slate-100/95 dark:bg-slate-800/95 backdrop-blur-xs border-r border-slate-200/80 dark:border-white/10 shadow-[2px_0_5px_rgba(0,0,0,0.04)]">Faculty Member</th>
                   <th className="py-3 px-3">Role</th>
                   <th className="py-3 px-3 text-center">Previous</th>
                   <th className="py-3 px-3 text-center">Target</th>
@@ -540,15 +544,15 @@ export const ScheduleViewer: React.FC = () => {
                   const pct = Math.min(100, Math.round((total / f.targetSupervisions) * 100));
 
                   return (
-                    <tr key={f.srNo} className="hover:bg-sky-50/30 dark:hover:bg-white/5 transition">
-                      <td className="py-3 px-4 font-mono font-medium text-slate-400 dark:text-slate-500">
+                    <tr key={f.srNo} className="group hover:bg-sky-50/30 dark:hover:bg-white/5 transition">
+                      <td className="py-3 px-3 font-mono font-medium text-slate-400 dark:text-slate-500 sticky left-0 z-10 bg-white/95 dark:bg-slate-900/95 group-hover:bg-slate-50 dark:group-hover:bg-slate-850">
                         {f.srNo}
                       </td>
-                      <td className="py-3 px-4 font-semibold text-slate-900 dark:text-white">
+                      <td className="py-3 px-4 font-semibold text-slate-900 dark:text-white sticky left-12 sm:left-16 z-10 bg-white/95 dark:bg-slate-900/95 group-hover:bg-slate-50 dark:group-hover:bg-slate-850 border-r border-slate-200/80 dark:border-white/10 shadow-[2px_0_5px_rgba(0,0,0,0.04)]">
                         <div className="flex items-center space-x-1.5">
-                          <span>{f.name}</span>
+                          <span className="truncate max-w-[120px] sm:max-w-none">{f.name}</span>
                           {f.isExcluded && (
-                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/60 text-amber-800 dark:text-amber-300">
+                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/60 text-amber-800 dark:text-amber-300 shrink-0">
                               Excluded
                             </span>
                           )}

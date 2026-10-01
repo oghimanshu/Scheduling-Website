@@ -208,12 +208,12 @@ export const AvailabilityManager: React.FC = () => {
 
       {/* Availability Matrix Grid */}
       <div className="apple-glass-card overflow-hidden">
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto touch-scroll">
           <table className="w-full text-left text-xs">
-            <thead className="bg-slate-50/70 dark:bg-slate-800/70 text-slate-600 dark:text-slate-300 font-semibold uppercase tracking-wider border-b border-slate-200/60 dark:border-white/5 text-[11px] sticky top-0 z-10 backdrop-blur-md">
+            <thead className="bg-slate-50/70 dark:bg-slate-800/70 text-slate-600 dark:text-slate-300 font-semibold uppercase tracking-wider border-b border-slate-200/60 dark:border-white/5 text-[11px] sticky top-0 z-20 backdrop-blur-md">
               <tr>
-                <th className="py-3 px-4 w-16">Sr.</th>
-                <th className="py-3 px-4 min-w-[200px]">Faculty Name</th>
+                <th className="py-3 px-3 sm:px-4 w-12 sm:w-16 sticky left-0 z-30 bg-slate-100/95 dark:bg-slate-800/95 backdrop-blur-xs">Sr.</th>
+                <th className="py-3 px-3 sm:px-4 min-w-[150px] sm:min-w-[200px] sticky left-12 sm:left-16 z-30 bg-slate-100/95 dark:bg-slate-800/95 backdrop-blur-xs border-r border-slate-200/80 dark:border-white/10 shadow-[2px_0_5px_rgba(0,0,0,0.04)]">Faculty Name</th>
                 <th className="py-3 px-3 w-20">Role</th>
                 <th className="py-3 px-3 w-24">Arrival</th>
                 {activeDates.map((d) => (
@@ -226,12 +226,12 @@ export const AvailabilityManager: React.FC = () => {
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-white/5">
               {filteredFaculty.map((f) => (
-                <tr key={f.srNo} className="hover:bg-sky-50/30 dark:hover:bg-white/5 transition">
-                  <td className="py-2.5 px-4 font-mono font-medium text-slate-400 dark:text-slate-500">
+                <tr key={f.srNo} className="group hover:bg-sky-50/30 dark:hover:bg-white/5 transition">
+                  <td className="py-2.5 px-3 sm:px-4 font-mono font-medium text-slate-400 dark:text-slate-500 sticky left-0 z-10 bg-white/95 dark:bg-slate-900/95 group-hover:bg-slate-50 dark:group-hover:bg-slate-850">
                     {f.srNo}
                   </td>
-                  <td className="py-2.5 px-4 font-semibold text-slate-900 dark:text-white">
-                    {f.name}
+                  <td className="py-2.5 px-3 sm:px-4 font-semibold text-slate-900 dark:text-white sticky left-12 sm:left-16 z-10 bg-white/95 dark:bg-slate-900/95 group-hover:bg-slate-50 dark:group-hover:bg-slate-850 border-r border-slate-200/80 dark:border-white/10 shadow-[2px_0_5px_rgba(0,0,0,0.04)]">
+                    <span className="truncate max-w-[120px] sm:max-w-none block">{f.name}</span>
                   </td>
                   <td className="py-2.5 px-3">
                     <span
