@@ -591,9 +591,14 @@ export const ScheduleViewer: React.FC = () => {
                               ? 'text-emerald-600 dark:text-emerald-400'
                               : 'text-amber-600 dark:text-amber-400'
                           }
-                          title={reserveCount > 0 && project.settings.reserveCanExceedCap ? `Counted toward cap: ${total}, Grand total with reserves: ${grandTotal}` : undefined}
+                          title={reserveCount > 0 && project.settings.reserveCanExceedCap ? `Official counted: ${total}, Grand total with reserves: ${grandTotal}` : undefined}
                         >
-                          {grandTotal}
+                          {total}
+                          {project.settings.reserveCanExceedCap && reserveCount > 0 && (
+                            <span className="text-[10px] text-amber-500 font-normal ml-0.5" title={`Includes ${reserveCount} auxiliary reserve duties (${grandTotal} total)`}>
+                              ({grandTotal})
+                            </span>
+                          )}
                         </span>
                       </td>
                       <td className="py-3 px-3 text-center font-mono text-slate-500 dark:text-slate-400">

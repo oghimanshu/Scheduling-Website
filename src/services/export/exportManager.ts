@@ -49,14 +49,23 @@ export function exportScheduleToExcel(state: ProjectState): void {
       'Arrival': fac.arrival,
     };
 
-    let newCount = 0;
+    let countedNew = 0;
+    let reserveTotal = 0;
     activeDates.forEach((d) => {
       const assigned = state.assignments.filter(
         (a) => a.facultySrNo === fac.srNo && a.date === d.date
       );
       if (assigned.length > 0) {
-        newCount += assigned.length;
-        const sessionsStr = assigned.map((a) => a.session).join(' + ');
+        const primaryDuties = assigned.filter((a) => !a.isReserve);
+        const reserveDuties = assigned.filter((a) => a.isReserve);
+        reserveTotal += reserveDuties.length;
+        const countedToday = state.settings.reserveCanExceedCap
+          ? primaryDuties.length
+          : assigned.length;
+        countedNew += countedToday;
+        const sessionsStr = assigned
+          .map((a) => a.session + (a.isReserve ? ' (Reserve)' : ''))
+          .join(' + ');
         row[d.displayDate] = sessionsStr;
       } else {
         row[d.displayDate] = '-';
@@ -64,11 +73,14 @@ export function exportScheduleToExcel(state: ProjectState): void {
     });
 
     row['Previous'] = fac.previousSupervisions;
-    row['New'] = newCount;
-    row['Total'] = fac.previousSupervisions + newCount;
+    row['New'] = countedNew;
+    row['Total'] = fac.previousSupervisions + countedNew;
+    if (reserveTotal > 0 && state.settings.reserveCanExceedCap) {
+      row['Reserve (Auxiliary)'] = reserveTotal;
+    }
     row['Target'] = fac.targetSupervisions;
     row['Maximum'] = fac.maxSupervisions;
-    row['Remaining'] = Math.max(0, fac.maxSupervisions - (fac.previousSupervisions + newCount));
+    row['Remaining'] = Math.max(0, fac.maxSupervisions - (fac.previousSupervisions + countedNew));
 
     facultyRows.push(row);
   });
@@ -108,17 +120,21 @@ export function exportScheduleToExcel(state: ProjectState): void {
 
   // 3. Sheet 3: Workload Summary
   const workloadRows = state.faculty.map((fac) => {
-    const assignedCount = state.assignments.filter((a) => a.facultySrNo === fac.srNo).length;
-    const total = fac.previousSupervisions + assignedCount;
+    const facAssignments = state.assignments.filter((a) => a.facultySrNo === fac.srNo);
+    const primaryCount = facAssignments.filter((a) => !a.isReserve).length;
+    const reserveCount = facAssignments.filter((a) => a.isReserve).length;
+    const countedNew = state.settings.reserveCanExceedCap ? primaryCount : primaryCount + reserveCount;
+    const total = fac.previousSupervisions + countedNew;
     return {
       'Sr. No.': fac.srNo,
       'Faculty Name': fac.name,
       'Designation': fac.isHod ? 'HOD' : 'Faculty Member',
       'Arrival Category': fac.arrival,
       'Previous Supervisions': fac.previousSupervisions,
-      'New Allocated': assignedCount,
-      'Total Supervisions': total,
-      'Target Workload': fac.targetSupervisions,
+      'Primary Duties': primaryCount,
+      'Reserve Duties': reserveCount,
+      'Final Counted Supervisions': total,
+      'Workload Target': fac.targetSupervisions,
       'Maximum Allowed': fac.maxSupervisions,
       'Remaining Capacity': Math.max(0, fac.maxSupervisions - total),
       'Target Status': total === fac.targetSupervisions ? 'Met Target' : `${total - fac.targetSupervisions > 0 ? '+' : ''}${total - fac.targetSupervisions}`,
@@ -143,22 +159,34 @@ export function exportScheduleToCsv(state: ProjectState): void {
       'Arrival': fac.arrival,
     };
 
-    let newCount = 0;
+    let countedNew = 0;
+    let reserveTotal = 0;
     activeDates.forEach((d) => {
       const assigned = state.assignments.filter(
         (a) => a.facultySrNo === fac.srNo && a.date === d.date
       );
       if (assigned.length > 0) {
-        newCount += assigned.length;
-        row[d.displayDate] = assigned.map((a) => a.session).join(' + ');
+        const primaryDuties = assigned.filter((a) => !a.isReserve);
+        const reserveDuties = assigned.filter((a) => a.isReserve);
+        reserveTotal += reserveDuties.length;
+        const countedToday = state.settings.reserveCanExceedCap
+          ? primaryDuties.length
+          : assigned.length;
+        countedNew += countedToday;
+        row[d.displayDate] = assigned
+          .map((a) => a.session + (a.isReserve ? ' (R)' : ''))
+          .join(' + ');
       } else {
         row[d.displayDate] = '';
       }
     });
 
     row['Previous'] = fac.previousSupervisions;
-    row['New'] = newCount;
-    row['Total'] = fac.previousSupervisions + newCount;
+    row['New'] = countedNew;
+    row['Total'] = fac.previousSupervisions + countedNew;
+    if (reserveTotal > 0 && state.settings.reserveCanExceedCap) {
+      row['Reserve Standby'] = reserveTotal;
+    }
     row['Target'] = fac.targetSupervisions;
     row['Max'] = fac.maxSupervisions;
 

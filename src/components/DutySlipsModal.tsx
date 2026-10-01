@@ -232,6 +232,11 @@ export const DutySlipsModal: React.FC<{ forceOpen?: boolean }> = ({ forceOpen })
                               <td className="py-2 px-3 border-r border-slate-200 dark:border-white/10">{dateCfg?.dayOfWeek}</td>
                               <td className="py-2 px-3 font-bold border-r border-slate-200 dark:border-white/10 text-emerald-700 dark:text-emerald-400">
                                 {duty.session}
+                                {duty.isReserve && (
+                                  <span className="ml-1.5 px-1.5 py-0.5 rounded text-[9px] font-semibold bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300">
+                                    Standby Reserve
+                                  </span>
+                                )}
                               </td>
                               <td className="py-2 px-3 font-mono border-r border-slate-200 dark:border-white/10">{timingStr}</td>
                               <td className="py-2 px-3 font-mono text-slate-600 dark:text-slate-300">

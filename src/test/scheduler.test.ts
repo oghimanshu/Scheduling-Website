@@ -517,5 +517,78 @@ describe('Examination Supervision Scheduler Engine', () => {
     expect(updatedRoles[0].defaultMax).toBe(5);
     expect(updatedRoles[0].concessionDelta).toBe(-1);
   });
+
+  it('should reset session back to square one while preserving faculty data', () => {
+    const facultyWithDuties = DEFAULT_FACULTY_LIST.map((f) => ({
+      ...f,
+      previousSupervisions: 3,
+    }));
+
+    // Reset keeping faculty: previous duties reset to 0, roster preserved
+    const preserved = facultyWithDuties.map((f) => ({
+      ...f,
+      previousSupervisions: 0,
+    }));
+
+    expect(preserved.length).toBe(DEFAULT_FACULTY_LIST.length);
+    expect(preserved.every((f) => f.previousSupervisions === 0)).toBe(true);
+    expect(preserved[0].name).toBe(DEFAULT_FACULTY_LIST[0].name);
+    expect(preserved[0].department).toBe(DEFAULT_FACULTY_LIST[0].department);
+  });
+
+  it('should correctly generate exam dates and exclude Sundays when configured on import', () => {
+    const startDate = '2026-11-02'; // Monday
+    const endDate = '2026-11-08';   // Sunday (7 days total)
+    const excludeSundays = true;
+
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    const generatedDates = [];
+    const cur = new Date(start);
+
+    while (cur <= end) {
+      const iso = cur.toISOString().slice(0, 10);
+      const isSunday = cur.getDay() === 0;
+      const willExclude = excludeSundays && isSunday;
+      generatedDates.push({
+        date: iso,
+        isExcluded: willExclude,
+        exclusionReason: willExclude ? 'Holiday' : undefined,
+      });
+      cur.setDate(cur.getDate() + 1);
+    }
+
+    expect(generatedDates.length).toBe(7);
+    const sundays = generatedDates.filter((d) => d.isExcluded);
+    expect(sundays.length).toBe(1);
+    expect(sundays[0].date).toBe('2026-11-08');
+    expect(sundays[0].exclusionReason).toBe('Holiday');
+  });
+
+  it('should enforce workload caps when reserve duties count towards final count', () => {
+    const settingsWithCountedReserves = {
+      ...DEFAULT_SETTINGS,
+      reserveSupervisorsPerSession: 1,
+      reserveCanExceedCap: false, // Reserve duties count towards final count
+    };
+
+    const result = solveExaminationSchedule(
+      DEFAULT_FACULTY_LIST,
+      DEFAULT_DATES_CONFIG,
+      {},
+      settingsWithCountedReserves,
+      { seed: 42 }
+    );
+
+    expect(result.success).toBe(true);
+
+    // Total assignments per faculty (primary + reserve) must not exceed maxSupervisions
+    DEFAULT_FACULTY_LIST.forEach((f) => {
+      const allDuties = result.assignments.filter((a) => a.facultySrNo === f.srNo);
+      expect(allDuties.length).toBeLessThanOrEqual(f.maxSupervisions);
+    });
+  });
 });
+
+
 

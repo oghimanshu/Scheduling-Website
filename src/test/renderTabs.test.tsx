@@ -122,6 +122,7 @@ describe('Populated UI Components Test', () => {
     expect(genModalHtml).toContain('Faculty Selection');
     expect(genModalHtml).toContain('HOD Duty Allocation Priority');
     expect(genModalHtml).toContain('Consecutive Days Rest Rule');
+    expect(genModalHtml).toContain('Standby Reserve Supervisors');
 
     const authModalHtml = renderToString(
       <SchedulerProvider>

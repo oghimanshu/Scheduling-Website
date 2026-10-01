@@ -19,7 +19,7 @@ import {
   Users,
 } from 'lucide-react';
 import { useScheduler } from '../context/SchedulerContext';
-import { Faculty, ArrivalCategory, DEFAULT_CUSTOM_ROLES } from '../types';
+import { Faculty, ArrivalCategory, DEFAULT_CUSTOM_ROLES, ExamDateConfig } from '../types';
 import {
   parseFacultyCSV,
   generateSampleFacultyCSV,
@@ -37,6 +37,8 @@ export const FacultyManager: React.FC = () => {
     toggleFacultyExclusion,
     updateFacultyExcludedDates,
     updateRoleWorkloadCap,
+    updateExamPeriodInfo,
+    updateExamDates,
   } = useScheduler();
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -62,6 +64,34 @@ export const FacultyManager: React.FC = () => {
   const [importErrors, setImportErrors] = useState<string[]>([]);
   const [importWarnings, setImportWarnings] = useState<string[]>([]);
   const [importSuccessMessage, setImportSuccessMessage] = useState<string | null>(null);
+
+  // Date Modification State for CSV Import
+  const [modifyDatesOnImport, setModifyDatesOnImport] = useState<boolean>(false);
+  const [importPeriodName, setImportPeriodName] = useState<string>('');
+  const [importStartDate, setImportStartDate] = useState<string>('');
+  const [importEndDate, setImportEndDate] = useState<string>('');
+  const [importExcludeSundays, setImportExcludeSundays] = useState<boolean>(true);
+  const [navigateAfterImport, setNavigateAfterImport] = useState<boolean>(false);
+
+  // Live preview stats for date range in CSV Import
+  const importDateStats = useMemo(() => {
+    if (!importStartDate || !importEndDate) return null;
+    const start = new Date(importStartDate);
+    const end = new Date(importEndDate);
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) return null;
+    if (start > end) return { error: 'Start date cannot be after End date.' };
+
+    let totalDays = 0;
+    let sundaysCount = 0;
+    const cur = new Date(start);
+    while (cur <= end) {
+      totalDays++;
+      if (cur.getDay() === 0) sundaysCount++;
+      cur.setDate(cur.getDate() + 1);
+    }
+    const examDays = importExcludeSundays ? totalDays - sundaysCount : totalDays;
+    return { totalDays, examDays, sundaysCount, error: null };
+  }, [importStartDate, importEndDate, importExcludeSundays]);
 
   // Calculate dynamic stats
   const facultyStats = useMemo(() => {
@@ -125,13 +155,18 @@ export const FacultyManager: React.FC = () => {
       const prelim = parseFacultyCSV(content, { mode: 'zero' });
       setImportErrors(prelim.errors);
       setImportWarnings(prelim.warnings);
+      // Pre-fill date fields
+      setImportPeriodName(project.examPeriod?.name || 'New Examination Period');
+      setImportStartDate(project.examPeriod?.startDate || '');
+      setImportEndDate(project.examPeriod?.endDate || '');
+      setModifyDatesOnImport(!project.examPeriod?.startDate || (project.examPeriod?.dates?.length ?? 0) === 0);
       setIsImportModalOpen(true);
     };
     reader.readAsText(file);
     e.target.value = ''; // Reset input
   };
 
-  // Perform CSV import with selected Initial Supervision Option
+  // Perform CSV import with selected Initial Supervision Option and optional Exam Dates
   const handleConfirmImport = () => {
     const option: InitialSupervisionOption =
       initialCountMode === 'uniform'
@@ -149,12 +184,68 @@ export const FacultyManager: React.FC = () => {
     }
 
     updateFacultyList(result.faculty);
+
+    let dateMsg = '';
+    if (modifyDatesOnImport && importStartDate && importEndDate && !importDateStats?.error) {
+      const start = new Date(importStartDate);
+      const end = new Date(importEndDate);
+
+      if (start <= end) {
+        const newDates: ExamDateConfig[] = [];
+        const current = new Date(start);
+
+        while (current <= end) {
+          const iso = current.toISOString().slice(0, 10);
+          const dayOfWeek = current.toLocaleDateString('en-US', { weekday: 'long' });
+          const displayDate = current.toLocaleDateString('en-GB', {
+            day: '2-digit',
+            month: 'short',
+            year: 'numeric',
+          });
+
+          const isSunday = current.getDay() === 0;
+          const willExclude = importExcludeSundays && isSunday;
+
+          const sessionReqs: Record<string, number> = {};
+          (project.sessions || []).forEach((s) => {
+            sessionReqs[s.id] = willExclude ? 0 : s.defaultRequirement;
+          });
+
+          newDates.push({
+            date: iso,
+            displayDate,
+            dayOfWeek,
+            isExcluded: willExclude,
+            exclusionReason: willExclude ? 'Holiday' : undefined,
+            sessionRequirements: sessionReqs,
+            sessionTimings: project.settings?.defaultSessionTimings || {},
+          });
+
+          current.setDate(current.getDate() + 1);
+        }
+
+        updateExamPeriodInfo(
+          importPeriodName.trim() || 'New Examination Period',
+          importStartDate,
+          importEndDate
+        );
+        updateExamDates(newDates);
+        dateMsg = ` and configured ${newDates.length} examination dates (${importStartDate} to ${importEndDate})`;
+      }
+    }
+
     setIsImportModalOpen(false);
     setCsvRawText('');
     setImportErrors([]);
     setImportWarnings([]);
-    setImportSuccessMessage(`Successfully imported ${result.faculty.length} faculty members into this session!`);
+    setImportSuccessMessage(
+      `Successfully imported ${result.faculty.length} faculty members${dateMsg} into this session!`
+    );
     setTimeout(() => setImportSuccessMessage(null), 6000);
+
+    if (navigateAfterImport) {
+      setActiveTab('period');
+    }
   };
 
   // Download Sample CSV
@@ -999,6 +1090,116 @@ export const FacultyManager: React.FC = () => {
                   </label>
                 </div>
               </div>
+
+              {/* Optional Exam Period & Dates Setup */}
+              <div className="bg-slate-50 dark:bg-slate-800/60 p-4 rounded-2xl border border-slate-200/80 dark:border-white/10 space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200 flex items-center space-x-1.5">
+                    <Calendar className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
+                    <span>EXAMINATION DATES &amp; PERIOD SETUP</span>
+                  </label>
+                  <label className="inline-flex items-center space-x-2 text-xs font-semibold cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={modifyDatesOnImport}
+                      onChange={(e) => setModifyDatesOnImport(e.target.checked)}
+                      className="rounded text-sky-600 focus:ring-sky-500 h-4 w-4 cursor-pointer"
+                    />
+                    <span className="text-slate-700 dark:text-slate-300">
+                      {modifyDatesOnImport ? 'Active' : 'Modify Dates'}
+                    </span>
+                  </label>
+                </div>
+
+                <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                  Optionally configure or adjust the examination period and active dates alongside your faculty roster.
+                </p>
+
+                {modifyDatesOnImport && (
+                  <div className="space-y-3 pt-2 border-t border-slate-200/60 dark:border-white/10 animate-in fade-in duration-150">
+                    <div>
+                      <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                        Exam Period Name / Session Title
+                      </label>
+                      <input
+                        type="text"
+                        value={importPeriodName}
+                        onChange={(e) => setImportPeriodName(e.target.value)}
+                        placeholder="e.g. End-Semester Examinations Dec 2026"
+                        className="w-full px-3 py-1.5 text-xs border border-slate-300 dark:border-white/15 rounded-xl bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                          Start Date
+                        </label>
+                        <input
+                          type="date"
+                          value={importStartDate}
+                          onChange={(e) => setImportStartDate(e.target.value)}
+                          className="w-full px-3 py-1.5 text-xs border border-slate-300 dark:border-white/15 rounded-xl bg-white dark:bg-slate-900 text-slate-900 dark:text-white font-mono"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                          End Date
+                        </label>
+                        <input
+                          type="date"
+                          value={importEndDate}
+                          onChange={(e) => setImportEndDate(e.target.value)}
+                          className="w-full px-3 py-1.5 text-xs border border-slate-300 dark:border-white/15 rounded-xl bg-white dark:bg-slate-900 text-slate-900 dark:text-white font-mono"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-1">
+                      <label className="flex items-center space-x-2 text-[11px] text-slate-700 dark:text-slate-300 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={importExcludeSundays}
+                          onChange={(e) => setImportExcludeSundays(e.target.checked)}
+                          className="rounded text-sky-600 focus:ring-sky-500 h-3.5 w-3.5 cursor-pointer"
+                        />
+                        <span>Exclude Sundays automatically as holidays</span>
+                      </label>
+
+                      <label className="flex items-center space-x-2 text-[11px] text-indigo-700 dark:text-indigo-300 cursor-pointer font-medium">
+                        <input
+                          type="checkbox"
+                          checked={navigateAfterImport}
+                          onChange={(e) => setNavigateAfterImport(e.target.checked)}
+                          className="rounded text-indigo-600 focus:ring-indigo-500 h-3.5 w-3.5 cursor-pointer"
+                        />
+                        <span>Open Exam Dates tab after import</span>
+                      </label>
+                    </div>
+
+                    {importDateStats && (
+                      <div
+                        className={`p-2.5 rounded-xl text-[11px] font-medium border ${
+                          importDateStats.error
+                            ? 'bg-rose-50 dark:bg-rose-950/40 border-rose-200 dark:border-rose-900/40 text-rose-700 dark:text-rose-300'
+                            : 'bg-sky-50 dark:bg-sky-950/40 border-sky-200 dark:border-sky-900/40 text-sky-800 dark:text-sky-200'
+                        }`}
+                      >
+                        {importDateStats.error ? (
+                          <span>{importDateStats.error}</span>
+                        ) : (
+                          <span>
+                            ✓ <strong>{importDateStats.totalDays} calendar days</strong> ({importDateStats.examDays} exam days
+                            {(importDateStats.sundaysCount ?? 0) > 0 ? `, ${importDateStats.sundaysCount} Sunday(s) excluded` : ''}).
+                            Initializes session requirements from your active session templates.
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Footer with High-Contrast Action Buttons */}
@@ -1032,10 +1233,14 @@ export const FacultyManager: React.FC = () => {
               <button
                 type="button"
                 onClick={handleConfirmImport}
-                disabled={importErrors.length > 0}
+                disabled={importErrors.length > 0 || !!(modifyDatesOnImport && importDateStats?.error)}
                 className="px-5 py-2 text-xs font-bold text-white bg-sky-600 hover:bg-sky-500 disabled:opacity-40 disabled:cursor-not-allowed active:scale-98 rounded-xl shadow-md shadow-sky-500/25 transition cursor-pointer"
               >
-                {importErrors.length > 0 ? 'Cannot Import (Resolve Errors Above)' : 'Confirm & Import Faculty'}
+                {importErrors.length > 0
+                  ? 'Cannot Import (Resolve Errors Above)'
+                  : modifyDatesOnImport && importStartDate && importEndDate && !importDateStats?.error
+                  ? 'Confirm & Import Faculty + Setup Dates'
+                  : 'Confirm & Import Faculty'}
               </button>
             </div>
           </div>

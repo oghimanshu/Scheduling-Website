@@ -117,7 +117,7 @@ interface SchedulerContextType {
   updateSettings: (updater: Partial<ProjectState['settings']>) => void;
   importProjectData: (newState: ProjectState) => void;
   resetProject: () => void;
-  resetSessionToZero: () => void;
+  resetSessionToZero: (keepFaculty?: boolean, keepExamDates?: boolean) => void;
   clearAssignments: () => void;
   updateFacultyRole: (srNo: number, role: string, concession?: number, target?: number, max?: number) => void;
   bulkSegregateRoles: (srNos: number[], role: string, concession?: number, target?: number, max?: number) => void;
@@ -787,7 +787,33 @@ export const SchedulerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   }, []);
 
   // Complete Reset Everything to Zero & Clear Storage
-  const resetSessionToZero = useCallback(() => {
+  const resetSessionToZero = useCallback((keepFaculty: boolean = false, keepExamDates: boolean = false) => {
+    if (keepFaculty) {
+      setProject((prev) => {
+        // Reset duty counters to 0, preserve faculty profiles and roles
+        const preservedFaculty = prev.faculty.map((f) => ({
+          ...f,
+          previousSupervisions: 0,
+        }));
+        const newState: ProjectState = {
+          ...EMPTY_SESSION_PROJECT_STATE,
+          faculty: preservedFaculty,
+          examPeriod: keepExamDates ? prev.examPeriod : EMPTY_SESSION_PROJECT_STATE.examPeriod,
+          settings: {
+            ...EMPTY_SESSION_PROJECT_STATE.settings,
+            customRoles: prev.settings?.customRoles || EMPTY_SESSION_PROJECT_STATE.settings.customRoles,
+            hodAssignmentPriority: prev.settings?.hodAssignmentPriority || EMPTY_SESSION_PROJECT_STATE.settings.hodAssignmentPriority,
+            defaultSessionTimings: prev.settings?.defaultSessionTimings || EMPTY_SESSION_PROJECT_STATE.settings.defaultSessionTimings,
+          },
+        };
+        saveProjectToStorage(newState);
+        return newState;
+      });
+      setIsResetConfirmModalOpen(false);
+      setActiveTab('faculty');
+      return;
+    }
+
     clearProjectStorage();
     setProject(EMPTY_SESSION_PROJECT_STATE);
     setIsResetConfirmModalOpen(false);

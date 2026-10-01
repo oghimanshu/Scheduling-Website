@@ -10,6 +10,7 @@ import {
   Check,
   Layers,
   ArrowRight,
+  Shield,
 } from 'lucide-react';
 import { useScheduler } from '../context/SchedulerContext';
 import { HodAssignmentPriority } from '../types';
@@ -39,6 +40,12 @@ export const GenerationOptionsModal: React.FC<{ forceOpen?: boolean }> = ({ forc
   const [strictEqualization, setStrictEqualization] = useState(
     project.settings.strictWorkloadEqualization ?? true
   );
+  const [reserveSupervisorsPerSession, setReserveSupervisorsPerSession] = useState<number>(
+    project.settings.reserveSupervisorsPerSession ?? 0
+  );
+  const [reserveCountTowardsFinalCount, setReserveCountTowardsFinalCount] = useState<boolean>(
+    !(project.settings.reserveCanExceedCap ?? false)
+  );
   const [rememberPreferences, setRememberPreferences] = useState(
     !project.settings.promptGenerationOptions
   );
@@ -46,6 +53,8 @@ export const GenerationOptionsModal: React.FC<{ forceOpen?: boolean }> = ({ forc
   if (!forceOpen && !isGenerationOptionsModalOpen) return null;
 
   const handleConfirmGenerate = () => {
+    const reserveCanExceedCap = !reserveCountTowardsFinalCount;
+
     // Save updated preferences to settings
     updateSettings({
       hodAssignmentPriority: hodPriority,
@@ -53,6 +62,8 @@ export const GenerationOptionsModal: React.FC<{ forceOpen?: boolean }> = ({ forc
       minimizeDoubleDuties,
       balanceSeniorityPerSession: balanceSeniority,
       strictWorkloadEqualization: strictEqualization,
+      reserveSupervisorsPerSession,
+      reserveCanExceedCap,
       promptGenerationOptions: !rememberPreferences,
     });
 
@@ -65,6 +76,8 @@ export const GenerationOptionsModal: React.FC<{ forceOpen?: boolean }> = ({ forc
       minimizeDoubleDuties,
       balanceSeniorityPerSession: balanceSeniority,
       strictWorkloadEqualization: strictEqualization,
+      reserveSupervisorsPerSession,
+      reserveCanExceedCap,
     });
   };
 
@@ -240,6 +253,62 @@ export const GenerationOptionsModal: React.FC<{ forceOpen?: boolean }> = ({ forc
               </span>
             </div>
           </label>
+        </div>
+
+        {/* 6. Reserve / Standby Supervisors Policy */}
+        <div className="space-y-3 p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-white/10">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <label className="text-xs font-bold text-slate-900 dark:text-white flex items-center space-x-1.5">
+              <Shield className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+              <span>6. Standby Reserve Supervisors</span>
+            </label>
+            <div className="flex items-center space-x-2">
+              <span className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">Per Session:</span>
+              <div className="flex items-center space-x-1 bg-white dark:bg-slate-900 border border-slate-300 dark:border-white/10 rounded-xl p-0.5 shadow-2xs">
+                {[0, 1, 2, 3].map((num) => (
+                  <button
+                    key={num}
+                    type="button"
+                    onClick={() => setReserveSupervisorsPerSession(num)}
+                    className={`px-2.5 py-1 text-xs font-bold rounded-lg transition cursor-pointer ${
+                      reserveSupervisorsPerSession === num
+                        ? 'bg-amber-600 text-white shadow-xs'
+                        : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                    }`}
+                  >
+                    {num === 0 ? 'None' : num}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <p className="text-[11px] text-slate-500 dark:text-slate-400">
+            {reserveSupervisorsPerSession > 0
+              ? `Allocates ${reserveSupervisorsPerSession} standby reserve supervisor(s) for each active examination session to handle emergency absences.`
+              : 'No reserve supervisors will be designated. All assigned faculty will be primary invigilators.'}
+          </p>
+
+          {reserveSupervisorsPerSession > 0 && (
+            <label className="flex items-start space-x-3 p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-white/10 cursor-pointer hover:border-amber-500/50 transition animate-in fade-in duration-150">
+              <input
+                type="checkbox"
+                checked={reserveCountTowardsFinalCount}
+                onChange={(e) => setReserveCountTowardsFinalCount(e.target.checked)}
+                className="w-4 h-4 rounded text-amber-600 focus:ring-amber-500 mt-0.5 cursor-pointer"
+              />
+              <div className="flex-1">
+                <span className="font-bold text-slate-800 dark:text-slate-200 block text-xs">
+                  Count reserve supervisions towards final duty count
+                </span>
+                <span className="text-slate-500 dark:text-slate-400 text-[11px] block mt-0.5">
+                  {reserveCountTowardsFinalCount
+                    ? '✓ Reserve duties are counted as part of the faculty member’s official final duty count and cannot exceed their maximum workload cap.'
+                    : '⚡ Reserve duties do NOT count towards the final workload count. Standby duties are auxiliary and can exceed the faculty member’s normal cap.'}
+                </span>
+              </div>
+            </label>
+          )}
         </div>
 
         {/* Remember Preferences */}
