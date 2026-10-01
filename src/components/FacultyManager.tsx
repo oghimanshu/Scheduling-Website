@@ -609,10 +609,10 @@ export const FacultyManager: React.FC = () => {
                         : 'hover:bg-slate-50/80 dark:hover:bg-white/5'
                     }`}
                   >
-                    <td className="py-3 px-3 font-mono font-medium text-slate-500 dark:text-slate-400 sticky left-0 z-10 bg-white/95 dark:bg-slate-900/95 group-hover:bg-slate-50 dark:group-hover:bg-slate-850">
+                    <td className="py-3 px-3 font-mono font-medium text-slate-500 dark:text-slate-400 sticky left-0 z-10 bg-white/95 dark:bg-slate-900/95 group-hover:bg-slate-50 dark:group-hover:bg-slate-800">
                       {f.srNo}
                     </td>
-                    <td className="py-3 px-4 font-semibold text-slate-900 dark:text-white sticky left-12 sm:left-16 z-10 bg-white/95 dark:bg-slate-900/95 group-hover:bg-slate-50 dark:group-hover:bg-slate-850 border-r border-slate-200/80 dark:border-white/10 shadow-[2px_0_5px_rgba(0,0,0,0.04)]">
+                    <td className="py-3 px-4 font-semibold text-slate-900 dark:text-white sticky left-12 sm:left-16 z-10 bg-white/95 dark:bg-slate-900/95 group-hover:bg-slate-50 dark:group-hover:bg-slate-800 border-r border-slate-200/80 dark:border-white/10 shadow-[2px_0_5px_rgba(0,0,0,0.04)]">
                       <div className="flex items-center space-x-1.5 flex-wrap gap-1">
                         <span className="truncate max-w-[120px] sm:max-w-none">{f.name}</span>
                         {f.isExcluded && (
@@ -1493,6 +1493,64 @@ export const FacultyManager: React.FC = () => {
                     />
                   </div>
                 )}
+              </div>
+
+              {/* Allowed Examination Sessions Constraint */}
+              <div className="p-3.5 bg-sky-50/70 dark:bg-sky-950/30 border border-sky-200/80 dark:border-sky-700/40 rounded-2xl space-y-2">
+                <div>
+                  <span className="text-xs font-semibold text-sky-900 dark:text-sky-200 block">
+                    Session / Slot Allocation Preference
+                  </span>
+                  <span className="text-[11px] text-sky-700 dark:text-sky-400">
+                    Restrict this faculty to specific examination slots throughout the examination period.
+                  </span>
+                </div>
+
+                <div className="flex items-center flex-wrap gap-2 pt-1">
+                  {(['JRS 1', 'JRS 2', 'JRS 3'] as const).map((sess) => {
+                    const isAllowed = !editingFaculty.allowedSessions || editingFaculty.allowedSessions.length === 0 || editingFaculty.allowedSessions.includes(sess);
+                    return (
+                      <button
+                        key={sess}
+                        type="button"
+                        onClick={() => {
+                          const current = editingFaculty.allowedSessions && editingFaculty.allowedSessions.length > 0
+                            ? [...editingFaculty.allowedSessions]
+                            : ['JRS 1', 'JRS 2', 'JRS 3'];
+                          let updated: string[];
+                          if (current.includes(sess)) {
+                            if (current.length === 1) return; // keep at least 1
+                            updated = current.filter((s) => s !== sess);
+                          } else {
+                            updated = [...current, sess];
+                          }
+                          setEditingFaculty({
+                            ...editingFaculty,
+                            allowedSessions: updated.length === 3 ? undefined : updated,
+                          });
+                        }}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center space-x-1.5 cursor-pointer border ${
+                          isAllowed
+                            ? 'bg-sky-600 text-white border-sky-600 shadow-xs'
+                            : 'bg-white/80 dark:bg-slate-900/80 text-slate-400 border-slate-200 dark:border-white/10 line-through opacity-60'
+                        }`}
+                      >
+                        <span>{sess}</span>
+                        {isAllowed && <CheckCircle2 className="w-3.5 h-3.5" />}
+                      </button>
+                    );
+                  })}
+
+                  {editingFaculty.allowedSessions && editingFaculty.allowedSessions.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setEditingFaculty({ ...editingFaculty, allowedSessions: undefined })}
+                      className="px-2 py-1 text-[11px] text-sky-600 dark:text-sky-400 hover:underline cursor-pointer"
+                    >
+                      Reset to All Sessions
+                    </button>
+                  )}
+                </div>
               </div>
 
               <div>

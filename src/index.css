@@ -171,6 +171,24 @@
   animation: sheetUp 0.32s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
+@keyframes liquidRipple {
+  0% {
+    transform: translate(-50%, -50%) scale(0.15);
+    opacity: 0.7;
+  }
+  50% {
+    opacity: 0.4;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(3.2);
+    opacity: 0;
+  }
+}
+
+.animate-liquid-ripple {
+  animation: liquidRipple 0.55s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
 @keyframes floatSlow {
   0%, 100% {
     transform: translate(0px, 0px) scale(1);
@@ -222,28 +240,210 @@
 }
 
 /* Print Friendly Styles (Clean Paper & PDF Output) */
+@page {
+  size: landscape;
+  margin: 8mm;
+}
+
 @media print {
-  header, footer, nav, button, input, select, .no-print {
+  /* Strip all decorative shadows, blurs, and glassmorphism pseudo-elements */
+  *, *::before, *::after {
+    box-shadow: none !important;
+    text-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+
+  /* Hide background decorative canvases, glow orbs, ripples, and web chrome */
+  canvas,
+  .ambient-glow-orbs,
+  .liquid-click-ripple,
+  .table-fade-indicator::after,
+  .apple-glass-card::before,
+  .apple-glass::before,
+  header,
+  footer,
+  nav,
+  button,
+  input,
+  select,
+  .no-print,
+  .print-hidden,
+  .safe-bottom-dock {
     display: none !important;
   }
 
+  /* Global print sanitation - prevent any dark mode background leakage or fixed height traps */
   body, html {
     background: white !important;
+    background-color: white !important;
     color: black !important;
     overflow: visible !important;
-    font-size: 10pt !important;
+    font-size: 8.5pt !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
 
-  #root {
+  .dark {
+    background: white !important;
+    background-color: white !important;
+    color: black !important;
+  }
+
+  #root, #root > div {
     width: 100% !important;
     padding: 0 !important;
     margin: 0 !important;
+    background: white !important;
+    background-color: white !important;
+    color: black !important;
+    min-height: 0 !important;
+    height: auto !important;
+    overflow: visible !important;
   }
 
+  .apple-glass-card, .apple-glass, .table-fade-indicator {
+    background: white !important;
+    background-color: white !important;
+    color: black !important;
+    border: none !important;
+    box-shadow: none !important;
+    overflow: visible !important;
+    border-radius: 0 !important;
+  }
+
+  /* When printing Duty Slips or Master Schedule: isolate the printable containers completely by hiding #root */
+  body.printing-duty-slips #root,
+  body.printing-master-schedule #root {
+    display: none !important;
+  }
+
+  body.printing-duty-slips {
+    font-size: 9.5pt !important;
+    background: white !important;
+    color: black !important;
+  }
+
+  body.printing-duty-slips .duty-slips-modal-backdrop {
+    position: static !important;
+    background: transparent !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    overflow: visible !important;
+    display: block !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+    min-height: 0 !important;
+    height: auto !important;
+    z-index: auto !important;
+  }
+
+  body.printing-duty-slips .duty-slips-modal-card {
+    position: static !important;
+    border: none !important;
+    box-shadow: none !important;
+    background: transparent !important;
+    max-width: 100% !important;
+    max-height: none !important;
+    width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: visible !important;
+    border-radius: 0 !important;
+  }
+
+  body.printing-duty-slips .duty-slips-modal-ui {
+    display: none !important;
+  }
+
+  body.printing-duty-slips .duty-slips-printable-container {
+    display: block !important;
+    width: 100% !important;
+    background: white !important;
+    color: black !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  body.printing-duty-slips main,
+  body.printing-master-schedule main {
+    display: none !important;
+  }
+
+  /* Master Schedule Dedicated Print Container */
+  body.printing-master-schedule .print-schedule-modal-backdrop {
+    position: static !important;
+    background: transparent !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    overflow: visible !important;
+    display: block !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+    min-height: 0 !important;
+    height: auto !important;
+    z-index: auto !important;
+  }
+
+  body.printing-master-schedule .print-schedule-modal-card {
+    position: static !important;
+    border: none !important;
+    box-shadow: none !important;
+    background: transparent !important;
+    max-width: 100% !important;
+    max-height: none !important;
+    width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: visible !important;
+    border-radius: 0 !important;
+  }
+
+  body.printing-master-schedule .print-schedule-modal-ui {
+    display: none !important;
+  }
+
+  body.printing-master-schedule .master-schedule-printable-container {
+    display: block !important;
+    width: 100% !important;
+    background: white !important;
+    color: black !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  body.printing-master-schedule .master-schedule-printable-container table {
+    border-collapse: collapse !important;
+    width: 100% !important;
+    page-break-inside: auto !important;
+    break-inside: auto !important;
+  }
+
+  body.printing-master-schedule .master-schedule-printable-container thead {
+    display: table-header-group !important;
+  }
+
+  body.printing-master-schedule .master-schedule-printable-container tr {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  /* Standard Master Schedule Print View */
   main {
     max-width: 100% !important;
     padding: 0 !important;
     margin: 0 !important;
+    background: white !important;
+  }
+
+  .sticky {
+    position: static !important;
+    box-shadow: none !important;
+    background: white !important;
   }
 
   .overflow-x-auto, .overflow-y-auto {
@@ -257,15 +457,25 @@
     page-break-inside: auto !important;
   }
 
+  thead {
+    display: table-header-group !important;
+  }
+
   tr {
     page-break-inside: avoid !important;
     page-break-after: auto !important;
   }
 
   th, td {
-    border: 1px solid #64748b !important;
+    border: 1px solid #94a3b8 !important;
     color: #0f172a !important;
-    padding: 4px 6px !important;
+    padding: 3px 5px !important;
     background: white !important;
+    font-size: 8pt !important;
+  }
+
+  th {
+    background: #f1f5f9 !important;
+    font-weight: bold !important;
   }
 }

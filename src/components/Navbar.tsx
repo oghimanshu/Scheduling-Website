@@ -46,7 +46,7 @@ export const Navbar: React.FC = () => {
 
   return (
     <header
-      className={`apple-glass sticky top-0 z-30 border-b transition-all duration-300 relative ${
+      className={`apple-glass sticky top-0 z-30 border-b transition-all duration-300 relative no-print print:hidden ${
         isScrolled
           ? 'border-slate-300/80 dark:border-white/15 shadow-[0_8px_32px_rgba(0,0,0,0.06)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.45)] backdrop-blur-3xl'
           : 'border-slate-200/60 dark:border-white/10 shadow-xs'

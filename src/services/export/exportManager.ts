@@ -35,7 +35,7 @@ export function importProjectFromJson(
   }
 }
 
-export function exportScheduleToExcel(state: ProjectState): void {
+export function buildExcelWorkbook(state: ProjectState): XLSX.WorkBook {
   const wb = XLSX.utils.book_new();
   const activeDates = state.examPeriod.dates.filter((d) => !d.isExcluded);
 
@@ -53,7 +53,7 @@ export function exportScheduleToExcel(state: ProjectState): void {
     let reserveTotal = 0;
     activeDates.forEach((d) => {
       const assigned = state.assignments.filter(
-        (a) => a.facultySrNo === fac.srNo && a.date === d.date
+        (a) => Number(a.facultySrNo) === Number(fac.srNo) && a.date === d.date
       );
       if (assigned.length > 0) {
         const primaryDuties = assigned.filter((a) => !a.isReserve);
@@ -90,7 +90,7 @@ export function exportScheduleToExcel(state: ProjectState): void {
 
   // 2. Sheet 2: Daily Session Duty Rosters
   const sessionRows: any[] = [];
-  const facultyMap = new Map(state.faculty.map((f) => [f.srNo, f]));
+  const facultyMap = new Map(state.faculty.map((f) => [Number(f.srNo), f]));
 
   activeDates.forEach((d) => {
     (['JRS 1', 'JRS 2', 'JRS 3'] as SessionType[]).forEach((session) => {
@@ -99,7 +99,7 @@ export function exportScheduleToExcel(state: ProjectState): void {
       );
       const req = d.sessionRequirements[session] || 0;
       const supervisorNames = assigned
-        .map((a) => facultyMap.get(a.facultySrNo)?.name || `Sr ${a.facultySrNo}`)
+        .map((a) => facultyMap.get(Number(a.facultySrNo))?.name || `Sr ${a.facultySrNo}`)
         .join('; ');
 
       sessionRows.push({
@@ -120,7 +120,9 @@ export function exportScheduleToExcel(state: ProjectState): void {
 
   // 3. Sheet 3: Workload Summary
   const workloadRows = state.faculty.map((fac) => {
-    const facAssignments = state.assignments.filter((a) => a.facultySrNo === fac.srNo);
+    const facAssignments = state.assignments.filter(
+      (a) => Number(a.facultySrNo) === Number(fac.srNo)
+    );
     const primaryCount = facAssignments.filter((a) => !a.isReserve).length;
     const reserveCount = facAssignments.filter((a) => a.isReserve).length;
     const countedNew = state.settings.reserveCanExceedCap ? primaryCount : primaryCount + reserveCount;
@@ -144,10 +146,15 @@ export function exportScheduleToExcel(state: ProjectState): void {
   const workloadWs = XLSX.utils.json_to_sheet(workloadRows);
   XLSX.utils.book_append_sheet(wb, workloadWs, 'Workload Analysis');
 
+  return wb;
+}
+
+export function exportScheduleToExcel(state: ProjectState): void {
+  const wb = buildExcelWorkbook(state);
   XLSX.writeFile(wb, `Examination_Supervision_Schedule_${new Date().toISOString().slice(0, 10)}.xlsx`);
 }
 
-export function exportScheduleToCsv(state: ProjectState): void {
+export function generateScheduleCsvString(state: ProjectState): string {
   const activeDates = state.examPeriod.dates.filter((d) => !d.isExcluded);
   const rows: any[] = [];
 
@@ -163,7 +170,7 @@ export function exportScheduleToCsv(state: ProjectState): void {
     let reserveTotal = 0;
     activeDates.forEach((d) => {
       const assigned = state.assignments.filter(
-        (a) => a.facultySrNo === fac.srNo && a.date === d.date
+        (a) => Number(a.facultySrNo) === Number(fac.srNo) && a.date === d.date
       );
       if (assigned.length > 0) {
         const primaryDuties = assigned.filter((a) => !a.isReserve);
@@ -193,7 +200,11 @@ export function exportScheduleToCsv(state: ProjectState): void {
     rows.push(row);
   });
 
-  const csv = Papa.unparse(rows);
+  return Papa.unparse(rows);
+}
+
+export function exportScheduleToCsv(state: ProjectState): void {
+  const csv = generateScheduleCsvString(state);
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');

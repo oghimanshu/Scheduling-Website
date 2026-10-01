@@ -38,6 +38,23 @@ export function isFacultyEligibleForSession(
   return true;
 }
 
+export function isFacultyAvailableForSlot(
+  faculty: Faculty,
+  date: string,
+  session: SessionType,
+  availability: Record<string, boolean> = {}
+): boolean {
+  if (faculty.isExcluded) return false;
+  if (faculty.excludedDates && faculty.excludedDates.includes(date)) return false;
+  if (faculty.allowedSessions && faculty.allowedSessions.length > 0 && !faculty.allowedSessions.includes(session)) {
+    return false;
+  }
+  if (availability[`${faculty.srNo}_${date}`] === false) return false;
+  if (availability[`${faculty.srNo}_${date}_${session}`] === false) return false;
+  if (availability[`${faculty.srNo}_all_${session}`] === false) return false;
+  return true;
+}
+
 export interface TimingOverlapWarning {
   sessionA: SessionType;
   sessionB: SessionType;
@@ -248,16 +265,25 @@ export function validateSchedule(
       });
     }
 
-    // Availability & Date-specific exclusion check
-    const availKey = `${a.facultySrNo}_${a.date}`;
-    const isAvail = availability[availKey] !== false && (!fac.excludedDates || !fac.excludedDates.includes(a.date));
+    // Availability & Slot-specific exclusion check
+    const isAvail = isFacultyAvailableForSlot(fac, a.date, a.session, availability);
     if (!isAvail && !a.isOverride) {
       const dateCfg = dateConfigMap.get(a.date);
+      let detail = 'UNAVAILABLE';
+      if (fac.allowedSessions && fac.allowedSessions.length > 0 && !fac.allowedSessions.includes(a.session)) {
+        detail = `restricted from supervising ${a.session} (Allowed: ${fac.allowedSessions.join(', ')})`;
+      } else if (availability[`${a.facultySrNo}_${a.date}_${a.session}`] === false) {
+        detail = `specifically marked UNAVAILABLE for slot ${a.session}`;
+      } else if (availability[`${a.facultySrNo}_all_${a.session}`] === false) {
+        detail = `marked UNAVAILABLE for session ${a.session} across all dates`;
+      } else if (fac.excludedDates && fac.excludedDates.includes(a.date)) {
+        detail = `on leave / excluded`;
+      }
       conflicts.push({
         id: `unavail-${a.id}`,
         type: 'hard',
         category: 'unavailability',
-        message: `${fac.name} is marked UNAVAILABLE / EXCLUDED on ${dateCfg?.displayDate || a.date} but has been assigned to ${a.session}.`,
+        message: `${fac.name} is ${detail} on ${dateCfg?.displayDate || a.date} but has been assigned to ${a.session}.`,
         facultySrNo: fac.srNo,
         facultyName: fac.name,
         date: a.date,

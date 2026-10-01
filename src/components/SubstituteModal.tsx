@@ -30,7 +30,7 @@ export const SubstituteModal: React.FC<SubstituteModalProps> = ({
   onClose,
   forceOpen,
 }) => {
-  const { project, updateAssignments } = useScheduler();
+  const { project, atomicTransferOrSwapDuty, setSelectedForSubstitute } = useScheduler();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [filterEligibleOnly, setFilterEligibleOnly] = useState(true);
@@ -153,27 +153,27 @@ export const SubstituteModal: React.FC<SubstituteModalProps> = ({
 
   // Execute atomic replacement
   const handleExecuteSubstitute = (subCandidate: SubstituteCandidate) => {
-    const updated = project.assignments.map((a) => {
-      if (a.id !== targetAssignment.id) return a;
-      return {
-        ...a,
-        facultySrNo: subCandidate.faculty.srNo,
-        isLocked: lockAfterSubstitute ? true : a.isLocked,
-        isOverride: !subCandidate.isEligible,
-        overrideReason: !subCandidate.isEligible
-          ? `Substituted for ${currentFaculty?.name}: ${subCandidate.conflictReasons.join('; ')}`
-          : undefined,
-      };
-    });
-
-    updateAssignments(updated);
-    setSuccessMessage(
-      `Successfully substituted ${currentFaculty?.name || 'Faculty'} with ${subCandidate.faculty.name}!`
+    const res = atomicTransferOrSwapDuty(
+      targetAssignment.id,
+      subCandidate.faculty.srNo,
+      'replace',
+      !subCandidate.isEligible,
+      !subCandidate.isEligible
+        ? `Substituted for ${currentFaculty?.name}: ${subCandidate.conflictReasons.join('; ')}`
+        : undefined,
+      lockAfterSubstitute
     );
-    setTimeout(() => {
-      setSuccessMessage(null);
-      onClose();
-    }, 1200);
+
+    if (res.success) {
+      setSuccessMessage(
+        `Successfully substituted ${currentFaculty?.name || 'Faculty'} with ${subCandidate.faculty.name}!`
+      );
+      setTimeout(() => {
+        setSuccessMessage(null);
+        setSelectedForSubstitute(null);
+        onClose();
+      }, 1000);
+    }
   };
 
   return (
@@ -201,7 +201,10 @@ export const SubstituteModal: React.FC<SubstituteModalProps> = ({
           </div>
           <button
             type="button"
-            onClick={onClose}
+            onClick={() => {
+              setSelectedForSubstitute(null);
+              onClose();
+            }}
             className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-white/10 transition cursor-pointer"
           >
             <X className="w-5 h-5" />

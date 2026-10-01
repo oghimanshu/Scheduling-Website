@@ -10,6 +10,7 @@ import {
   Trash2,
   Lock,
   Shield,
+  Building2,
 } from 'lucide-react';
 import { useScheduler } from '../context/SchedulerContext';
 import { SessionType, HodAssignmentPriority } from '../types';
@@ -20,6 +21,7 @@ export const SettingsModal: React.FC = () => {
     project,
     isSettingsModalOpen,
     setIsSettingsModalOpen,
+    setIsLetterheadModalOpen,
     updateSettings,
     resetProject,
     clearAssignments,
@@ -370,7 +372,31 @@ export const SettingsModal: React.FC = () => {
             )}
           </div>
 
-          {/* Section 5: Project Reset */}
+          {/* Section 5: Institutional Letterhead & Signatures */}
+          <div className="space-y-3 pt-3 border-t border-slate-200/60 dark:border-white/10">
+            <div className="flex items-center space-x-2">
+              <Building2 className="w-4 h-4 text-sky-600 dark:text-sky-400" />
+              <h4 className="font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 text-[11px]">
+                Institutional Letterhead &amp; Authorities
+              </h4>
+            </div>
+            <p className="text-slate-500 dark:text-slate-400 text-[11px]">
+              Configure college/university name, emblem logo upload, campus address, and multiple controller signing authorities for printed orders and duty slips.
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                setIsSettingsModalOpen(false);
+                setIsLetterheadModalOpen(true);
+              }}
+              className="btn-spring px-3.5 py-2 rounded-xl bg-sky-50 dark:bg-sky-950/60 text-sky-700 dark:text-sky-300 border border-sky-300 dark:border-sky-800 text-xs font-bold flex items-center space-x-2 hover:bg-sky-100 cursor-pointer shadow-xs"
+            >
+              <Building2 className="w-3.5 h-3.5 text-sky-500" />
+              <span>Configure Letterhead, Emblem &amp; Signatories</span>
+            </button>
+          </div>
+
+          {/* Section 6: Project Reset */}
           <div className="space-y-3 pt-3 border-t border-slate-200/60 dark:border-white/10">
             <h4 className="font-bold uppercase tracking-wider text-rose-700 dark:text-rose-400 text-[11px]">
               Danger Zone

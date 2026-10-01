@@ -7,7 +7,7 @@ import {
   ScheduleAlternative,
   SessionDefinition,
 } from '../../types';
-import { isFacultyEligibleForSession, validateSchedule } from '../validation/validator';
+import { isFacultyEligibleForSession, isFacultyAvailableForSlot, validateSchedule } from '../validation/validator';
 import { analyzeInfeasibility } from '../validation/infeasibility';
 
 // Mulberry32 seeded pseudo-random number generator
@@ -169,9 +169,8 @@ export function solveExaminationSchedule(
     const maxCap = facultyMaxCap.get(faculty.srNo) || 0;
     if (currentNew >= maxCap) return false;
 
-    // Availability check
-    const availKey = `${faculty.srNo}_${date}`;
-    if (availability[availKey] === false || (faculty.excludedDates && faculty.excludedDates.includes(date))) return false;
+    // Availability check (slot-level, date-level, and whole-exam allowedSessions)
+    if (!isFacultyAvailableForSlot(faculty, date, session, availability)) return false;
 
     // Eligibility check
     const dateCfg = dateConfigMap.get(date);
@@ -514,11 +513,9 @@ export function solveExaminationSchedule(
         const uDateSessions = facultyDateSessions.get(under.srNo)?.get(d.date) || new Set();
         if (uDateSessions.size >= 2) continue; // Maximum 2 duties per day
 
-        const availKey = `${under.srNo}_${d.date}`;
-        if (availability[availKey] === false || (under.excludedDates && under.excludedDates.includes(d.date))) continue;
-
         for (const session of sessionOrder) {
           if (uDateSessions.has(session)) continue; // Already in this session
+          if (!isFacultyAvailableForSlot(under, d.date, session, availability)) continue;
           if (!isFacultyEligibleForSession(under.arrival, session, options.sessionDefinitions, d)) continue;
 
           // Check double duty combination rule if under already has 1 duty today
@@ -620,10 +617,7 @@ export function solveExaminationSchedule(
       sessionOrder.forEach((session) => {
         const candidates = facultyList
           .filter((f) => {
-            if (f.isExcluded) return false;
-            if (f.excludedDates && f.excludedDates.includes(d.date)) return false;
-            const availKey = `${f.srNo}_${d.date}`;
-            if (availability[availKey] === false) return false;
+            if (!isFacultyAvailableForSlot(f, d.date, session, availability)) return false;
             if (!isFacultyEligibleForSession(f.arrival, session, options.sessionDefinitions, d)) return false;
 
             // Cannot be already assigned in this session (neither primary nor reserve)

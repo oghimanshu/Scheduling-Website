@@ -93,6 +93,7 @@ export interface Faculty {
   isExcluded?: boolean;         // When true, faculty is excluded from duties in this period
   exclusionReason?: string;     // e.g., 'Sabbatical', 'Medical Leave', 'Exam Committee', 'Other'
   excludedDates?: string[];     // Specific exam dates when faculty is on leave / excluded
+  allowedSessions?: SessionType[]; // Specific sessions faculty can be assigned to (e.g. ['JRS 1'])
   notes?: string;
 }
 
@@ -266,6 +267,26 @@ export interface SchedulerSettings {
   };
 }
 
+export interface SigningAuthority {
+  id: string;
+  name: string;        // e.g. "Dr. R. K. Sharma" (or empty for blank signature line)
+  role: string;        // e.g. "Controller of Examinations", "Chief Superintendent"
+  department?: string; // e.g. "Examination Branch"
+}
+
+export interface InstitutionalHeaderConfig {
+  institutionName: string;                   // e.g. "College of Engineering & Technology"
+  subHeader?: string;                        // e.g. "Affiliated to State Technological University"
+  address?: string;                          // e.g. "Main Campus, University Road"
+  officeTitle?: string;                      // e.g. "Office of the Controller of Examinations"
+  examTitle?: string;                        // e.g. "End Semester Examinations"
+  logoUrl?: string;                          // Base64 image data or URL (optional)
+  logoPlacement?: 'left' | 'center' | 'none'; // Default 'left'
+  signingAuthorities: SigningAuthority[];
+  invigilatorAckLabel?: string;              // Default: "Invigilator's Acknowledgment"
+  customInstructions?: string;               // Custom notes at bottom of duty slip
+}
+
 export interface ProjectState {
   version: string;
   projectName: string;
@@ -283,5 +304,6 @@ export interface ProjectState {
   alternatives: ScheduleAlternative[];
   overrides: AdministratorOverride[];
   settings: SchedulerSettings;
+  institution?: InstitutionalHeaderConfig;
   lastSavedTimestamp?: string;
 }

@@ -25,6 +25,11 @@ import { GenerationOptionsModal } from './components/GenerationOptionsModal';
 import { GoogleAuthModal } from './components/GoogleAuthModal';
 import { SubstituteModal } from './components/SubstituteModal';
 import { MobileBottomDock } from './components/MobileBottomDock';
+import { AcademicConstellation } from './components/AcademicConstellation';
+import { LiquidClickRipple } from './components/LiquidClickRipple';
+import { SolverTelemetryModal } from './components/SolverTelemetryModal';
+import { LetterheadCustomizerModal } from './components/LetterheadCustomizerModal';
+import { PrintScheduleModal } from './components/PrintScheduleModal';
 
 const AppContent: React.FC = () => {
   const {
@@ -42,8 +47,14 @@ const AppContent: React.FC = () => {
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 transition-colors duration-300 relative overflow-hidden">
+      {/* Global Hardware-Accelerated Liquid Click Ripple */}
+      <LiquidClickRipple />
+
+      {/* Dynamic Academic Graph Orbitals & Mathematical Constellation Network */}
+      <AcademicConstellation />
+
       {/* Apple VisionOS Ambient Radial Glow Orbs with Floating Motion */}
-      <div className="fixed inset-0 pointer-events-none overflow-hidden z-0" aria-hidden="true">
+      <div className="ambient-glow-orbs no-print print:hidden fixed inset-0 pointer-events-none overflow-hidden z-0" aria-hidden="true">
         {/* Top-Left Sky Blue Glow */}
         <div className="absolute -top-40 -left-40 w-[34rem] h-[34rem] rounded-full bg-gradient-to-br from-sky-400/25 via-blue-500/20 to-transparent dark:from-sky-500/20 dark:via-blue-600/15 dark:to-transparent blur-[120px] transform-gpu animate-float-slow" />
         {/* Top-Right Indigo/Violet Glow */}
@@ -74,7 +85,7 @@ const AppContent: React.FC = () => {
       <MobileBottomDock />
 
       {/* Footer with Liquid Glass styling & Himanshu Gaur Attribution */}
-      <footer className="apple-glass border-t border-slate-200/70 dark:border-white/10 py-5 mt-auto relative z-10 pb-20 md:pb-5">
+      <footer className="apple-glass border-t border-slate-200/70 dark:border-white/10 py-5 mt-auto relative z-10 pb-20 md:pb-5 no-print print:hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row justify-between items-center text-xs text-slate-500 dark:text-slate-400 gap-3">
           <div className="flex flex-col sm:flex-row items-center space-y-1 sm:space-y-0 sm:space-x-2 text-center sm:text-left">
             <span className="font-bold text-slate-800 dark:text-slate-100">Examination Supervision Scheduler</span>
@@ -108,6 +119,8 @@ const AppContent: React.FC = () => {
       <ResetSessionConfirmModal />
       <RoleSegregationModal />
       <DutySlipsModal />
+      <LetterheadCustomizerModal />
+      <PrintScheduleModal />
       <GenerationOptionsModal />
       <GoogleAuthModal />
       <SubstituteModal
@@ -115,6 +128,7 @@ const AppContent: React.FC = () => {
         isOpen={isSubstituteModalOpen}
         onClose={() => setIsSubstituteModalOpen(false)}
       />
+      <SolverTelemetryModal />
     </div>
   );
 };

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { DEFAULT_DATES_CONFIG, DEFAULT_SETTINGS, INITIAL_PROJECT_STATE } from '../data/defaultData';
+import { DEFAULT_DATES_CONFIG, DEFAULT_SETTINGS, INITIAL_PROJECT_STATE, DEFAULT_SESSION_TIMINGS } from '../data/defaultData';
 import { MOCK_FACULTY_LIST as DEFAULT_FACULTY_LIST } from './fixtures/mockFaculty';
 import { solveExaminationSchedule } from '../services/scheduler/solver';
 import { validateSchedule, isFacultyEligibleForSession, checkSessionTimingsOverlap } from '../services/validation/validator';
@@ -7,8 +7,14 @@ import { generateFiveAlternatives } from '../services/scheduler/alternatives';
 import { rebalanceSchedule } from '../services/scheduler/rebalance';
 import { parseFacultyCSV, generateSampleFacultyCSV } from '../services/csvParser';
 import { analyzeInfeasibility } from '../services/validation/infeasibility';
-import { exportProjectToJson, importProjectFromJson } from '../services/export/exportManager';
-import { Assignment, ProjectState } from '../types';
+import {
+  exportProjectToJson,
+  importProjectFromJson,
+  buildExcelWorkbook,
+  generateScheduleCsvString,
+} from '../services/export/exportManager';
+import * as XLSX from 'xlsx';
+import { Assignment, ProjectState, Faculty, ExamDateConfig } from '../types';
 
 describe('Examination Supervision Scheduler Engine', () => {
   it('should generate empty sample CSV template with only headers', () => {
@@ -648,6 +654,199 @@ describe('Examination Supervision Scheduler Engine', () => {
     const relaxedJrs1 = relaxedResult.assignments.filter((a) => a.session === 'JRS 1');
     expect(relaxedJrs1.length).toBeGreaterThan(0);
     expect(relaxedJrs1[0].isOverride).toBe(true);
+  });
+
+  it('should immediately reflect manual replacement in exported Excel sheets and CSV', () => {
+    const testFaculty = [
+      {
+        srNo: 1,
+        name: 'Dr. Alice Original',
+        isHod: false,
+        arrival: 'Morning' as const,
+        targetSupervisions: 6,
+        maxSupervisions: 6,
+        previousSupervisions: 0,
+      },
+      {
+        srNo: 2,
+        name: 'Dr. Bob Replacement',
+        isHod: false,
+        arrival: 'Morning' as const,
+        targetSupervisions: 6,
+        maxSupervisions: 6,
+        previousSupervisions: 0,
+      },
+    ];
+
+    const testDates = [{ ...DEFAULT_DATES_CONFIG[1], isExcluded: false }]; // Active exam date
+    const testDate = testDates[0].date;
+    const testDisplayDate = testDates[0].displayDate;
+
+    // 1. Initial State: Alice is assigned to JRS 1 on this date
+    const initialAssignment: Assignment = {
+      id: `1-${testDate}-JRS 1`,
+      facultySrNo: 1,
+      date: testDate,
+      session: 'JRS 1',
+      isLocked: false,
+      isOverride: false,
+    };
+
+    const projectState: ProjectState = {
+      ...INITIAL_PROJECT_STATE,
+      faculty: testFaculty,
+      examPeriod: {
+        ...INITIAL_PROJECT_STATE.examPeriod,
+        dates: testDates,
+      },
+      assignments: [initialAssignment],
+    };
+
+    // Verify initial workbook before replacement
+    const initialWb = buildExcelWorkbook(projectState);
+    const initialFacultySheet: any[] = XLSX.utils.sheet_to_json(initialWb.Sheets['Faculty Schedule']);
+    const aliceRowInitial = initialFacultySheet.find((r) => r['Faculty Name'] === 'Dr. Alice Original');
+    const bobRowInitial = initialFacultySheet.find((r) => r['Faculty Name'] === 'Dr. Bob Replacement');
+    expect(aliceRowInitial[testDisplayDate]).toBe('JRS 1');
+    expect(bobRowInitial[testDisplayDate]).toBe('-');
+
+    // 2. Perform manual replacement: Transfer duty from Alice (srNo 1) to Bob (srNo 2)
+    const replacedAssignment: Assignment = {
+      id: `2-${testDate}-JRS 1`,
+      facultySrNo: 2,
+      date: testDate,
+      session: 'JRS 1',
+      isLocked: true,
+      isOverride: false,
+    };
+
+    const updatedState: ProjectState = {
+      ...projectState,
+      assignments: [replacedAssignment],
+    };
+
+    // 3. Verify that buildExcelWorkbook reflects the replacement across all 3 sheets
+    const updatedWb = buildExcelWorkbook(updatedState);
+
+    // Sheet 1: Faculty Schedule
+    const facultySheet: any[] = XLSX.utils.sheet_to_json(updatedWb.Sheets['Faculty Schedule']);
+    const aliceRow = facultySheet.find((r) => r['Faculty Name'] === 'Dr. Alice Original');
+    const bobRow = facultySheet.find((r) => r['Faculty Name'] === 'Dr. Bob Replacement');
+    expect(aliceRow[testDisplayDate]).toBe('-');
+    expect(aliceRow['New']).toBe(0);
+    expect(bobRow[testDisplayDate]).toBe('JRS 1');
+    expect(bobRow['New']).toBe(1);
+
+    // Sheet 2: Session Rosters
+    const sessionSheet: any[] = XLSX.utils.sheet_to_json(updatedWb.Sheets['Session Rosters']);
+    const jrs1Row = sessionSheet.find((r) => r['Session'] === 'JRS 1' && r['Date'] === testDisplayDate);
+    expect(jrs1Row).toBeDefined();
+    expect(jrs1Row['Supervisors']).toContain('Dr. Bob Replacement');
+    expect(jrs1Row['Supervisors']).not.toContain('Dr. Alice Original');
+
+    // Sheet 3: Workload Summary
+    const workloadSheet: any[] = XLSX.utils.sheet_to_json(updatedWb.Sheets['Workload Analysis']);
+    const aliceWorkload = workloadSheet.find((r) => r['Faculty Name'] === 'Dr. Alice Original');
+    const bobWorkload = workloadSheet.find((r) => r['Faculty Name'] === 'Dr. Bob Replacement');
+    expect(aliceWorkload['Primary Duties']).toBe(0);
+    expect(aliceWorkload['Final Counted Supervisions']).toBe(0);
+    expect(bobWorkload['Primary Duties']).toBe(1);
+    expect(bobWorkload['Final Counted Supervisions']).toBe(1);
+
+    // 4. Verify that CSV export string also reflects the replacement
+    const csvContent = generateScheduleCsvString(updatedState);
+    expect(csvContent).toContain('Dr. Bob Replacement');
+    expect(csvContent).toContain('JRS 1');
+  });
+
+  it('should respect slot-level availability constraints (available for JRS 1, unavailable for JRS 2)', () => {
+    const testDate = '2026-10-06';
+    const faculty: Faculty[] = [
+      {
+        srNo: 101,
+        name: 'Dr. Morning Only',
+        isHod: false,
+        arrival: 'Morning',
+        targetSupervisions: 1,
+        maxSupervisions: 1,
+        previousSupervisions: 0,
+      },
+      {
+        srNo: 102,
+        name: 'Dr. Flexible',
+        isHod: false,
+        arrival: 'Morning',
+        targetSupervisions: 2,
+        maxSupervisions: 2,
+        previousSupervisions: 0,
+      },
+    ];
+
+    const dates: ExamDateConfig[] = [
+      {
+        date: testDate,
+        displayDate: '06 Oct 2026',
+        dayOfWeek: 'Tuesday',
+        isExcluded: false,
+        sessionRequirements: { 'JRS 1': 1, 'JRS 2': 1, 'JRS 3': 0 },
+        sessionTimings: DEFAULT_SESSION_TIMINGS,
+      },
+    ];
+
+    // Dr. Morning Only is explicitly UNAVAILABLE for JRS 2 on 2026-10-06
+    const availability: Record<string, boolean> = {
+      '101_2026-10-06_JRS 2': false,
+    };
+
+    const result = solveExaminationSchedule(faculty, dates, availability, DEFAULT_SETTINGS);
+    expect(result.success).toBe(true);
+
+    const docMorningDuties = result.assignments.filter((a) => a.facultySrNo === 101);
+    expect(docMorningDuties.length).toBe(1);
+    expect(docMorningDuties[0].session).toBe('JRS 1'); // Must be assigned to JRS 1, never JRS 2
+  });
+
+  it('should respect faculty whole-exam allowedSessions restriction', () => {
+    const testDate = '2026-10-06';
+    const faculty: Faculty[] = [
+      {
+        srNo: 201,
+        name: 'Dr. Restricted JRS1',
+        isHod: false,
+        arrival: 'Mid',
+        targetSupervisions: 1,
+        maxSupervisions: 1,
+        previousSupervisions: 0,
+        allowedSessions: ['JRS 1'], // Restricted to JRS 1 only
+      },
+      {
+        srNo: 202,
+        name: 'Dr. Other Faculty',
+        isHod: false,
+        arrival: 'Mid',
+        targetSupervisions: 2,
+        maxSupervisions: 2,
+        previousSupervisions: 0,
+      },
+    ];
+
+    const dates: ExamDateConfig[] = [
+      {
+        date: testDate,
+        displayDate: '06 Oct 2026',
+        dayOfWeek: 'Tuesday',
+        isExcluded: false,
+        sessionRequirements: { 'JRS 1': 1, 'JRS 2': 1, 'JRS 3': 0 },
+        sessionTimings: DEFAULT_SESSION_TIMINGS,
+      },
+    ];
+
+    const result = solveExaminationSchedule(faculty, dates, {}, DEFAULT_SETTINGS);
+    expect(result.success).toBe(true);
+
+    const restrictedDuties = result.assignments.filter((a) => a.facultySrNo === 201);
+    expect(restrictedDuties.length).toBe(1);
+    expect(restrictedDuties[0].session).toBe('JRS 1');
   });
 });
 

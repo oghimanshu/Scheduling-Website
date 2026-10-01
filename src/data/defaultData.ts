@@ -1,4 +1,24 @@
-import { Faculty, ExamDateConfig, SchedulerSettings, ProjectState, SessionDefinition } from '../types';
+import { Faculty, ExamDateConfig, SchedulerSettings, ProjectState, SessionDefinition, InstitutionalHeaderConfig } from '../types';
+
+export const DEFAULT_INSTITUTION_CONFIG: InstitutionalHeaderConfig = {
+  institutionName: 'College of Engineering & Technology',
+  subHeader: 'Autonomous Institution • Affiliated to State Technological University',
+  address: 'Main Campus, University Road, Academic Zone',
+  officeTitle: 'Office of the Controller of Examinations',
+  examTitle: 'End Semester Examinations',
+  logoPlacement: 'left',
+  signingAuthorities: [
+    {
+      id: 'auth-1',
+      name: '',
+      role: 'Chief Superintendent / Controller',
+      department: 'Examination Control Division',
+    },
+  ],
+  invigilatorAckLabel: "Invigilator's Acknowledgment",
+  customInstructions:
+    '1. Report at the Examination Control Room 15 minutes before the session.\n2. Possession of mobile devices or programmable calculators in halls is strictly prohibited.\n3. Return all answer booklets and attendance sheets immediately after the session.',
+};
 
 export const DEFAULT_SESSION_TIMINGS = {
   'JRS 1': { start: '08:00', end: '10:00' },
@@ -139,6 +159,7 @@ export const INITIAL_PROJECT_STATE: ProjectState = {
   alternatives: [],
   overrides: [],
   settings: DEFAULT_SETTINGS,
+  institution: DEFAULT_INSTITUTION_CONFIG,
 };
 
 export const EMPTY_SESSION_PROJECT_STATE: ProjectState = {
@@ -158,4 +179,5 @@ export const EMPTY_SESSION_PROJECT_STATE: ProjectState = {
   alternatives: [],
   overrides: [],
   settings: DEFAULT_SETTINGS,
+  institution: DEFAULT_INSTITUTION_CONFIG,
 };

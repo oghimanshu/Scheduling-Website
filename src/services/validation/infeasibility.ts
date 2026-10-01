@@ -5,7 +5,7 @@ import {
   SessionType,
   SchedulerSettings,
 } from '../../types';
-import { isFacultyEligibleForSession } from './validator';
+import { isFacultyEligibleForSession, isFacultyAvailableForSlot } from './validator';
 
 export interface InfeasibilityBottleneck {
   date: string;
@@ -95,11 +95,7 @@ export function analyzeInfeasibility(
       ).length;
 
       facultyList.forEach((f) => {
-        if (f.isExcluded) return; // Skip excluded faculty
-
-        const availKey = `${f.srNo}_${d.date}`;
-        const isAvail = availability[availKey] !== false && (!f.excludedDates || !f.excludedDates.includes(d.date));
-        if (!isAvail) {
+        if (!isFacultyAvailableForSlot(f, d.date, session, availability)) {
           unavailableCount++;
           return;
         }

@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { useScheduler } from '../context/SchedulerContext';
 import { downloadFacultyTemplateCSV } from '../services/csvParser';
+import { useAnimatedNumber } from '../hooks/useAnimatedNumber';
 
 export const Dashboard: React.FC = () => {
   const {
@@ -60,6 +61,13 @@ export const Dashboard: React.FC = () => {
     0
   );
   const totalCapacity = regularCapacity + hodCapacity;
+
+  // Animated KPI numbers for high-fidelity tactile feedback
+  const animFacultyCount = useAnimatedNumber(project.faculty.length);
+  const animActiveDates = useAnimatedNumber(activeDates.length);
+  const animRequiredPositions = useAnimatedNumber(validation.totalRequiredPositions);
+  const animFilledPositions = useAnimatedNumber(validation.totalFilledPositions);
+  const animHardConflicts = useAnimatedNumber(validation.hardConflictsCount);
 
   return (
     <div className="space-y-6">
@@ -232,7 +240,7 @@ export const Dashboard: React.FC = () => {
               <Users className="w-4 h-4" />
             </div>
           </div>
-          <div className="text-2xl font-black text-slate-900 dark:text-white tracking-tight tabular-nums font-mono">{project.faculty.length}</div>
+          <div className="text-2xl font-black text-slate-900 dark:text-white tracking-tight tabular-nums font-mono">{animFacultyCount}</div>
           <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
             <span className="tabular-nums font-mono font-semibold">{regularFaculty.length}</span> Regular • <span className="tabular-nums font-mono font-semibold">{hodFaculty.length}</span> HOD
           </div>
@@ -247,7 +255,7 @@ export const Dashboard: React.FC = () => {
               <Calendar className="w-4 h-4" />
             </div>
           </div>
-          <div className="text-2xl font-black text-slate-900 dark:text-white tracking-tight tabular-nums font-mono">{activeDates.length}</div>
+          <div className="text-2xl font-black text-slate-900 dark:text-white tracking-tight tabular-nums font-mono">{animActiveDates}</div>
           <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
             <span className="tabular-nums font-mono font-semibold">{project.examPeriod.dates.length - activeDates.length}</span> Excluded (Holidays)
           </div>
@@ -262,7 +270,7 @@ export const Dashboard: React.FC = () => {
               <Layers className="w-4 h-4" />
             </div>
           </div>
-          <div className="text-2xl font-black text-slate-900 dark:text-white tracking-tight tabular-nums font-mono">{validation.totalRequiredPositions}</div>
+          <div className="text-2xl font-black text-slate-900 dark:text-white tracking-tight tabular-nums font-mono">{animRequiredPositions}</div>
           <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 font-medium">
             57 / day across 3 JRS
           </div>
@@ -284,7 +292,7 @@ export const Dashboard: React.FC = () => {
                 : 'text-amber-600 dark:text-amber-400'
             }`}
           >
-            {validation.totalFilledPositions}
+            {animFilledPositions}
           </div>
           <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
             {validation.unfilledPositions > 0 ? (
@@ -309,7 +317,7 @@ export const Dashboard: React.FC = () => {
               validation.hardConflictsCount > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'
             }`}
           >
-            {validation.hardConflictsCount}
+            {animHardConflicts}
           </div>
           <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 font-medium">
             {validation.hardConflictsCount === 0 ? 'Strict Rules Met' : 'Violation(s) detected'}

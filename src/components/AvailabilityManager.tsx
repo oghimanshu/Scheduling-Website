@@ -11,12 +11,13 @@ import {
   Users,
 } from 'lucide-react';
 import { useScheduler } from '../context/SchedulerContext';
-import { ArrivalCategory } from '../types';
+import { ArrivalCategory, SessionType } from '../types';
 
 export const AvailabilityManager: React.FC = () => {
   const {
     project,
     setAvailability,
+    setSlotAvailability,
     bulkSetAvailability,
     copyAvailabilityDateToDate,
     updateFacultyExcludedDates,
@@ -250,11 +251,16 @@ export const AvailabilityManager: React.FC = () => {
             <tbody className="divide-y divide-slate-100 dark:divide-white/5">
               {filteredFaculty.map((f) => (
                 <tr key={f.srNo} className="group hover:bg-sky-50/30 dark:hover:bg-white/5 transition">
-                  <td className="py-2.5 px-3 sm:px-4 font-mono tabular-nums font-medium text-slate-400 dark:text-slate-500 sticky left-0 z-10 bg-white/95 dark:bg-slate-900/95 group-hover:bg-slate-50 dark:group-hover:bg-slate-850">
+                  <td className="py-2.5 px-3 sm:px-4 font-mono tabular-nums font-medium text-slate-400 dark:text-slate-500 sticky left-0 z-10 bg-white/95 dark:bg-slate-900/95 group-hover:bg-slate-50 dark:group-hover:bg-slate-800">
                     {f.srNo}
                   </td>
-                  <td className="py-2.5 px-3 sm:px-4 font-semibold text-slate-900 dark:text-white sticky left-12 sm:left-16 z-10 bg-white/95 dark:bg-slate-900/95 group-hover:bg-slate-50 dark:group-hover:bg-slate-850 border-r border-slate-200/80 dark:border-white/10 shadow-[2px_0_5px_rgba(0,0,0,0.04)]">
+                  <td className="py-2.5 px-3 sm:px-4 font-semibold text-slate-900 dark:text-white sticky left-12 sm:left-16 z-10 bg-white/95 dark:bg-slate-900/95 group-hover:bg-slate-50 dark:group-hover:bg-slate-800 border-r border-slate-200/80 dark:border-white/10 shadow-[2px_0_5px_rgba(0,0,0,0.04)]">
                     <span className="truncate max-w-[120px] sm:max-w-none block">{f.name}</span>
+                    {f.allowedSessions && f.allowedSessions.length > 0 && (
+                      <span className="inline-block text-[9px] font-bold px-1.5 py-0.2 rounded bg-sky-100 dark:bg-sky-950/60 text-sky-700 dark:text-sky-300 border border-sky-200/50 dark:border-sky-800/40 mt-0.5">
+                        Only: {f.allowedSessions.join(', ')}
+                      </span>
+                    )}
                   </td>
                   <td className="py-2.5 px-3">
                     <span
@@ -271,43 +277,83 @@ export const AvailabilityManager: React.FC = () => {
                     {f.arrival}
                   </td>
 
-                  {/* Date Availability Toggles */}
+                  {/* Date & Slot Availability Toggles */}
                   {activeDates.map((d) => {
                     const availKey = `${f.srNo}_${d.date}`;
                     const isDateExcludedByList = Array.isArray(f.excludedDates) && f.excludedDates.includes(d.date);
-                    const isAvailable = ((project.availability || {})[availKey] !== false) && !isDateExcludedByList;
+                    const isDayAvailable = ((project.availability || {})[availKey] !== false) && !isDateExcludedByList;
 
                     return (
-                      <td key={d.date} className="py-2.5 px-3 text-center">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const nextVal = !isAvailable;
-                            setAvailability(f.srNo, d.date, nextVal);
-                            const currentExcluded = f.excludedDates || [];
-                            const updated = nextVal
-                              ? currentExcluded.filter((dt) => dt !== d.date)
-                              : [...currentExcluded, d.date];
-                            updateFacultyExcludedDates(f.srNo, updated);
-                          }}
-                          className={`w-full py-1 px-2 rounded-lg font-medium text-xs flex items-center justify-center space-x-1 transition cursor-pointer active:scale-95 ${
-                            isAvailable
-                              ? 'bg-emerald-50/80 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-800/40 hover:bg-emerald-100 dark:hover:bg-emerald-900/60'
-                              : 'bg-rose-50/80 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-200/80 dark:border-rose-800/40 hover:bg-rose-100 dark:hover:bg-rose-900/60'
-                          }`}
-                        >
-                          {isAvailable ? (
-                            <>
-                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                              <span>Available</span>
-                            </>
-                          ) : (
-                            <>
-                              <XCircle className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />
-                              <span>Leave</span>
-                            </>
+                      <td key={d.date} className="py-2 px-2 text-center align-top">
+                        <div className="flex flex-col items-center gap-1.5">
+                          {/* Day Level Toggle Button */}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const nextVal = !isDayAvailable;
+                              setAvailability(f.srNo, d.date, nextVal);
+                              const currentExcluded = f.excludedDates || [];
+                              const updated = nextVal
+                                ? currentExcluded.filter((dt) => dt !== d.date)
+                                : [...currentExcluded, d.date];
+                              updateFacultyExcludedDates(f.srNo, updated);
+                            }}
+                            className={`w-full py-1 px-1.5 rounded-lg font-semibold text-[11px] flex items-center justify-center space-x-1 transition cursor-pointer active:scale-95 ${
+                              isDayAvailable
+                                ? 'bg-emerald-50/80 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-800/40 hover:bg-emerald-100 dark:hover:bg-emerald-900/60'
+                                : 'bg-rose-50/80 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-200/80 dark:border-rose-800/40 hover:bg-rose-100 dark:hover:bg-rose-900/60'
+                            }`}
+                          >
+                            {isDayAvailable ? (
+                              <>
+                                <CheckCircle2 className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
+                                <span>Available</span>
+                              </>
+                            ) : (
+                              <>
+                                <XCircle className="w-3 h-3 text-rose-600 dark:text-rose-400" />
+                                <span>Leave</span>
+                              </>
+                            )}
+                          </button>
+
+                          {/* Session/Slot-Level Micro-Toggles (only visible when day is Available) */}
+                          {isDayAvailable && (
+                            <div className="flex items-center space-x-1">
+                              {(['JRS 1', 'JRS 2', 'JRS 3'] as SessionType[]).map((sess) => {
+                                const slotKey = `${f.srNo}_${d.date}_${sess}`;
+                                const isWholeExamRestricted = f.allowedSessions && f.allowedSessions.length > 0 && !f.allowedSessions.includes(sess);
+                                const isSlotDisabled = isWholeExamRestricted || (project.availability || {})[slotKey] === false;
+                                const shortLabel = sess.replace('JRS ', 'J');
+
+                                return (
+                                  <button
+                                    key={sess}
+                                    type="button"
+                                    disabled={Boolean(isWholeExamRestricted)}
+                                    onClick={() => setSlotAvailability(f.srNo, d.date, sess)}
+                                    title={
+                                      isWholeExamRestricted
+                                        ? `Faculty profile restricts to ${f.allowedSessions?.join(', ')}`
+                                        : isSlotDisabled
+                                        ? `Marked unavailable for ${sess} on this date. Click to enable.`
+                                        : `Available for ${sess}. Click to mark unavailable.`
+                                    }
+                                    className={`px-1.5 py-0.5 rounded text-[9px] font-bold font-mono transition cursor-pointer border ${
+                                      isWholeExamRestricted
+                                        ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 border-slate-200 dark:border-white/5 opacity-50 cursor-not-allowed line-through'
+                                        : isSlotDisabled
+                                        ? 'bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 border-rose-300 dark:border-rose-800/50 line-through'
+                                        : 'bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-300 border-sky-200 dark:border-sky-800/40 hover:bg-sky-100'
+                                    }`}
+                                  >
+                                    {shortLabel}
+                                  </button>
+                                );
+                              })}
+                            </div>
                           )}
-                        </button>
+                        </div>
                       </td>
                     );
                   })}

@@ -28,12 +28,12 @@ export function loadProjectFromStorage(): { state: ProjectState; loadedFromStora
   try {
     // Clear legacy localStorage from previous persistent sessions
     if (typeof window !== 'undefined' && window.localStorage) {
-      localStorage.removeItem('EXAM_SCHEDULER_PROJECT_STATE_V1');
-      localStorage.removeItem('EXAM_SCHEDULER_PROJECT_STATE');
+      window.localStorage.removeItem('EXAM_SCHEDULER_PROJECT_STATE_V1');
+      window.localStorage.removeItem('EXAM_SCHEDULER_PROJECT_STATE');
     }
 
     if (typeof window !== 'undefined' && window.sessionStorage) {
-      const saved = sessionStorage.getItem(SESSION_STORAGE_KEY);
+      const saved = window.sessionStorage.getItem(SESSION_STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved) as ProjectState;
         if (parsed && Array.isArray(parsed.faculty) && parsed.examPeriod && Array.isArray(parsed.examPeriod.dates)) {

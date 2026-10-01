@@ -15,8 +15,10 @@ import {
   TabType,
   CloudUser,
   SchedulerSettings,
+  InstitutionalHeaderConfig,
+  SigningAuthority,
 } from '../types';
-import { INITIAL_PROJECT_STATE, EMPTY_SESSION_PROJECT_STATE, DEFAULT_SESSIONS } from '../data/defaultData';
+import { INITIAL_PROJECT_STATE, EMPTY_SESSION_PROJECT_STATE, DEFAULT_SESSIONS, DEFAULT_INSTITUTION_CONFIG } from '../data/defaultData';
 import { validateSchedule } from '../services/validation/validator';
 import { analyzeInfeasibility, InfeasibilityReport } from '../services/validation/infeasibility';
 import { generateFiveAlternatives, generateSingleAlternative } from '../services/scheduler/alternatives';
@@ -67,6 +69,10 @@ interface SchedulerContextType {
   setIsResetConfirmModalOpen: (open: boolean) => void;
   setIsGenerationOptionsModalOpen: (open: boolean) => void;
   setIsGoogleAuthModalOpen: (open: boolean) => void;
+  isLetterheadModalOpen: boolean;
+  setIsLetterheadModalOpen: (open: boolean) => void;
+  isPrintScheduleModalOpen: boolean;
+  setIsPrintScheduleModalOpen: (open: boolean) => void;
   selectedForSubstitute: Assignment | null;
   setSelectedForSubstitute: (assignment: Assignment | null) => void;
   isSubstituteModalOpen: boolean;
@@ -97,10 +103,19 @@ interface SchedulerContextType {
     date: string,
     session: SessionType,
     isOverride?: boolean,
-    overrideReason?: string
+    overrideReason?: string,
+    isReserve?: boolean
   ) => { success: boolean; error?: string };
   removeAssignment: (assignmentId: string) => void;
   updateAssignments: (assignments: Assignment[]) => void;
+  atomicTransferOrSwapDuty: (
+    sourceAssignmentId: string,
+    targetFacultySrNo: number,
+    action: 'replace' | 'swap',
+    isOverride?: boolean,
+    overrideReason?: string,
+    lockAfterTransfer?: boolean
+  ) => { success: boolean; error?: string };
   swapFacultyAssignments: (
     srNo1: number,
     date1: string,
@@ -114,10 +129,12 @@ interface SchedulerContextType {
   bulkReassignHods: (hodSrNos: number[], defaultHodTarget?: number) => void;
   toggleFacultyExclusion: (srNo: number, reason?: string) => void;
   updateFacultyExcludedDates: (srNo: number, dates: string[]) => void;
+  updateFacultyAllowedSessions: (srNo: number, allowedSessions?: SessionType[]) => void;
   updateRoleWorkloadCap: (role: 'hod' | 'regular', newCap: number, newTarget?: number) => void;
   updateExamDates: (dates: ExamDateConfig[]) => void;
   updateExamPeriodInfo: (name: string, startDate: string, endDate: string) => void;
   setAvailability: (facultySrNo: number, date: string, isAvailable: boolean) => void;
+  setSlotAvailability: (facultySrNo: number, date: string, session?: SessionType, isAvailable?: boolean) => void;
   bulkSetAvailability: (facultySrNos: number[], dates: string[], isAvailable: boolean) => void;
   copyAvailabilityDateToDate: (fromDate: string, toDate: string) => void;
   addSession: (session: SessionDefinition) => void;
@@ -133,6 +150,12 @@ interface SchedulerContextType {
   bulkSegregateRoles: (srNos: number[], role: string, concession?: number, target?: number, max?: number) => void;
   updateCustomRoles: (roles: CustomRoleDefinition[]) => void;
   updateHodAssignmentPriority: (priority: HodAssignmentPriority) => void;
+  updateInstitutionConfig: (updater: Partial<InstitutionalHeaderConfig>) => void;
+  addSigningAuthority: (authority?: Partial<SigningAuthority>) => void;
+  updateSigningAuthority: (id: string, updates: Partial<SigningAuthority>) => void;
+  removeSigningAuthority: (id: string) => void;
+  reorderSigningAuthorities: (newAuthorities: SigningAuthority[]) => void;
+  applyAuthorityPreset: (preset: 'single' | 'dual' | 'three_tier' | 'quad') => void;
 }
 
 const SchedulerContext = createContext<SchedulerContextType | undefined>(undefined);
@@ -143,6 +166,9 @@ export const SchedulerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     const st = loaded.state;
     if (!st.sessions || !Array.isArray(st.sessions)) {
       st.sessions = DEFAULT_SESSIONS;
+    }
+    if (!st.institution) {
+      st.institution = DEFAULT_INSTITUTION_CONFIG;
     }
     return st;
   });
@@ -164,6 +190,8 @@ export const SchedulerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [isResetConfirmModalOpen, setIsResetConfirmModalOpen] = useState(false);
   const [isGenerationOptionsModalOpen, setIsGenerationOptionsModalOpen] = useState(false);
   const [isGoogleAuthModalOpen, setIsGoogleAuthModalOpen] = useState(false);
+  const [isLetterheadModalOpen, setIsLetterheadModalOpen] = useState(false);
+  const [isPrintScheduleModalOpen, setIsPrintScheduleModalOpen] = useState(false);
   const [selectedForSubstitute, setSelectedForSubstitute] = useState<Assignment | null>(null);
   const [isSubstituteModalOpen, setIsSubstituteModalOpen] = useState(false);
   const [isPrintViewActive, setIsPrintViewActive] = useState(false);
@@ -183,8 +211,8 @@ export const SchedulerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   // Dark Mode State
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('EXAM_SCHEDULER_THEME');
+    if (typeof window !== 'undefined' && window.localStorage) {
+      const saved = window.localStorage.getItem('EXAM_SCHEDULER_THEME');
       if (saved) return saved === 'dark';
       return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
     }
@@ -195,10 +223,14 @@ export const SchedulerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     if (typeof document !== 'undefined') {
       if (isDarkMode) {
         document.documentElement.classList.add('dark');
-        localStorage.setItem('EXAM_SCHEDULER_THEME', 'dark');
+        if (typeof window !== 'undefined' && window.localStorage) {
+          window.localStorage.setItem('EXAM_SCHEDULER_THEME', 'dark');
+        }
       } else {
         document.documentElement.classList.remove('dark');
-        localStorage.setItem('EXAM_SCHEDULER_THEME', 'light');
+        if (typeof window !== 'undefined' && window.localStorage) {
+          window.localStorage.setItem('EXAM_SCHEDULER_THEME', 'light');
+        }
       }
     }
   }, [isDarkMode]);
@@ -472,7 +504,8 @@ export const SchedulerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     date: string,
     session: SessionType,
     isOverride = false,
-    overrideReason?: string
+    overrideReason?: string,
+    isReserve = false
   ): { success: boolean; error?: string } => {
     const existing = project.assignments.find(
       (a) => a.facultySrNo === facultySrNo && a.date === date && a.session === session
@@ -493,6 +526,7 @@ export const SchedulerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       isOverride,
       overrideReason: isOverride ? overrideReason : undefined,
       overrideTimestamp: isOverride ? new Date().toISOString() : undefined,
+      isReserve: !!isReserve,
     };
 
     let newOverrides = project.overrides;
@@ -511,21 +545,43 @@ export const SchedulerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       newOverrides = [...newOverrides, overrideRecord];
     }
 
-    setProject((prev) => ({
-      ...prev,
-      assignments: [...prev.assignments, newAssignment],
-      overrides: newOverrides,
-    }));
+    setProject((prev) => {
+      const newAssignments = [...prev.assignments, newAssignment];
+      const activeId = prev.activeScheduleId || (prev.alternatives && prev.alternatives[0]?.id);
+      const updatedAlternatives = prev.alternatives?.map((alt) =>
+        alt.id === activeId ? { ...alt, assignments: newAssignments } : alt
+      );
+      const updatedState = {
+        ...prev,
+        assignments: newAssignments,
+        alternatives: updatedAlternatives || prev.alternatives,
+        overrides: newOverrides,
+        lastSavedTimestamp: new Date().toLocaleTimeString('en-GB'),
+      };
+      saveProjectToStorage(updatedState);
+      return updatedState;
+    });
 
     return { success: true };
   }, [project.assignments, project.faculty, project.overrides]);
 
   // Remove assignment
   const removeAssignment = useCallback((assignmentId: string) => {
-    setProject((prev) => ({
-      ...prev,
-      assignments: prev.assignments.filter((a) => a.id !== assignmentId),
-    }));
+    setProject((prev) => {
+      const newAssignments = prev.assignments.filter((a) => a.id !== assignmentId);
+      const activeId = prev.activeScheduleId || (prev.alternatives && prev.alternatives[0]?.id);
+      const updatedAlternatives = prev.alternatives?.map((alt) =>
+        alt.id === activeId ? { ...alt, assignments: newAssignments } : alt
+      );
+      const updatedState = {
+        ...prev,
+        assignments: newAssignments,
+        alternatives: updatedAlternatives || prev.alternatives,
+        lastSavedTimestamp: new Date().toLocaleTimeString('en-GB'),
+      };
+      saveProjectToStorage(updatedState);
+      return updatedState;
+    });
   }, []);
 
   // Swap two faculty assignments
@@ -539,14 +595,14 @@ export const SchedulerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   ) => {
     setProject((prev) => {
       const newAssignments = prev.assignments.map((a) => {
-        if (a.facultySrNo === srNo1 && a.date === date1 && a.session === session1 && !a.isLocked) {
+        if (Number(a.facultySrNo) === Number(srNo1) && a.date === date1 && a.session === session1 && !a.isLocked) {
           return {
             ...a,
             id: `${srNo2}-${date1}-${session1}`,
             facultySrNo: srNo2,
           };
         }
-        if (a.facultySrNo === srNo2 && a.date === date2 && a.session === session2 && !a.isLocked) {
+        if (Number(a.facultySrNo) === Number(srNo2) && a.date === date2 && a.session === session2 && !a.isLocked) {
           return {
             ...a,
             id: `${srNo1}-${date2}-${session2}`,
@@ -555,16 +611,152 @@ export const SchedulerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         }
         return a;
       });
-      return { ...prev, assignments: newAssignments };
+      const activeId = prev.activeScheduleId || (prev.alternatives && prev.alternatives[0]?.id);
+      const updatedAlternatives = prev.alternatives?.map((alt) =>
+        alt.id === activeId ? { ...alt, assignments: newAssignments } : alt
+      );
+      const updatedState = {
+        ...prev,
+        assignments: newAssignments,
+        alternatives: updatedAlternatives || prev.alternatives,
+        lastSavedTimestamp: new Date().toLocaleTimeString('en-GB'),
+      };
+      saveProjectToStorage(updatedState);
+      return updatedState;
     });
+  }, []);
+
+  // Atomic transfer or swap duty (e.g. from Drag and Drop or Substitute)
+  const atomicTransferOrSwapDuty = useCallback((
+    sourceAssignmentId: string,
+    targetFacultySrNo: number,
+    action: 'replace' | 'swap',
+    isOverride = false,
+    overrideReason?: string,
+    lockAfterTransfer = false
+  ): { success: boolean; error?: string } => {
+    let resultError: string | undefined;
+
+    setProject((prev) => {
+      const sourceAssignment = prev.assignments.find((a) => a.id === sourceAssignmentId);
+      if (!sourceAssignment) {
+        resultError = 'Source duty assignment not found.';
+        return prev;
+      }
+
+      const targetFaculty = prev.faculty.find((f) => Number(f.srNo) === Number(targetFacultySrNo));
+      if (!targetFaculty) {
+        resultError = 'Target faculty member not found.';
+        return prev;
+      }
+
+      const date = sourceAssignment.date;
+      const session = sourceAssignment.session;
+
+      // Existing assignment of target faculty on this date & session
+      const targetAssignment = prev.assignments.find(
+        (a) => Number(a.facultySrNo) === Number(targetFacultySrNo) && a.date === date && a.session === session
+      );
+
+      let newAssignments: Assignment[];
+      let newOverrides = prev.overrides || [];
+
+      if (action === 'swap' && targetAssignment) {
+        // Two-way swap duties between source and target faculty
+        newAssignments = prev.assignments.map((a) => {
+          if (a.id === sourceAssignment.id) {
+            return {
+              ...a,
+              id: `${targetFacultySrNo}-${date}-${session}`,
+              facultySrNo: targetFacultySrNo,
+              isLocked: lockAfterTransfer ? true : a.isLocked,
+              isOverride: isOverride || a.isOverride,
+              overrideReason: isOverride ? overrideReason : a.overrideReason,
+            };
+          }
+          if (a.id === targetAssignment.id) {
+            return {
+              ...a,
+              id: `${sourceAssignment.facultySrNo}-${date}-${session}`,
+              facultySrNo: sourceAssignment.facultySrNo,
+            };
+          }
+          return a;
+        });
+      } else {
+        // One-way transfer / replacement: target takes the duty
+        newAssignments = prev.assignments
+          .filter((a) => {
+            // If target already had a duty in this slot and we are replacing, remove target's old duty
+            if (targetAssignment && a.id === targetAssignment.id) return false;
+            return true;
+          })
+          .map((a) => {
+            if (a.id === sourceAssignment.id) {
+              return {
+                ...a,
+                id: `${targetFacultySrNo}-${date}-${session}`,
+                facultySrNo: targetFacultySrNo,
+                isLocked: lockAfterTransfer ? true : a.isLocked,
+                isOverride: isOverride || a.isOverride,
+                overrideReason: isOverride ? overrideReason : a.overrideReason,
+              };
+            }
+            return a;
+          });
+      }
+
+      // Record override log if applicable
+      if (isOverride && overrideReason) {
+        const overrideRecord: AdministratorOverride = {
+          id: `ovr-${Date.now()}`,
+          assignmentId: `${targetFacultySrNo}-${date}-${session}`,
+          facultySrNo: targetFacultySrNo,
+          facultyName: targetFaculty.name,
+          date,
+          session,
+          overrideType: 'eligibility',
+          reason: overrideReason,
+          timestamp: new Date().toLocaleString(),
+        };
+        newOverrides = [...newOverrides, overrideRecord];
+      }
+
+      // Synchronize active alternative in alternatives array
+      const activeId = prev.activeScheduleId || (prev.alternatives && prev.alternatives[0]?.id);
+      const updatedAlternatives = prev.alternatives?.map((alt) =>
+        alt.id === activeId ? { ...alt, assignments: newAssignments } : alt
+      );
+
+      const updatedState = {
+        ...prev,
+        assignments: newAssignments,
+        alternatives: updatedAlternatives || prev.alternatives,
+        overrides: newOverrides,
+        lastSavedTimestamp: new Date().toLocaleTimeString('en-GB'),
+      };
+
+      saveProjectToStorage(updatedState);
+      return updatedState;
+    });
+
+    if (resultError) {
+      return { success: false, error: resultError };
+    }
+    return { success: true };
   }, []);
 
   // Bulk update assignments directly (e.g. from Substitute modal)
   const updateAssignments = useCallback((newAssignments: Assignment[]) => {
     setProject((prev) => {
+      const activeId = prev.activeScheduleId || (prev.alternatives && prev.alternatives[0]?.id);
+      const updatedAlternatives = prev.alternatives?.map((alt) =>
+        alt.id === activeId ? { ...alt, assignments: newAssignments } : alt
+      );
       const updated = {
         ...prev,
         assignments: newAssignments,
+        alternatives: updatedAlternatives || prev.alternatives,
         lastSavedTimestamp: new Date().toLocaleTimeString('en-GB'),
       };
       saveProjectToStorage(updated);
@@ -667,6 +859,24 @@ export const SchedulerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     });
   }, []);
 
+  // Update allowed sessions for a faculty member (whole-exam slot restriction)
+  const updateFacultyAllowedSessions = useCallback((srNo: number, allowedSessions?: SessionType[]) => {
+    setProject((prev) => {
+      const updated = {
+        ...prev,
+        faculty: prev.faculty.map((f) => {
+          if (f.srNo !== srNo) return f;
+          return {
+            ...f,
+            allowedSessions: allowedSessions && allowedSessions.length > 0 ? allowedSessions : undefined,
+          };
+        }),
+      };
+      saveProjectToStorage(updated);
+      return updated;
+    });
+  }, []);
+
   // Role-based bulk workload/cap update (e.g. all HODs or all Regular faculty in one go)
   const updateRoleWorkloadCap = useCallback((role: 'hod' | 'regular', newCap: number, newTarget?: number) => {
     const target = newTarget ?? newCap;
@@ -725,6 +935,24 @@ export const SchedulerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         [`${facultySrNo}_${date}`]: isAvailable,
       },
     }));
+  }, []);
+
+  // Set slot-specific or whole-day availability
+  const setSlotAvailability = useCallback((facultySrNo: number, date: string, session?: SessionType, isAvailable?: boolean) => {
+    setProject((prev) => {
+      const key = session ? `${facultySrNo}_${date}_${session}` : `${facultySrNo}_${date}`;
+      const currentVal = prev.availability[key] !== false;
+      const targetVal = isAvailable !== undefined ? isAvailable : !currentVal;
+      const updated = {
+        ...prev,
+        availability: {
+          ...prev.availability,
+          [key]: targetVal,
+        },
+      };
+      saveProjectToStorage(updated);
+      return updated;
+    });
   }, []);
 
   // Bulk set availability
@@ -866,6 +1094,9 @@ export const SchedulerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     if (!newState.sessions || !Array.isArray(newState.sessions)) {
       newState.sessions = DEFAULT_SESSIONS;
     }
+    if (!newState.institution) {
+      newState.institution = DEFAULT_INSTITUTION_CONFIG;
+    }
     setProject(newState);
   }, []);
 
@@ -893,6 +1124,7 @@ export const SchedulerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             hodAssignmentPriority: prev.settings?.hodAssignmentPriority || EMPTY_SESSION_PROJECT_STATE.settings.hodAssignmentPriority,
             defaultSessionTimings: prev.settings?.defaultSessionTimings || EMPTY_SESSION_PROJECT_STATE.settings.defaultSessionTimings,
           },
+          institution: prev.institution || EMPTY_SESSION_PROJECT_STATE.institution,
         };
         saveProjectToStorage(newState);
         return newState;
@@ -991,6 +1223,162 @@ export const SchedulerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }));
   }, []);
 
+  // Institutional Header & Signatures Configuration
+  const updateInstitutionConfig = useCallback((updater: Partial<InstitutionalHeaderConfig>) => {
+    setProject((prev) => ({
+      ...prev,
+      institution: {
+        ...(prev.institution || DEFAULT_INSTITUTION_CONFIG),
+        ...updater,
+      },
+    }));
+  }, []);
+
+  const addSigningAuthority = useCallback((authority?: Partial<SigningAuthority>) => {
+    setProject((prev) => {
+      const currentInst = prev.institution || DEFAULT_INSTITUTION_CONFIG;
+      const currentAuths = currentInst.signingAuthorities || [];
+      const newAuth: SigningAuthority = {
+        id: `auth-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+        name: authority?.name || '',
+        role: authority?.role || 'Examination Controller',
+        department: authority?.department || 'Examination Division',
+      };
+      return {
+        ...prev,
+        institution: {
+          ...currentInst,
+          signingAuthorities: [...currentAuths, newAuth],
+        },
+      };
+    });
+  }, []);
+
+  const updateSigningAuthority = useCallback((id: string, updates: Partial<SigningAuthority>) => {
+    setProject((prev) => {
+      const currentInst = prev.institution || DEFAULT_INSTITUTION_CONFIG;
+      const currentAuths = currentInst.signingAuthorities || [];
+      return {
+        ...prev,
+        institution: {
+          ...currentInst,
+          signingAuthorities: currentAuths.map((a) => (a.id === id ? { ...a, ...updates } : a)),
+        },
+      };
+    });
+  }, []);
+
+  const removeSigningAuthority = useCallback((id: string) => {
+    setProject((prev) => {
+      const currentInst = prev.institution || DEFAULT_INSTITUTION_CONFIG;
+      const currentAuths = currentInst.signingAuthorities || [];
+      return {
+        ...prev,
+        institution: {
+          ...currentInst,
+          signingAuthorities: currentAuths.filter((a) => a.id !== id),
+        },
+      };
+    });
+  }, []);
+
+  const reorderSigningAuthorities = useCallback((newAuthorities: SigningAuthority[]) => {
+    setProject((prev) => {
+      const currentInst = prev.institution || DEFAULT_INSTITUTION_CONFIG;
+      return {
+        ...prev,
+        institution: {
+          ...currentInst,
+          signingAuthorities: newAuthorities,
+        },
+      };
+    });
+  }, []);
+
+  const applyAuthorityPreset = useCallback((preset: 'single' | 'dual' | 'three_tier' | 'quad') => {
+    const presets: Record<'single' | 'dual' | 'three_tier' | 'quad', SigningAuthority[]> = {
+      single: [
+        {
+          id: 'auth-1',
+          name: '',
+          role: 'Chief Superintendent / Controller of Examinations',
+          department: 'Examination Control Division',
+        },
+      ],
+      dual: [
+        {
+          id: 'auth-1',
+          name: '',
+          role: 'Assistant Controller of Examinations (Conduct)',
+          department: 'Examination Control Cell',
+        },
+        {
+          id: 'auth-2',
+          name: '',
+          role: 'Controller of Examinations',
+          department: 'Examination Control Division',
+        },
+      ],
+      three_tier: [
+        {
+          id: 'auth-1',
+          name: '',
+          role: 'Assistant Controller of Examinations',
+          department: 'Examination Conduct Section',
+        },
+        {
+          id: 'auth-2',
+          name: '',
+          role: 'Center Superintendent',
+          department: 'Campus Examination Center',
+        },
+        {
+          id: 'auth-3',
+          name: '',
+          role: 'Controller of Examinations',
+          department: 'Office of the Controller of Examinations',
+        },
+      ],
+      quad: [
+        {
+          id: 'auth-1',
+          name: '',
+          role: 'Incharge - Examination Cell',
+          department: 'Invigilation Management',
+        },
+        {
+          id: 'auth-2',
+          name: '',
+          role: 'Assistant Controller (Conduct)',
+          department: 'Examination Branch',
+        },
+        {
+          id: 'auth-3',
+          name: '',
+          role: 'Controller of Examinations',
+          department: 'Examination Control Division',
+        },
+        {
+          id: 'auth-4',
+          name: '',
+          role: 'Principal / Dean (Academics)',
+          department: 'Academic Directorate',
+        },
+      ],
+    };
+
+    setProject((prev) => {
+      const currentInst = prev.institution || DEFAULT_INSTITUTION_CONFIG;
+      return {
+        ...prev,
+        institution: {
+          ...currentInst,
+          signingAuthorities: presets[preset] || currentInst.signingAuthorities,
+        },
+      };
+    });
+  }, []);
+
   return (
     <SchedulerContext.Provider
       value={{
@@ -1013,6 +1401,10 @@ export const SchedulerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         isResetConfirmModalOpen,
         isGenerationOptionsModalOpen,
         isGoogleAuthModalOpen,
+        isLetterheadModalOpen,
+        setIsLetterheadModalOpen,
+        isPrintScheduleModalOpen,
+        setIsPrintScheduleModalOpen,
         selectedForSubstitute,
         setSelectedForSubstitute,
         isSubstituteModalOpen,
@@ -1055,16 +1447,19 @@ export const SchedulerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         addOrUpdateAssignment,
         removeAssignment,
         updateAssignments,
+        atomicTransferOrSwapDuty,
         swapFacultyAssignments,
         updateFacultyList,
         toggleFacultyHod,
         bulkReassignHods,
         toggleFacultyExclusion,
         updateFacultyExcludedDates,
+        updateFacultyAllowedSessions,
         updateRoleWorkloadCap,
         updateExamDates,
         updateExamPeriodInfo,
         setAvailability,
+        setSlotAvailability,
         bulkSetAvailability,
         copyAvailabilityDateToDate,
         addSession,
@@ -1080,6 +1475,12 @@ export const SchedulerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         bulkSegregateRoles,
         updateCustomRoles,
         updateHodAssignmentPriority,
+        updateInstitutionConfig,
+        addSigningAuthority,
+        updateSigningAuthority,
+        removeSigningAuthority,
+        reorderSigningAuthorities,
+        applyAuthorityPreset,
       }}
     >
       {children}

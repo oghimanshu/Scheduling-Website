@@ -17,8 +17,9 @@ import {
   exportScheduleToExcel,
   exportScheduleToCsv,
 } from '../services/export/exportManager';
+import { setPrintOrientation, clearPrintOrientation } from '../utils/printHelper';
 
-export const ExportModal: React.FC = () => {
+export const ExportModal: React.FC<{ forceOpen?: boolean }> = ({ forceOpen }) => {
   const {
     project,
     isExportModalOpen,
@@ -26,11 +27,12 @@ export const ExportModal: React.FC = () => {
     importProjectData,
     setActiveTab,
     setIsDutySlipsModalOpen,
+    setIsPrintScheduleModalOpen,
   } = useScheduler();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  if (!isExportModalOpen) return null;
+  if (!forceOpen && !isExportModalOpen) return null;
 
   const handleJsonUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -55,9 +57,7 @@ export const ExportModal: React.FC = () => {
   const handlePrint = () => {
     setIsExportModalOpen(false);
     setActiveTab('schedule');
-    setTimeout(() => {
-      window.print();
-    }, 200);
+    setIsPrintScheduleModalOpen(true);
   };
 
   return (
@@ -141,22 +141,27 @@ export const ExportModal: React.FC = () => {
             </button>
           </div>
 
-          {/* Print Layout */}
+          {/* Print Layout & Customizer */}
           <div
             onClick={handlePrint}
-            className="p-4 rounded-xl border border-slate-200 dark:border-white/10 bg-white/70 dark:bg-slate-800/60 hover:border-slate-400 dark:hover:border-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800/90 transition cursor-pointer group space-y-2 backdrop-blur-xs"
+            className="p-4 rounded-xl border border-slate-200 dark:border-white/10 bg-white/70 dark:bg-slate-800/60 hover:border-emerald-400 dark:hover:border-emerald-500 hover:bg-emerald-50/40 dark:hover:bg-emerald-950/30 transition cursor-pointer group space-y-2 backdrop-blur-xs"
           >
-            <div className="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200/60 dark:border-slate-700 flex items-center justify-center group-hover:scale-105 transition shadow-2xs">
+            <div className="w-9 h-9 rounded-xl bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-800/40 flex items-center justify-center group-hover:scale-105 transition shadow-2xs">
               <Printer className="w-5 h-5" />
             </div>
             <div>
-              <h4 className="font-bold text-slate-900 dark:text-white">Print-Friendly Format</h4>
+              <div className="flex items-center space-x-1.5 flex-wrap">
+                <h4 className="font-bold text-slate-900 dark:text-white">Print-Friendly Format</h4>
+                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                  Customizer
+                </span>
+              </div>
               <p className="text-slate-500 dark:text-slate-400 text-[11px] mt-0.5">
-                Optimized high-contrast layout formatted for physical printing or saving as clean PDF.
+                Publication-grade high-contrast layout with live preview, column toggles, official letterhead, and signatures.
               </p>
             </div>
-            <button className="text-slate-700 dark:text-slate-300 font-semibold text-[11px] flex items-center space-x-1 cursor-pointer">
-              <span>Open Print Dialog</span>
+            <button className="text-emerald-700 dark:text-emerald-400 font-semibold text-[11px] flex items-center space-x-1 cursor-pointer">
+              <span>Open Print Customizer</span>
               <span>&rarr;</span>
             </button>
           </div>

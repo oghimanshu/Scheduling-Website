@@ -143,7 +143,7 @@ export const MobileBottomDock: React.FC = () => {
       {/* Primary Floating Bottom Dock */}
       <nav
         aria-label="Mobile Navigation Dock"
-        className="md:hidden fixed bottom-3 inset-x-3 z-40 apple-glass rounded-2xl p-1.5 shadow-[0_12px_40px_rgba(0,0,0,0.18)] dark:shadow-[0_12px_40px_rgba(0,0,0,0.55)] border border-white/70 dark:border-white/15 safe-bottom-dock flex items-center justify-between backdrop-blur-2xl"
+        className="md:hidden fixed bottom-3 inset-x-3 z-40 apple-glass rounded-2xl p-1.5 shadow-[0_12px_40px_rgba(0,0,0,0.18)] dark:shadow-[0_12px_40px_rgba(0,0,0,0.55)] border border-white/70 dark:border-white/15 safe-bottom-dock flex items-center justify-between backdrop-blur-2xl no-print print:hidden"
       >
         <div className="apple-specular-rim" />
 
