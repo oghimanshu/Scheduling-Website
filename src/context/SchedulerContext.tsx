@@ -76,11 +76,21 @@ interface SchedulerContextType {
 
   // Core Operations
   generateAlternatives: () => void;
-  executeGenerateAlternatives: (overrideSettings?: Partial<SchedulerSettings>) => void;
+  executeGenerateAlternatives: (
+    overrideSettings?: Partial<SchedulerSettings>,
+    options?: { allowBestEffort?: boolean; relaxArrivalConstraints?: boolean }
+  ) => void;
   generateAnotherAlternative: (customSeed?: number) => void;
   selectAlternative: (alternativeId: string) => void;
   rebalanceCurrentSchedule: () => void;
   loadProjectFromCloudSession: (cloudState: ProjectState) => void;
+
+  // Conflict Mitigation Wizard Actions
+  generateBestEffortSchedule: () => void;
+  relaxArrivalAndGenerate: () => void;
+  bumpFacultyCapsAndGenerate: () => void;
+  enableJrs1Jrs3AndGenerate: () => void;
+  autoReduceRequirementsAndGenerate: () => void;
   toggleLockAssignment: (assignmentId: string) => void;
   addOrUpdateAssignment: (
     facultySrNo: number,
@@ -237,13 +247,19 @@ export const SchedulerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   }, [validation.isValid, validation.totalFilledPositions, validation.totalRequiredPositions]);
 
   // Execute alternative generation with current or override settings
-  const executeGenerateAlternatives = useCallback((overrideSettings?: Partial<SchedulerSettings>) => {
+  const executeGenerateAlternatives = useCallback((
+    overrideSettings?: Partial<SchedulerSettings>,
+    options?: { allowBestEffort?: boolean; relaxArrivalConstraints?: boolean }
+  ) => {
     setIsGenerating(true);
     setInfeasibilityReport(null);
 
     const effectiveSettings = overrideSettings
       ? { ...project.settings, ...overrideSettings }
       : project.settings;
+
+    const allowBestEffort = options?.allowBestEffort ?? effectiveSettings.allowBestEffort ?? false;
+    const relaxArrivalConstraints = options?.relaxArrivalConstraints ?? effectiveSettings.relaxArrivalConstraints ?? false;
 
     setTimeout(() => {
       try {
@@ -254,7 +270,8 @@ export const SchedulerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           project.availability,
           effectiveSettings,
           locked,
-          project.sessions
+          project.sessions,
+          { allowBestEffort, relaxArrivalConstraints }
         );
 
         if (alternatives.length === 0) {
@@ -288,6 +305,77 @@ export const SchedulerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       }
     }, 50);
   }, [project.faculty, project.examPeriod.dates, project.availability, project.settings, project.assignments, project.sessions]);
+
+  // Conflict Mitigation Wizard Actions
+  const generateBestEffortSchedule = useCallback(() => {
+    setInfeasibilityReport(null);
+    executeGenerateAlternatives({ allowBestEffort: true }, { allowBestEffort: true });
+  }, [executeGenerateAlternatives]);
+
+  const relaxArrivalAndGenerate = useCallback(() => {
+    setInfeasibilityReport(null);
+    executeGenerateAlternatives(
+      { relaxArrivalConstraints: true, allowBestEffort: true },
+      { relaxArrivalConstraints: true, allowBestEffort: true }
+    );
+  }, [executeGenerateAlternatives]);
+
+  const bumpFacultyCapsAndGenerate = useCallback(() => {
+    setInfeasibilityReport(null);
+    setProject((prev) => ({
+      ...prev,
+      faculty: prev.faculty.map((f) => ({
+        ...f,
+        maxSupervisions: f.maxSupervisions + 1,
+        targetSupervisions: f.targetSupervisions + 1,
+      })),
+    }));
+    setTimeout(() => {
+      executeGenerateAlternatives({ allowBestEffort: true }, { allowBestEffort: true });
+    }, 60);
+  }, [executeGenerateAlternatives]);
+
+  const enableJrs1Jrs3AndGenerate = useCallback(() => {
+    setInfeasibilityReport(null);
+    setProject((prev) => ({
+      ...prev,
+      settings: { ...prev.settings, allowJrs1Jrs3Double: true },
+    }));
+    executeGenerateAlternatives(
+      { allowJrs1Jrs3Double: true, allowBestEffort: true },
+      { allowBestEffort: true }
+    );
+  }, [executeGenerateAlternatives]);
+
+  const autoReduceRequirementsAndGenerate = useCallback(() => {
+    if (!infeasibilityReport) return;
+    const bottleneckMap = new Map<string, number>();
+    infeasibilityReport.bottlenecks.forEach((b) => {
+      bottleneckMap.set(`${b.date}_${b.session}`, b.availableEligibleCount);
+    });
+
+    setInfeasibilityReport(null);
+    setProject((prev) => ({
+      ...prev,
+      examPeriod: {
+        ...prev.examPeriod,
+        dates: prev.examPeriod.dates.map((d) => {
+          const updatedReqs = { ...d.sessionRequirements };
+          Object.keys(updatedReqs).forEach((s) => {
+            const key = `${d.date}_${s}`;
+            if (bottleneckMap.has(key)) {
+              updatedReqs[s as any] = Math.max(1, bottleneckMap.get(key)!);
+            }
+          });
+          return { ...d, sessionRequirements: updatedReqs };
+        }),
+      },
+    }));
+
+    setTimeout(() => {
+      executeGenerateAlternatives({ allowBestEffort: true }, { allowBestEffort: true });
+    }, 60);
+  }, [infeasibilityReport, executeGenerateAlternatives]);
 
   // Generate 5 alternative schedules (triggers interactive modal if promptGenerationOptions is true)
   const generateAlternatives = useCallback(() => {
@@ -958,6 +1046,11 @@ export const SchedulerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         selectAlternative,
         rebalanceCurrentSchedule,
         loadProjectFromCloudSession,
+        generateBestEffortSchedule,
+        relaxArrivalAndGenerate,
+        bumpFacultyCapsAndGenerate,
+        enableJrs1Jrs3AndGenerate,
+        autoReduceRequirementsAndGenerate,
         toggleLockAssignment,
         addOrUpdateAssignment,
         removeAssignment,

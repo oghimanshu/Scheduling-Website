@@ -27,6 +27,8 @@ export interface SolverOptions {
   lockedAssignments?: Assignment[];
   activeSchedule?: Assignment[];
   sessionDefinitions?: SessionDefinition[];
+  allowBestEffort?: boolean;
+  relaxArrivalConstraints?: boolean;
 }
 
 export interface SolverResult {
@@ -51,6 +53,9 @@ export function solveExaminationSchedule(
 ): SolverResult {
   const seed = options.seed ?? settings.randomSeed ?? 42;
   const rng = createRng(seed);
+
+  const allowBestEffort = options.allowBestEffort ?? settings.allowBestEffort ?? false;
+  const relaxArrivalConstraints = options.relaxArrivalConstraints ?? settings.relaxArrivalConstraints ?? false;
 
   const activeDates = datesConfig.filter((d) => !d.isExcluded);
   const facultyMap = new Map<number, Faculty>(facultyList.map((f) => [f.srNo, f]));
@@ -88,7 +93,7 @@ export function solveExaminationSchedule(
     options.sessionDefinitions
   );
 
-  if (infeasibilityReport.isInfeasible) {
+  if (infeasibilityReport.isInfeasible && !allowBestEffort) {
     return {
       success: false,
       assignments: [],
@@ -153,7 +158,8 @@ export function solveExaminationSchedule(
     faculty: Faculty,
     date: string,
     session: SessionType,
-    allowSecondOfDay = false
+    allowSecondOfDay = false,
+    relaxedArrival = false
   ): boolean => {
     // Excluded faculty check
     if (faculty.isExcluded) return false;
@@ -169,7 +175,10 @@ export function solveExaminationSchedule(
 
     // Eligibility check
     const dateCfg = dateConfigMap.get(date);
-    if (!isFacultyEligibleForSession(faculty.arrival, session, options.sessionDefinitions, dateCfg)) return false;
+    const standardEligible = isFacultyEligibleForSession(faculty.arrival, session, options.sessionDefinitions, dateCfg);
+    if (!standardEligible) {
+      if (!relaxedArrival || !relaxArrivalConstraints) return false;
+    }
 
     // Duplicate check in same session
     const sessionSet = assignmentsByDateSession.get(date)?.get(session);
@@ -197,7 +206,13 @@ export function solveExaminationSchedule(
   };
 
   // Helper to commit an assignment
-  const assignFaculty = (facultySrNo: number, date: string, session: SessionType) => {
+  const assignFaculty = (
+    facultySrNo: number,
+    date: string,
+    session: SessionType,
+    isOverride = false,
+    overrideReason?: string
+  ) => {
     assignmentsByDateSession.get(date)!.get(session)!.add(facultySrNo);
 
     const cur = facultyTotalNew.get(facultySrNo) || 0;
@@ -213,7 +228,8 @@ export function solveExaminationSchedule(
       date,
       session,
       isLocked: false,
-      isOverride: false,
+      isOverride,
+      overrideReason,
     });
   };
 
@@ -427,6 +443,49 @@ export function solveExaminationSchedule(
       });
     });
   });
+
+  // PASS 2b: If relaxArrivalConstraints is enabled, fill any remaining shortages using relaxed arrival faculty
+  if (relaxArrivalConstraints) {
+    activeDates.forEach((d) => {
+      sessionOrder.forEach((session) => {
+        const required = d.sessionRequirements[session] || 0;
+        const currentAssigned = assignmentsByDateSession.get(d.date)!.get(session)!;
+        let needed = required - currentAssigned.size;
+        if (needed <= 0) return;
+
+        // Try single duty with relaxed arrival
+        let candidates = facultyList
+          .filter((f) => canAssign(f, d.date, session, false, true))
+          .map((f) => ({
+            faculty: f,
+            score: getCandidateScore(f, d.date, session, false),
+          }))
+          .sort((a, b) => b.score - a.score);
+
+        let toAssign = candidates.slice(0, needed);
+        toAssign.forEach((c) => {
+          assignFaculty(c.faculty.srNo, d.date, session, true, 'Arrival constraint relaxed');
+        });
+
+        needed = required - assignmentsByDateSession.get(d.date)!.get(session)!.size;
+        if (needed <= 0) return;
+
+        // Try double duty with relaxed arrival
+        candidates = facultyList
+          .filter((f) => canAssign(f, d.date, session, true, true))
+          .map((f) => ({
+            faculty: f,
+            score: getCandidateScore(f, d.date, session, true),
+          }))
+          .sort((a, b) => b.score - a.score);
+
+        toAssign = candidates.slice(0, needed);
+        toAssign.forEach((c) => {
+          assignFaculty(c.faculty.srNo, d.date, session, true, 'Arrival constraint relaxed');
+        });
+      });
+    });
+  }
 
   // PASS 3: Exact Workload Target Optimization & Rebalancing
   // If some regular faculty are below target while HODs or over-assigned faculty hold slots,
@@ -692,7 +751,10 @@ export function solveExaminationSchedule(
     assignments: finalAssignments,
     message: validation.isValid
       ? 'Schedule generated successfully with all constraints satisfied.'
+      : allowBestEffort
+      ? `Best-effort schedule generated: ${validation.totalFilledPositions}/${validation.totalRequiredPositions} positions filled (${validation.unfilledPositions} unfilled, ${validation.hardConflictsCount} conflict(s)).`
       : `Schedule generated with ${validation.hardConflictsCount} conflict(s) or unfilled positions.`,
+    infeasibilityReport: validation.isValid ? undefined : infeasibilityReport,
     metrics: {
       totalPositions: validation.totalRequiredPositions,
       filledPositions: validation.totalFilledPositions,

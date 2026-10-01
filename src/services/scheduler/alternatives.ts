@@ -14,8 +14,9 @@ export function generateFiveAlternatives(
   availability: Record<string, boolean>,
   settings: SchedulerSettings,
   lockedAssignments: Assignment[] = [],
-  sessionDefinitions?: SessionDefinition[]
-): { alternatives: ScheduleAlternative[]; error?: string } {
+  sessionDefinitions?: SessionDefinition[],
+  options: { allowBestEffort?: boolean; relaxArrivalConstraints?: boolean } = {}
+): { alternatives: ScheduleAlternative[]; error?: string; isInfeasible?: boolean } {
   const baseSeed = settings.randomSeed || 42;
   const seeds = [
     baseSeed,
@@ -24,6 +25,9 @@ export function generateFiveAlternatives(
     baseSeed + 431,
     baseSeed + 613,
   ];
+
+  const allowBestEffort = options.allowBestEffort ?? settings.allowBestEffort ?? false;
+  const relaxArrivalConstraints = options.relaxArrivalConstraints ?? settings.relaxArrivalConstraints ?? false;
 
   const alternatives: ScheduleAlternative[] = [];
 
@@ -39,25 +43,31 @@ export function generateFiveAlternatives(
         preserveLocked: true,
         lockedAssignments,
         sessionDefinitions,
+        allowBestEffort,
+        relaxArrivalConstraints,
       }
     );
 
-    if (!result.success && i === 0 && result.infeasibilityReport) {
+    if (!result.success && i === 0 && (!allowBestEffort || result.assignments.length === 0)) {
       return {
         alternatives: [],
         error: result.message,
+        isInfeasible: true,
       };
     }
 
     if (result.metrics) {
+      const isComplete = result.metrics.filledPositions === result.metrics.totalPositions;
       alternatives.push({
         id: `alt-${i + 1}-${seed}`,
-        name: `Schedule Alternative #${i + 1}`,
+        name: isComplete ? `Schedule Alternative #${i + 1}` : `Best-Effort Alternative #${i + 1}`,
         seed,
         assignments: result.assignments,
         metrics: result.metrics,
         explanation: [
-          `Satisfies all ${result.metrics.filledPositions}/${result.metrics.totalPositions} required positions.`,
+          isComplete
+            ? `Satisfies all ${result.metrics.filledPositions}/${result.metrics.totalPositions} required positions.`
+            : `Best-effort draft: ${result.metrics.filledPositions}/${result.metrics.totalPositions} positions filled (${result.metrics.totalPositions - result.metrics.filledPositions} unfilled).`,
           `Preserved ${lockedAssignments.length} locked assignment(s).`,
           `Double-duty assignments: ${result.metrics.doubleAssignmentsCount}.`,
           `Workload deviation from targets: ${result.metrics.targetDeviations}.`,
@@ -77,8 +87,12 @@ export function generateSingleAlternative(
   settings: SchedulerSettings,
   seed: number,
   lockedAssignments: Assignment[] = [],
-  sessionDefinitions?: SessionDefinition[]
+  sessionDefinitions?: SessionDefinition[],
+  options: { allowBestEffort?: boolean; relaxArrivalConstraints?: boolean } = {}
 ): ScheduleAlternative | null {
+  const allowBestEffort = options.allowBestEffort ?? settings.allowBestEffort ?? false;
+  const relaxArrivalConstraints = options.relaxArrivalConstraints ?? settings.relaxArrivalConstraints ?? false;
+
   const result = solveExaminationSchedule(
     facultyList,
     datesConfig,
@@ -89,19 +103,25 @@ export function generateSingleAlternative(
       preserveLocked: true,
       lockedAssignments,
       sessionDefinitions,
+      allowBestEffort,
+      relaxArrivalConstraints,
     }
   );
 
   if (!result.metrics) return null;
 
+  const isComplete = result.metrics.filledPositions === result.metrics.totalPositions;
+
   return {
     id: `alt-custom-${seed}`,
-    name: `Schedule (Seed ${seed})`,
+    name: isComplete ? `Schedule (Seed ${seed})` : `Best-Effort Draft (Seed ${seed})`,
     seed,
     assignments: result.assignments,
     metrics: result.metrics,
     explanation: [
-      `Satisfies ${result.metrics.filledPositions}/${result.metrics.totalPositions} required positions.`,
+      isComplete
+        ? `Satisfies ${result.metrics.filledPositions}/${result.metrics.totalPositions} required positions.`
+        : `Best-effort draft: ${result.metrics.filledPositions}/${result.metrics.totalPositions} positions filled (${result.metrics.totalPositions - result.metrics.filledPositions} unfilled).`,
       `Preserved ${lockedAssignments.length} locked assignment(s).`,
       `Double-duty assignments: ${result.metrics.doubleAssignmentsCount}.`,
       `Tie-breaker seed: ${seed}.`,

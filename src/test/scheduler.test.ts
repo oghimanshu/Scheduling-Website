@@ -588,6 +588,67 @@ describe('Examination Supervision Scheduler Engine', () => {
       expect(allDuties.length).toBeLessThanOrEqual(f.maxSupervisions);
     });
   });
+
+  it('should generate a best-effort schedule with assignments when allowBestEffort is true even under infeasible constraints', () => {
+    // Capacity deficit: 49*6 + 12*3 = 330 < 342 required
+    const alteredFaculty = DEFAULT_FACULTY_LIST.map((f) =>
+      f.isHod ? { ...f, maxSupervisions: 3, targetSupervisions: 3 } : f
+    );
+
+    // Standard run without allowBestEffort returns empty assignments
+    const standardResult = solveExaminationSchedule(
+      alteredFaculty,
+      DEFAULT_DATES_CONFIG,
+      {},
+      DEFAULT_SETTINGS,
+      { seed: 42, allowBestEffort: false }
+    );
+    expect(standardResult.success).toBe(false);
+    expect(standardResult.assignments.length).toBe(0);
+
+    // Run with allowBestEffort returns filled duties up to available capacity
+    const bestEffortResult = solveExaminationSchedule(
+      alteredFaculty,
+      DEFAULT_DATES_CONFIG,
+      {},
+      DEFAULT_SETTINGS,
+      { seed: 42, allowBestEffort: true }
+    );
+    expect(bestEffortResult.assignments.length).toBeGreaterThan(300);
+    expect(bestEffortResult.metrics?.filledPositions).toBeGreaterThan(300);
+    expect(bestEffortResult.metrics?.totalPositions).toBe(342);
+  });
+
+  it('should allow Mid and Afternoon faculty to cover JRS 1 when relaxArrivalConstraints is true', () => {
+    // Restrict Morning arrivals by setting all Morning faculty to Afternoon
+    const allAfternoonFaculty = DEFAULT_FACULTY_LIST.map((f) => ({
+      ...f,
+      arrival: 'Afternoon' as const,
+    }));
+
+    // Standard run fails to fill JRS 1 because Afternoon cannot do JRS 1
+    const strictResult = solveExaminationSchedule(
+      allAfternoonFaculty,
+      DEFAULT_DATES_CONFIG,
+      {},
+      DEFAULT_SETTINGS,
+      { seed: 42, allowBestEffort: true, relaxArrivalConstraints: false }
+    );
+    const strictJrs1 = strictResult.assignments.filter((a) => a.session === 'JRS 1');
+    expect(strictJrs1.length).toBe(0);
+
+    // Run with relaxArrivalConstraints fills JRS 1 with override flag
+    const relaxedResult = solveExaminationSchedule(
+      allAfternoonFaculty,
+      DEFAULT_DATES_CONFIG,
+      {},
+      DEFAULT_SETTINGS,
+      { seed: 42, allowBestEffort: true, relaxArrivalConstraints: true }
+    );
+    const relaxedJrs1 = relaxedResult.assignments.filter((a) => a.session === 'JRS 1');
+    expect(relaxedJrs1.length).toBeGreaterThan(0);
+    expect(relaxedJrs1[0].isOverride).toBe(true);
+  });
 });
 
 

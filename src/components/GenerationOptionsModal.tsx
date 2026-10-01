@@ -46,6 +46,12 @@ export const GenerationOptionsModal: React.FC<{ forceOpen?: boolean }> = ({ forc
   const [reserveCountTowardsFinalCount, setReserveCountTowardsFinalCount] = useState<boolean>(
     !(project.settings.reserveCanExceedCap ?? false)
   );
+  const [allowBestEffort, setAllowBestEffort] = useState<boolean>(
+    project.settings.allowBestEffort ?? true
+  );
+  const [relaxArrivalConstraints, setRelaxArrivalConstraints] = useState<boolean>(
+    project.settings.relaxArrivalConstraints ?? false
+  );
   const [rememberPreferences, setRememberPreferences] = useState(
     !project.settings.promptGenerationOptions
   );
@@ -64,21 +70,31 @@ export const GenerationOptionsModal: React.FC<{ forceOpen?: boolean }> = ({ forc
       strictWorkloadEqualization: strictEqualization,
       reserveSupervisorsPerSession,
       reserveCanExceedCap,
+      allowBestEffort,
+      relaxArrivalConstraints,
       promptGenerationOptions: !rememberPreferences,
     });
 
     setIsGenerationOptionsModalOpen(false);
 
     // Trigger solver with these exact settings
-    executeGenerateAlternatives({
-      hodAssignmentPriority: hodPriority,
-      avoidConsecutiveDays,
-      minimizeDoubleDuties,
-      balanceSeniorityPerSession: balanceSeniority,
-      strictWorkloadEqualization: strictEqualization,
-      reserveSupervisorsPerSession,
-      reserveCanExceedCap,
-    });
+    executeGenerateAlternatives(
+      {
+        hodAssignmentPriority: hodPriority,
+        avoidConsecutiveDays,
+        minimizeDoubleDuties,
+        balanceSeniorityPerSession: balanceSeniority,
+        strictWorkloadEqualization: strictEqualization,
+        reserveSupervisorsPerSession,
+        reserveCanExceedCap,
+        allowBestEffort,
+        relaxArrivalConstraints,
+      },
+      {
+        allowBestEffort,
+        relaxArrivalConstraints,
+      }
+    );
   };
 
   return (
@@ -311,6 +327,49 @@ export const GenerationOptionsModal: React.FC<{ forceOpen?: boolean }> = ({ forc
               </div>
             </label>
           )}
+        </div>
+
+        {/* 7. Conflict Resilience & Mitigation Fallbacks */}
+        <div className="space-y-3 p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-white/10">
+          <label className="text-xs font-bold text-slate-900 dark:text-white flex items-center space-x-1.5">
+            <Sparkles className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+            <span>7. Conflict Resilience &amp; Shortage Fallbacks</span>
+          </label>
+          <div className="space-y-2 text-xs">
+            <label className="flex items-start space-x-3 p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-white/10 cursor-pointer hover:border-purple-400/50 transition">
+              <input
+                type="checkbox"
+                checked={allowBestEffort}
+                onChange={(e) => setAllowBestEffort(e.target.checked)}
+                className="w-4 h-4 rounded text-purple-600 focus:ring-purple-500 mt-0.5 cursor-pointer"
+              />
+              <div className="flex-1">
+                <span className="font-bold text-slate-800 dark:text-slate-200 block text-xs">
+                  Generate Best-Effort Schedule if Constraints are Infeasible
+                </span>
+                <span className="text-slate-500 dark:text-slate-400 text-[11px] block mt-0.5">
+                  Fills 95%+ of positions and highlights bottleneck shortages instead of aborting with an error.
+                </span>
+              </div>
+            </label>
+
+            <label className="flex items-start space-x-3 p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-white/10 cursor-pointer hover:border-amber-400/50 transition">
+              <input
+                type="checkbox"
+                checked={relaxArrivalConstraints}
+                onChange={(e) => setRelaxArrivalConstraints(e.target.checked)}
+                className="w-4 h-4 rounded text-amber-600 focus:ring-amber-500 mt-0.5 cursor-pointer"
+              />
+              <div className="flex-1">
+                <span className="font-bold text-slate-800 dark:text-slate-200 block text-xs">
+                  Relax Arrival Shift Rules if Short on Eligible Faculty
+                </span>
+                <span className="text-slate-500 dark:text-slate-400 text-[11px] block mt-0.5">
+                  Allows available Mid/Afternoon faculty to cover Morning/JRS 1 when strictly eligible faculty run out.
+                </span>
+              </div>
+            </label>
+          </div>
         </div>
 
         {/* Remember Preferences */}

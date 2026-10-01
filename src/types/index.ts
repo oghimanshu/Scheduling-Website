@@ -254,6 +254,8 @@ export interface SchedulerSettings {
   randomSeed: number;
   reserveSupervisorsPerSession: number; // Number of reserve supervisors per session (default 0)
   reserveCanExceedCap: boolean;          // Whether reserve duties can exceed workload limit (default false)
+  allowBestEffort?: boolean;            // When true, generate best-effort schedule even if infeasible (default: true)
+  relaxArrivalConstraints?: boolean;    // When true, allow Mid/Afternoon arrivals to cover Morning/JRS 1 when exhausted
   firebaseConfig?: {
     apiKey: string;
     authDomain: string;

@@ -210,12 +210,35 @@ export const ScheduleViewer: React.FC = () => {
                   <th className="py-3 px-3 w-12 sm:w-14 sticky left-0 z-30 bg-slate-100/95 dark:bg-slate-800/95 backdrop-blur-xs">Sr.</th>
                   <th className="py-3 px-3 min-w-[150px] sm:min-w-[180px] sticky left-12 sm:left-14 z-30 bg-slate-100/95 dark:bg-slate-800/95 backdrop-blur-xs border-r border-slate-200/80 dark:border-white/10 shadow-[2px_0_5px_rgba(0,0,0,0.04)]">Faculty Member</th>
                   <th className="py-3 px-2 w-20">Arrival</th>
-                  {activeDates.map((d) => (
-                    <th key={d.date} id={`faculty-date-th-${d.date}`} className="py-3 px-2 text-center min-w-[110px] border-l border-slate-200/60 dark:border-white/5">
-                      <div className="font-bold text-slate-900 dark:text-white tabular-nums">{d.displayDate}</div>
-                      <div className="text-[10px] font-normal text-slate-400 dark:text-slate-500">{d.dayOfWeek}</div>
-                    </th>
-                  ))}
+                  {activeDates.map((d) => {
+                    const dateReq =
+                      (d.sessionRequirements['JRS 1'] || 0) +
+                      (d.sessionRequirements['JRS 2'] || 0) +
+                      (d.sessionRequirements['JRS 3'] || 0);
+                    const dateAssigned = project.assignments.filter(
+                      (a) => a.date === d.date && !a.isReserve
+                    ).length;
+                    const isShort = dateAssigned < dateReq;
+
+                    return (
+                      <th
+                        key={d.date}
+                        id={`faculty-date-th-${d.date}`}
+                        className="py-2.5 px-2 text-center min-w-[110px] border-l border-slate-200/60 dark:border-white/5"
+                      >
+                        <div className="font-bold text-slate-900 dark:text-white tabular-nums">{d.displayDate}</div>
+                        <div className="text-[10px] font-normal text-slate-400 dark:text-slate-500">{d.dayOfWeek}</div>
+                        {isShort && (
+                          <div
+                            className="mt-0.5 inline-flex items-center space-x-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-rose-500/15 text-rose-700 dark:text-rose-300 border border-rose-400/40"
+                            title={`${dateAssigned}/${dateReq} positions staffed. Shortage: ${dateReq - dateAssigned}`}
+                          >
+                            <span>-{dateReq - dateAssigned} unfilled</span>
+                          </div>
+                        )}
+                      </th>
+                    );
+                  })}
                   <th className="py-3 px-3 text-center w-16 border-l border-slate-200/60 dark:border-white/5">Total</th>
                 </tr>
               </thead>
@@ -468,6 +491,24 @@ export const ScheduleViewer: React.FC = () => {
                                   </div>
                                 );
                               })}
+
+                              {primaryAssignments.length < required && (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setManualEditSlot({
+                                      date: d.date,
+                                      session,
+                                    })
+                                  }
+                                  className="btn-spring px-2.5 py-1 rounded-lg bg-rose-500/15 dark:bg-rose-950/60 hover:bg-rose-500/25 text-rose-700 dark:text-rose-300 border border-dashed border-rose-400/60 dark:border-rose-700/60 font-bold cursor-pointer flex items-center space-x-1.5 shadow-2xs backdrop-blur-xs"
+                                  title="Click to manually assign an available faculty member or substitute to this unfilled position"
+                                >
+                                  <AlertTriangle className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400 shrink-0" />
+                                  <span>⚠️ Unfilled Slot (Short by {required - primaryAssignments.length})</span>
+                                  <Plus className="w-3 h-3 ml-0.5" />
+                                </button>
+                              )}
 
                               <button
                                 onClick={() =>
