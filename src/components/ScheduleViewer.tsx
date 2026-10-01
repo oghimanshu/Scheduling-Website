@@ -94,10 +94,10 @@ export const ScheduleViewer: React.FC = () => {
       {/* Top View Selector & Search Controls */}
       <div className="apple-glass-card p-4 flex flex-col md:flex-row gap-4 items-center justify-between">
         {/* View Mode Switcher */}
-        <div className="inline-flex p-1 rounded-xl bg-slate-100/80 dark:bg-slate-800/80 border border-slate-200/60 dark:border-white/10 w-full sm:w-auto">
+        <div className="inline-flex p-1 rounded-xl bg-slate-100/80 dark:bg-slate-800/80 border border-slate-200/60 dark:border-white/10 w-full sm:w-auto shadow-inner">
           <button
             onClick={() => setScheduleViewMode('faculty')}
-            className={`flex items-center justify-center space-x-1.5 sm:space-x-2 px-2.5 sm:px-3.5 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer flex-1 sm:flex-initial ${
+            className={`btn-spring flex items-center justify-center space-x-1.5 sm:space-x-2 px-2.5 sm:px-3.5 py-1.5 rounded-lg text-xs font-semibold cursor-pointer flex-1 sm:flex-initial ${
               scheduleViewMode === 'faculty'
                 ? 'bg-white dark:bg-slate-900 text-sky-700 dark:text-sky-300 shadow-xs border border-slate-200/60 dark:border-white/10'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
@@ -110,7 +110,7 @@ export const ScheduleViewer: React.FC = () => {
 
           <button
             onClick={() => setScheduleViewMode('session')}
-            className={`flex items-center justify-center space-x-1.5 sm:space-x-2 px-2.5 sm:px-3.5 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer flex-1 sm:flex-initial ${
+            className={`btn-spring flex items-center justify-center space-x-1.5 sm:space-x-2 px-2.5 sm:px-3.5 py-1.5 rounded-lg text-xs font-semibold cursor-pointer flex-1 sm:flex-initial ${
               scheduleViewMode === 'session'
                 ? 'bg-white dark:bg-slate-900 text-sky-700 dark:text-sky-300 shadow-xs border border-slate-200/60 dark:border-white/10'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
@@ -123,7 +123,7 @@ export const ScheduleViewer: React.FC = () => {
 
           <button
             onClick={() => setScheduleViewMode('workload')}
-            className={`flex items-center justify-center space-x-1.5 sm:space-x-2 px-2.5 sm:px-3.5 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer flex-1 sm:flex-initial ${
+            className={`btn-spring flex items-center justify-center space-x-1.5 sm:space-x-2 px-2.5 sm:px-3.5 py-1.5 rounded-lg text-xs font-semibold cursor-pointer flex-1 sm:flex-initial ${
               scheduleViewMode === 'workload'
                 ? 'bg-white dark:bg-slate-900 text-sky-700 dark:text-sky-300 shadow-xs border border-slate-200/60 dark:border-white/10'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
@@ -137,7 +137,7 @@ export const ScheduleViewer: React.FC = () => {
           {/* Workload Fairness & Analytics Toggle */}
           <button
             onClick={() => setShowAnalytics(!showAnalytics)}
-            className={`flex items-center justify-center space-x-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer border flex-1 sm:flex-initial ${
+            className={`btn-spring flex items-center justify-center space-x-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer border flex-1 sm:flex-initial ${
               showAnalytics
                 ? 'bg-sky-100 dark:bg-sky-950/70 text-sky-800 dark:text-sky-200 border-sky-300 dark:border-sky-800 shadow-2xs'
                 : 'bg-white/80 dark:bg-slate-900/80 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-white/10 hover:bg-slate-100'
@@ -181,7 +181,29 @@ export const ScheduleViewer: React.FC = () => {
       {/* VIEW A: FACULTY VIEW */}
       {scheduleViewMode === 'faculty' && (
         <div className="apple-glass-card overflow-hidden">
-          <div className="overflow-x-auto touch-scroll">
+          <div className="apple-specular-rim" />
+
+          {/* Quick Date Jumper for Mobile Screens */}
+          {activeDates.length > 0 && (
+            <div className="sm:hidden flex items-center space-x-1.5 overflow-x-auto no-scrollbar py-2 px-3 border-b border-slate-100 dark:border-white/5 bg-slate-50/50 dark:bg-slate-900/50" data-lenis-prevent>
+              <span className="text-[10px] font-bold text-slate-400 shrink-0 uppercase tracking-wider">Date Jump:</span>
+              {activeDates.map((d) => (
+                <button
+                  key={d.date}
+                  type="button"
+                  onClick={() => {
+                    const el = document.getElementById(`faculty-date-th-${d.date}`);
+                    el?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+                  }}
+                  className="btn-spring px-2 py-1 rounded-lg text-[10px] font-bold bg-white/80 dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200/80 dark:border-white/10 shrink-0 tabular-nums cursor-pointer"
+                >
+                  {d.displayDate.split(' ')[0]} {d.displayDate.split(' ')[1]}
+                </button>
+              ))}
+            </div>
+          )}
+
+          <div className="table-fade-indicator overflow-x-auto touch-scroll" data-lenis-prevent>
             <table className="w-full text-left text-xs border-collapse">
               <thead className="bg-slate-50/70 dark:bg-slate-800/70 text-slate-700 dark:text-slate-300 font-semibold uppercase tracking-wider border-b border-slate-200/60 dark:border-white/5 text-[11px] sticky top-0 z-20 backdrop-blur-md">
                 <tr>
@@ -189,8 +211,8 @@ export const ScheduleViewer: React.FC = () => {
                   <th className="py-3 px-3 min-w-[150px] sm:min-w-[180px] sticky left-12 sm:left-14 z-30 bg-slate-100/95 dark:bg-slate-800/95 backdrop-blur-xs border-r border-slate-200/80 dark:border-white/10 shadow-[2px_0_5px_rgba(0,0,0,0.04)]">Faculty Member</th>
                   <th className="py-3 px-2 w-20">Arrival</th>
                   {activeDates.map((d) => (
-                    <th key={d.date} className="py-3 px-2 text-center min-w-[110px] border-l border-slate-200/60 dark:border-white/5">
-                      <div className="font-bold text-slate-900 dark:text-white">{d.displayDate}</div>
+                    <th key={d.date} id={`faculty-date-th-${d.date}`} className="py-3 px-2 text-center min-w-[110px] border-l border-slate-200/60 dark:border-white/5">
+                      <div className="font-bold text-slate-900 dark:text-white tabular-nums">{d.displayDate}</div>
                       <div className="text-[10px] font-normal text-slate-400 dark:text-slate-500">{d.dayOfWeek}</div>
                     </th>
                   ))}
@@ -208,7 +230,7 @@ export const ScheduleViewer: React.FC = () => {
 
                   return (
                     <tr key={f.srNo} className="group hover:bg-sky-50/30 dark:hover:bg-white/5 transition">
-                      <td className="py-2 px-3 font-mono font-medium text-slate-400 dark:text-slate-500 sticky left-0 z-10 bg-white/95 dark:bg-slate-900/95 group-hover:bg-slate-50 dark:group-hover:bg-slate-850">
+                      <td className="py-2 px-3 font-mono tabular-nums font-medium text-slate-400 dark:text-slate-500 sticky left-0 z-10 bg-white/95 dark:bg-slate-900/95 group-hover:bg-slate-50 dark:group-hover:bg-slate-850">
                         {f.srNo}
                       </td>
                       <td className="py-2 px-3 font-semibold text-slate-900 dark:text-white sticky left-12 sm:left-14 z-10 bg-white/95 dark:bg-slate-900/95 group-hover:bg-slate-50 dark:group-hover:bg-slate-850 border-r border-slate-200/80 dark:border-white/10 shadow-[2px_0_5px_rgba(0,0,0,0.04)]">
@@ -243,14 +265,14 @@ export const ScheduleViewer: React.FC = () => {
                                   <div
                                     key={a.id}
                                     onClick={() => setSelectedAssignmentForInspect(a)}
-                                    className={`w-full py-1 px-1.5 rounded-lg text-[11px] font-semibold flex items-center justify-between cursor-pointer transition shadow-2xs ${
+                                    className={`w-full py-1 px-1.5 rounded-lg text-[11px] font-semibold flex items-center justify-between cursor-pointer transition-all duration-200 shadow-2xs backdrop-blur-md ${
                                       a.isReserve
-                                        ? 'bg-amber-100/90 dark:bg-amber-950/80 text-amber-900 dark:text-amber-200 hover:bg-amber-200 dark:hover:bg-amber-900/60 border border-amber-300 dark:border-amber-700/60'
+                                        ? 'bg-amber-500/15 dark:bg-amber-950/70 text-amber-900 dark:text-amber-200 hover:bg-amber-500/25 border border-amber-400/50 dark:border-amber-700/60 shadow-xs'
                                         : a.session === 'JRS 1'
-                                        ? 'bg-sky-100/80 dark:bg-sky-950/60 text-sky-800 dark:text-sky-300 hover:bg-sky-200 dark:hover:bg-sky-900/60 border border-sky-300/60 dark:border-sky-800/40'
+                                        ? 'bg-sky-500/15 dark:bg-sky-950/60 text-sky-900 dark:text-sky-200 hover:bg-sky-500/25 border border-sky-400/50 dark:border-sky-800/50 shadow-xs'
                                         : a.session === 'JRS 2'
-                                        ? 'bg-indigo-100/80 dark:bg-indigo-950/60 text-indigo-800 dark:text-indigo-300 hover:bg-indigo-200 dark:hover:bg-indigo-900/60 border border-indigo-300/60 dark:border-indigo-800/40'
-                                        : 'bg-emerald-100/80 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-200 dark:hover:bg-emerald-900/60 border border-emerald-300/60 dark:border-emerald-800/40'
+                                        ? 'bg-indigo-500/15 dark:bg-indigo-950/60 text-indigo-900 dark:text-indigo-200 hover:bg-indigo-500/25 border border-indigo-400/50 dark:border-indigo-800/50 shadow-xs'
+                                        : 'bg-emerald-500/15 dark:bg-emerald-950/60 text-emerald-900 dark:text-emerald-200 hover:bg-emerald-500/25 border border-emerald-400/50 dark:border-emerald-800/50 shadow-xs'
                                     }`}
                                     title={a.isReserve ? 'Designated Standby / Reserve Duty' : 'Primary Supervision Duty'}
                                   >
@@ -301,10 +323,10 @@ export const ScheduleViewer: React.FC = () => {
                                     session: 'JRS 2',
                                   })
                                 }
-                                className="w-full h-8 rounded border border-dashed border-transparent hover:border-slate-300 dark:hover:border-slate-600 text-slate-300 dark:text-slate-600 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100/50 dark:hover:bg-slate-800/50 text-[10px] font-medium transition cursor-pointer flex items-center justify-center"
+                                className="w-full h-8 rounded-lg border border-dashed border-slate-200/80 dark:border-white/10 hover:border-sky-400 dark:hover:border-sky-500 text-slate-300 dark:text-slate-600 hover:text-sky-600 dark:hover:text-sky-400 hover:bg-sky-50/50 dark:hover:bg-sky-950/30 text-xs font-bold transition-all duration-200 cursor-pointer flex items-center justify-center group"
                                 title="Click to assign duty"
                               >
-                                +
+                                <span className="group-hover:scale-125 transition-transform">+</span>
                               </button>
                             )}
                           </td>
@@ -312,7 +334,7 @@ export const ScheduleViewer: React.FC = () => {
                       })}
 
                       {/* Total */}
-                      <td className="py-2 px-3 text-center border-l border-slate-200/60 dark:border-white/5 font-mono font-bold">
+                      <td className="py-2 px-3 text-center border-l border-slate-200/60 dark:border-white/5 font-mono tabular-nums font-bold">
                         <span
                           className={
                             grandTotal > f.maxSupervisions
@@ -343,6 +365,7 @@ export const ScheduleViewer: React.FC = () => {
                 key={d.date}
                 className="apple-glass-card overflow-hidden"
               >
+                <div className="apple-specular-rim" />
                 <div className="bg-slate-50/70 dark:bg-slate-800/70 p-4 border-b border-slate-200/60 dark:border-white/5 flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center space-x-2">
                     <Calendar className="w-4 h-4 text-sky-600 dark:text-sky-400" />
@@ -350,7 +373,7 @@ export const ScheduleViewer: React.FC = () => {
                       {d.displayDate} ({d.dayOfWeek})
                     </h3>
                   </div>
-                  <div className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+                  <div className="text-xs text-slate-500 dark:text-slate-400 font-medium tabular-nums">
                     Total Daily Required: 57 Supervisors (JRS 1: {d.sessionRequirements?.['JRS 1'] ?? 17}, JRS 2: {d.sessionRequirements?.['JRS 2'] ?? 25}, JRS 3: {d.sessionRequirements?.['JRS 3'] ?? 15})
                   </div>
                 </div>
@@ -381,11 +404,11 @@ export const ScheduleViewer: React.FC = () => {
                             >
                               {session}
                             </span>
-                            <span className="text-slate-500 dark:text-slate-400 font-mono text-[11px]">
+                            <span className="text-slate-500 dark:text-slate-400 font-mono tabular-nums text-[11px]">
                               {d.sessionTimings?.[session]?.start ?? '08:00'} - {d.sessionTimings?.[session]?.end ?? '10:00'}
                             </span>
                           </div>
-                          <div className="flex items-center space-x-2 pt-1">
+                          <div className="flex items-center space-x-2 pt-1 tabular-nums">
                             <span className="font-semibold text-slate-700 dark:text-slate-300">Required: {required}</span>
                             <span className="text-slate-400">&bull;</span>
                             <span
@@ -397,7 +420,7 @@ export const ScheduleViewer: React.FC = () => {
                             </span>
                           </div>
                           {reserveAssignments.length > 0 && (
-                            <div className="text-[10px] font-semibold text-amber-700 dark:text-amber-400 flex items-center space-x-1 pt-0.5">
+                            <div className="text-[10px] font-semibold text-amber-700 dark:text-amber-400 flex items-center space-x-1 pt-0.5 tabular-nums">
                               <Shield className="w-3 h-3" />
                               <span>{reserveAssignments.length} Standby Reserve{reserveAssignments.length > 1 ? 's' : ''}</span>
                             </div>
@@ -408,7 +431,7 @@ export const ScheduleViewer: React.FC = () => {
                         <div className="flex-1 space-y-2.5">
                           {/* Primary Supervisors */}
                           <div>
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 block mb-1">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 block mb-1 tabular-nums">
                               Primary Supervisors ({primaryAssignments.length}/{required})
                             </span>
                             <div className="flex flex-wrap gap-1.5">
@@ -418,9 +441,9 @@ export const ScheduleViewer: React.FC = () => {
                                   <div
                                     key={a.id}
                                     onClick={() => setSelectedAssignmentForInspect(a)}
-                                    className="px-2.5 py-1 rounded-lg bg-white/80 dark:bg-slate-800/80 hover:bg-sky-100 dark:hover:bg-sky-950/60 text-slate-800 dark:text-slate-200 hover:text-sky-900 dark:hover:text-sky-300 border border-slate-200/80 dark:border-white/10 hover:border-sky-300 dark:hover:border-sky-800/40 font-medium transition cursor-pointer flex items-center space-x-1.5 shadow-2xs backdrop-blur-xs"
+                                    className="btn-spring px-2.5 py-1 rounded-lg bg-white/80 dark:bg-slate-800/80 hover:bg-sky-100 dark:hover:bg-sky-950/60 text-slate-800 dark:text-slate-200 hover:text-sky-900 dark:hover:text-sky-300 border border-slate-200/80 dark:border-white/10 hover:border-sky-300 dark:hover:border-sky-800/40 font-medium cursor-pointer flex items-center space-x-1.5 shadow-2xs backdrop-blur-xs"
                                   >
-                                    <span className="text-[10px] font-mono text-slate-400 dark:text-slate-500">
+                                    <span className="text-[10px] font-mono tabular-nums text-slate-400 dark:text-slate-500">
                                       #{a.facultySrNo}
                                     </span>
                                     <span>{fac?.name || `Sr ${a.facultySrNo}`}</span>
@@ -453,7 +476,7 @@ export const ScheduleViewer: React.FC = () => {
                                     session,
                                   })
                                 }
-                                className="px-2 py-1 rounded-lg border border-dashed border-slate-300 dark:border-slate-700 hover:border-sky-500 text-slate-500 dark:text-slate-400 hover:text-sky-600 dark:hover:text-sky-400 text-xs font-medium transition cursor-pointer flex items-center space-x-1"
+                                className="btn-spring px-2 py-1 rounded-lg border border-dashed border-slate-300 dark:border-slate-700 hover:border-sky-500 text-slate-500 dark:text-slate-400 hover:text-sky-600 dark:hover:text-sky-400 text-xs font-medium cursor-pointer flex items-center space-x-1"
                               >
                                 <Plus className="w-3 h-3" />
                                 <span>Add Supervisor</span>
@@ -464,7 +487,7 @@ export const ScheduleViewer: React.FC = () => {
                           {/* Reserve Supervisors (if any) */}
                           {reserveAssignments.length > 0 && (
                             <div className="pt-2 border-t border-slate-100 dark:border-white/5">
-                              <span className="text-[10px] font-bold uppercase tracking-wider text-amber-700 dark:text-amber-400 flex items-center space-x-1 mb-1">
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-amber-700 dark:text-amber-400 flex items-center space-x-1 mb-1 tabular-nums">
                                 <Shield className="w-3 h-3" />
                                 <span>Standby / Reserve Supervisors ({reserveAssignments.length})</span>
                               </span>
@@ -475,11 +498,11 @@ export const ScheduleViewer: React.FC = () => {
                                     <div
                                       key={a.id}
                                       onClick={() => setSelectedAssignmentForInspect(a)}
-                                      className="px-2.5 py-1 rounded-lg bg-amber-50/90 dark:bg-amber-950/70 hover:bg-amber-100 dark:hover:bg-amber-900/60 text-amber-900 dark:text-amber-200 border border-amber-300/80 dark:border-amber-700/60 font-medium transition cursor-pointer flex items-center space-x-1.5 shadow-2xs backdrop-blur-xs"
+                                      className="btn-spring px-2.5 py-1 rounded-lg bg-amber-50/90 dark:bg-amber-950/70 hover:bg-amber-100 dark:hover:bg-amber-900/60 text-amber-900 dark:text-amber-200 border border-amber-300/80 dark:border-amber-700/60 font-medium cursor-pointer flex items-center space-x-1.5 shadow-2xs backdrop-blur-xs"
                                       title="Designated Standby / Reserve Duty"
                                     >
                                       <Shield className="w-3 h-3 text-amber-600 dark:text-amber-400" />
-                                      <span className="text-[10px] font-mono text-amber-600 dark:text-amber-400">
+                                      <span className="text-[10px] font-mono tabular-nums text-amber-600 dark:text-amber-400">
                                         #{a.facultySrNo}
                                       </span>
                                       <span>{fac?.name || `Sr ${a.facultySrNo}`}</span>
@@ -512,6 +535,7 @@ export const ScheduleViewer: React.FC = () => {
       {/* VIEW C: WORKLOAD VIEW */}
       {scheduleViewMode === 'workload' && (
         <div className="apple-glass-card overflow-hidden">
+          <div className="apple-specular-rim" />
           <div className="overflow-x-auto touch-scroll">
             <table className="w-full text-left text-xs">
               <thead className="bg-slate-50/70 dark:bg-slate-800/70 text-slate-600 dark:text-slate-300 font-semibold uppercase tracking-wider border-b border-slate-200/60 dark:border-white/5 text-[11px] sticky top-0 z-20 backdrop-blur-md">
@@ -545,7 +569,7 @@ export const ScheduleViewer: React.FC = () => {
 
                   return (
                     <tr key={f.srNo} className="group hover:bg-sky-50/30 dark:hover:bg-white/5 transition">
-                      <td className="py-3 px-3 font-mono font-medium text-slate-400 dark:text-slate-500 sticky left-0 z-10 bg-white/95 dark:bg-slate-900/95 group-hover:bg-slate-50 dark:group-hover:bg-slate-850">
+                      <td className="py-3 px-3 font-mono tabular-nums font-medium text-slate-400 dark:text-slate-500 sticky left-0 z-10 bg-white/95 dark:bg-slate-900/95 group-hover:bg-slate-50 dark:group-hover:bg-slate-850">
                         {f.srNo}
                       </td>
                       <td className="py-3 px-4 font-semibold text-slate-900 dark:text-white sticky left-12 sm:left-16 z-10 bg-white/95 dark:bg-slate-900/95 group-hover:bg-slate-50 dark:group-hover:bg-slate-850 border-r border-slate-200/80 dark:border-white/10 shadow-[2px_0_5px_rgba(0,0,0,0.04)]">
@@ -569,16 +593,16 @@ export const ScheduleViewer: React.FC = () => {
                           {f.isHod ? 'HOD' : 'Regular'}
                         </span>
                       </td>
-                      <td className="py-3 px-3 text-center font-mono text-slate-600 dark:text-slate-400">
+                      <td className="py-3 px-3 text-center font-mono tabular-nums text-slate-600 dark:text-slate-400">
                         {f.previousSupervisions}
                       </td>
-                      <td className="py-3 px-3 text-center font-mono font-medium text-slate-700 dark:text-slate-300">
+                      <td className="py-3 px-3 text-center font-mono tabular-nums font-medium text-slate-700 dark:text-slate-300">
                         {f.targetSupervisions}
                       </td>
-                      <td className="py-3 px-3 text-center font-mono font-bold text-slate-900 dark:text-white">
+                      <td className="py-3 px-3 text-center font-mono tabular-nums font-bold text-slate-900 dark:text-white">
                         {f.maxSupervisions}
                       </td>
-                      <td className="py-3 px-3 text-center font-mono font-semibold text-sky-600 dark:text-sky-400">
+                      <td className="py-3 px-3 text-center font-mono tabular-nums font-semibold text-sky-600 dark:text-sky-400">
                         {primaryCount}
                         {reserveCount > 0 && (
                           <span className="text-amber-600 dark:text-amber-400 ml-1 text-[11px]" title={`${reserveCount} reserve standby duties${project.settings.reserveCanExceedCap ? ' (can exceed cap)' : ''}`}>
@@ -586,7 +610,7 @@ export const ScheduleViewer: React.FC = () => {
                           </span>
                         )}
                       </td>
-                      <td className="py-3 px-3 text-center font-mono font-bold">
+                      <td className="py-3 px-3 text-center font-mono tabular-nums font-bold">
                         <span
                           className={
                             total > f.maxSupervisions
@@ -605,7 +629,7 @@ export const ScheduleViewer: React.FC = () => {
                           )}
                         </span>
                       </td>
-                      <td className="py-3 px-3 text-center font-mono text-slate-500 dark:text-slate-400">
+                      <td className="py-3 px-3 text-center font-mono tabular-nums text-slate-500 dark:text-slate-400">
                         {remaining}
                       </td>
                       <td className="py-3 px-6">
@@ -622,7 +646,7 @@ export const ScheduleViewer: React.FC = () => {
                               style={{ width: `${pct}%` }}
                             />
                           </div>
-                          <span className="font-mono text-[11px] font-medium text-slate-600 dark:text-slate-400 w-9 text-right">
+                          <span className="font-mono tabular-nums text-[11px] font-medium text-slate-600 dark:text-slate-400 w-9 text-right">
                             {pct}%
                           </span>
                         </div>

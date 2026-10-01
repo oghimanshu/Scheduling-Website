@@ -67,8 +67,10 @@ export const SessionManagerModal: React.FC = () => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/60 dark:bg-black/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 overflow-y-auto" data-lenis-prevent>
-      <div className="apple-glass-card bg-white/95 dark:bg-slate-900/95 rounded-2xl max-w-2xl w-full max-h-[92dvh] my-auto flex flex-col shadow-2xl border border-sky-200/80 dark:border-white/10 animate-modal-spring">
+    <div className="fixed inset-0 z-50 bg-slate-900/60 dark:bg-black/80 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-y-auto" data-lenis-prevent>
+      <div className="apple-glass-card bg-white/95 dark:bg-slate-900/95 rounded-t-3xl sm:rounded-2xl max-w-2xl w-full max-h-[92dvh] sm:my-auto flex flex-col shadow-2xl border border-sky-200/80 dark:border-white/10 animate-sheet-up sm:animate-modal-spring">
+        {/* Mobile Pull Handle */}
+        <div className="w-10 h-1.5 bg-slate-300 dark:bg-slate-700 rounded-full mx-auto my-2.5 sm:hidden shrink-0" />
         {/* Header */}
         <div className="p-4 sm:p-6 border-b border-slate-100 dark:border-white/10 flex items-start justify-between">
           <div className="flex items-center space-x-3">

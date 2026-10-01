@@ -374,7 +374,7 @@ export const FacultyManager: React.FC = () => {
           {/* Segregate Faculty Roles */}
           <button
             onClick={() => setActiveTab('roles')}
-            className="inline-flex items-center justify-center space-x-1.5 px-3 py-2 text-xs font-bold text-purple-700 dark:text-purple-300 bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/30 rounded-xl transition cursor-pointer"
+            className="btn-spring inline-flex items-center justify-center space-x-1.5 px-3 py-2 text-xs font-bold text-purple-700 dark:text-purple-300 bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/30 rounded-xl cursor-pointer"
             title="Open Role Manager workspace to customize role tiers, duty caps, and concessions"
           >
             <Users className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400 shrink-0" />
@@ -385,7 +385,7 @@ export const FacultyManager: React.FC = () => {
           {/* Reassign HODs Button */}
           <button
             onClick={() => setIsReassignHodsModalOpen(true)}
-            className="inline-flex items-center justify-center space-x-1.5 px-3 py-2 text-xs font-semibold text-indigo-700 dark:text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/30 rounded-xl transition cursor-pointer"
+            className="btn-spring inline-flex items-center justify-center space-x-1.5 px-3 py-2 text-xs font-semibold text-indigo-700 dark:text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/30 rounded-xl cursor-pointer"
             title="Reassign Department HODs and customize workloads"
           >
             <Award className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 shrink-0" />
@@ -396,7 +396,7 @@ export const FacultyManager: React.FC = () => {
           {/* Download Example Format */}
           <button
             onClick={() => handleDownloadSample(false)}
-            className="inline-flex items-center justify-center space-x-1.5 px-3 py-2 text-xs font-bold text-emerald-800 dark:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 rounded-xl transition cursor-pointer"
+            className="btn-spring inline-flex items-center justify-center space-x-1.5 px-3 py-2 text-xs font-bold text-emerald-800 dark:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 rounded-xl cursor-pointer"
             title="Download clean example CSV template ready to be filled"
           >
             <Download className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
@@ -405,7 +405,7 @@ export const FacultyManager: React.FC = () => {
           </button>
 
           {/* Import CSV */}
-          <label className="inline-flex items-center justify-center space-x-1.5 px-3.5 sm:px-4 py-2 text-xs font-bold text-white bg-gradient-to-r from-sky-600 to-indigo-600 hover:from-sky-500 hover:to-indigo-500 rounded-xl shadow-md shadow-sky-500/25 border border-white/20 cursor-pointer transition text-center">
+          <label className="btn-spring inline-flex items-center justify-center space-x-1.5 px-3.5 sm:px-4 py-2 text-xs font-bold text-white bg-gradient-to-r from-sky-600 to-indigo-600 hover:from-sky-500 hover:to-indigo-500 rounded-xl shadow-md shadow-sky-500/25 border border-white/20 cursor-pointer transition text-center">
             <Upload className="w-3.5 h-3.5 shrink-0" />
             <span className="sm:inline hidden">IMPORT FACULTY CSV</span>
             <span className="sm:hidden">IMPORT CSV</span>
@@ -449,11 +449,11 @@ export const FacultyManager: React.FC = () => {
               max="20"
               value={regularCapInput}
               onChange={(e) => setRegularCapInput(parseInt(e.target.value, 10) || 1)}
-              className="w-12 text-center text-xs font-bold border-b border-sky-400 focus:outline-none dark:bg-transparent dark:text-white"
+              className="w-12 text-center text-xs font-bold border-b border-sky-400 focus:outline-none dark:bg-transparent dark:text-white tabular-nums font-mono"
             />
             <button
               onClick={handleApplyRegularCap}
-              className="px-2.5 py-1 text-[11px] font-bold text-sky-700 dark:text-sky-300 bg-sky-500/10 hover:bg-sky-500/20 rounded-lg border border-sky-500/30 transition cursor-pointer"
+              className="btn-spring px-2.5 py-1 text-[11px] font-bold text-sky-700 dark:text-sky-300 bg-sky-500/10 hover:bg-sky-500/20 rounded-lg border border-sky-500/30 cursor-pointer"
               title="Apply this cap to all regular faculty members"
             >
               Apply All Regular ({facultyStats.regularCount})
@@ -469,11 +469,11 @@ export const FacultyManager: React.FC = () => {
               max="20"
               value={hodCapInput}
               onChange={(e) => setHodCapInput(parseInt(e.target.value, 10) || 1)}
-              className="w-12 text-center text-xs font-bold border-b border-indigo-400 focus:outline-none dark:bg-transparent dark:text-white"
+              className="w-12 text-center text-xs font-bold border-b border-indigo-400 focus:outline-none dark:bg-transparent dark:text-white tabular-nums font-mono"
             />
             <button
               onClick={handleApplyHodCap}
-              className="px-2.5 py-1 text-[11px] font-bold text-indigo-700 dark:text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 rounded-lg border border-indigo-500/30 transition cursor-pointer"
+              className="btn-spring px-2.5 py-1 text-[11px] font-bold text-indigo-700 dark:text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 rounded-lg border border-indigo-500/30 cursor-pointer"
               title="Apply this cap to all department HODs"
             >
               Apply All HODs ({facultyStats.hodCount})
@@ -570,8 +570,7 @@ export const FacultyManager: React.FC = () => {
 
       {/* Faculty Table */}
       <div className="apple-glass-card rounded-2xl border border-white/60 dark:border-white/10 shadow-glass dark:shadow-glass-dark relative overflow-hidden">
-        <div className="apple-specular-rim" />
-        <div className="overflow-x-auto touch-scroll">
+        <div className="table-fade-indicator overflow-x-auto touch-scroll" data-lenis-prevent>
           <table className="w-full text-left text-xs">
             <thead className="bg-slate-100/90 dark:bg-slate-900/90 text-slate-600 dark:text-slate-300 font-bold uppercase tracking-wider border-b border-slate-200/60 dark:border-white/10 text-[11px] sticky top-0 z-20 backdrop-blur-md">
               <tr>
@@ -745,19 +744,19 @@ export const FacultyManager: React.FC = () => {
                         {f.arrival}
                       </span>
                     </td>
-                    <td className="py-3 px-3 text-center font-mono text-slate-600 dark:text-slate-300">
+                    <td className="py-3 px-3 text-center font-mono tabular-nums text-slate-600 dark:text-slate-300">
                       {f.previousSupervisions}
                     </td>
-                    <td className="py-3 px-3 text-center font-mono font-medium text-slate-700 dark:text-slate-200">
+                    <td className="py-3 px-3 text-center font-mono tabular-nums font-medium text-slate-700 dark:text-slate-200">
                       {f.targetSupervisions}
                     </td>
-                    <td className="py-3 px-3 text-center font-mono font-bold text-slate-900 dark:text-white">
+                    <td className="py-3 px-3 text-center font-mono tabular-nums font-bold text-slate-900 dark:text-white">
                       {f.maxSupervisions}
                     </td>
-                    <td className="py-3 px-3 text-center font-mono font-semibold text-sky-600 dark:text-sky-400">
+                    <td className="py-3 px-3 text-center font-mono tabular-nums font-semibold text-sky-600 dark:text-sky-400">
                       {assignedCount}
                     </td>
-                    <td className="py-3 px-3 text-center font-mono font-bold">
+                    <td className="py-3 px-3 text-center font-mono tabular-nums font-bold">
                       <span
                         className={
                           isOverMax
@@ -770,7 +769,7 @@ export const FacultyManager: React.FC = () => {
                         {total}
                       </span>
                     </td>
-                    <td className="py-3 px-3 text-center font-mono text-slate-500 dark:text-slate-400">
+                    <td className="py-3 px-3 text-center font-mono tabular-nums text-slate-500 dark:text-slate-400">
                       {remaining}
                     </td>
                     <td className="py-3 px-3 text-center">
@@ -818,8 +817,9 @@ export const FacultyManager: React.FC = () => {
 
       {/* Date-Specific Faculty Exclusion Modal */}
       {dateExclusionFaculty && (
-        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto" data-lenis-prevent>
-          <div className="apple-glass-card bg-white/95 dark:bg-slate-900/95 rounded-3xl max-w-xl w-full p-4 sm:p-6 shadow-2xl border border-slate-200/80 dark:border-white/10 space-y-5 animate-modal-spring relative overflow-hidden flex flex-col my-auto max-h-[90dvh]">
+        <div className="fixed inset-0 z-50 bg-slate-900/60 dark:bg-black/80 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-y-auto" data-lenis-prevent>
+          <div className="apple-glass-card bg-white/95 dark:bg-slate-900/95 rounded-t-3xl sm:rounded-2xl max-w-xl w-full p-4 sm:p-6 shadow-2xl border border-slate-200/80 dark:border-white/10 space-y-5 animate-sheet-up sm:animate-modal-spring relative overflow-hidden flex flex-col my-0 sm:my-auto max-h-[90dvh]">
+            <div className="sm:hidden w-12 h-1.5 bg-slate-300 dark:bg-slate-600 rounded-full mx-auto mb-1 shrink-0" />
             <div className="flex justify-between items-start border-b border-slate-200/60 dark:border-white/10 pb-4">
               <div>
                 <div className="flex items-center space-x-2">
@@ -959,8 +959,9 @@ export const FacultyManager: React.FC = () => {
 
       {/* CSV Import Modal with Initial Supervision Selector */}
       {isImportModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 overflow-y-auto" data-lenis-prevent>
-          <div className="apple-glass-card bg-white dark:bg-slate-900 rounded-3xl max-w-xl w-full max-h-[92dvh] flex flex-col shadow-2xl border border-slate-200 dark:border-white/10 relative overflow-hidden my-auto animate-modal-spring">
+        <div className="fixed inset-0 z-50 bg-slate-900/60 dark:bg-black/80 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-y-auto" data-lenis-prevent>
+          <div className="apple-glass-card bg-white dark:bg-slate-900 rounded-t-3xl sm:rounded-2xl max-w-xl w-full max-h-[92dvh] flex flex-col shadow-2xl border border-slate-200 dark:border-white/10 relative overflow-hidden my-0 sm:my-auto animate-sheet-up sm:animate-modal-spring">
+            <div className="sm:hidden w-12 h-1.5 bg-slate-300 dark:bg-slate-600 rounded-full mx-auto mt-3 mb-1 shrink-0" />
             {/* Header */}
             <div className="p-5 sm:p-6 border-b border-slate-200/80 dark:border-white/10 flex items-start justify-between">
               <div className="flex items-center space-x-3">
@@ -1253,8 +1254,9 @@ export const FacultyManager: React.FC = () => {
 
       {/* Faculty Individual Edit Modal */}
       {editingFaculty && (
-        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto" data-lenis-prevent>
-          <div className="apple-glass-card bg-white/95 dark:bg-slate-900/95 rounded-3xl max-w-lg w-full p-4 sm:p-6 shadow-2xl border border-slate-200/80 dark:border-white/10 space-y-4 animate-modal-spring relative overflow-hidden my-auto max-h-[90dvh] flex flex-col">
+        <div className="fixed inset-0 z-50 bg-slate-900/60 dark:bg-black/80 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-y-auto" data-lenis-prevent>
+          <div className="apple-glass-card bg-white/95 dark:bg-slate-900/95 rounded-t-3xl sm:rounded-2xl max-w-lg w-full p-4 sm:p-6 shadow-2xl border border-slate-200/80 dark:border-white/10 space-y-4 animate-sheet-up sm:animate-modal-spring relative overflow-hidden my-0 sm:my-auto max-h-[90dvh] flex flex-col">
+            <div className="sm:hidden w-12 h-1.5 bg-slate-300 dark:bg-slate-600 rounded-full mx-auto mb-1 shrink-0" />
             <div className="flex justify-between items-center border-b border-slate-200/60 dark:border-white/10 pb-3">
               <h3 className="text-base font-bold text-slate-900 dark:text-white">
                 Edit Faculty: {editingFaculty.name} (Sr. #{editingFaculty.srNo})

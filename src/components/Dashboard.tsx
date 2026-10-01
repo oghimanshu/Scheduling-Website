@@ -144,7 +144,7 @@ export const Dashboard: React.FC = () => {
 
             <button
               onClick={() => setActiveTab('roles')}
-              className="inline-flex items-center space-x-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-sky-800/80 hover:bg-sky-700 text-sky-100 border border-sky-400/30 transition cursor-pointer"
+              className="btn-spring inline-flex items-center space-x-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-sky-800/80 hover:bg-sky-700 text-sky-100 border border-sky-400/30 cursor-pointer shadow-xs"
               title="Open Role Manager workspace to customize role tiers, duty caps, and concessions"
             >
               <Users className="w-3.5 h-3.5 text-sky-300" />
@@ -154,7 +154,7 @@ export const Dashboard: React.FC = () => {
             <button
               onClick={generateAlternatives}
               disabled={isGenerating || project.faculty.length === 0}
-              className="inline-flex items-center space-x-2 px-4 py-2.5 rounded-xl font-bold text-sm bg-white text-sky-900 hover:bg-sky-50 shadow-md transition disabled:opacity-50 cursor-pointer"
+              className="btn-spring inline-flex items-center space-x-2 px-4 py-2.5 rounded-xl font-bold text-sm bg-white text-sky-950 hover:bg-sky-50 shadow-md transition disabled:opacity-50 cursor-pointer"
             >
               <Sparkles className={`w-4 h-4 text-sky-600 ${isGenerating ? 'animate-spin' : ''}`} />
               <span>{isGenerating ? 'Optimizing Schedule...' : 'GENERATE 5 ALTERNATIVES'}</span>
@@ -163,7 +163,7 @@ export const Dashboard: React.FC = () => {
             <button
               onClick={rebalanceCurrentSchedule}
               disabled={isGenerating || project.assignments.length === 0}
-              className="inline-flex items-center space-x-2 px-3.5 py-2.5 rounded-xl font-medium text-sm bg-sky-700/80 hover:bg-sky-700 text-white border border-sky-600 transition disabled:opacity-40 cursor-pointer"
+              className="btn-spring inline-flex items-center space-x-2 px-3.5 py-2.5 rounded-xl font-medium text-sm bg-sky-700/80 hover:bg-sky-700 text-white border border-sky-600 shadow-xs disabled:opacity-40 cursor-pointer"
               title="Preserves locked assignments while redistributing open slots"
             >
               <RotateCcw className="w-4 h-4" />
@@ -172,7 +172,7 @@ export const Dashboard: React.FC = () => {
 
             <button
               onClick={() => setIsExportModalOpen(true)}
-              className="inline-flex items-center space-x-2 px-3.5 py-2.5 rounded-xl font-medium text-sm bg-sky-700/80 hover:bg-sky-700 text-white border border-sky-600 transition cursor-pointer"
+              className="btn-spring inline-flex items-center space-x-2 px-3.5 py-2.5 rounded-xl font-medium text-sm bg-sky-700/80 hover:bg-sky-700 text-white border border-sky-600 shadow-xs cursor-pointer"
             >
               <Download className="w-4 h-4" />
               <span>EXPORT</span>
@@ -181,16 +181,16 @@ export const Dashboard: React.FC = () => {
         </div>
 
         {/* Dynamic Capacity Balance Equation */}
-        <div className="mt-5 pt-4 border-t border-sky-700/60 flex flex-wrap items-center justify-between text-xs text-sky-200">
-          <div className="flex items-center space-x-2">
-            <Info className="w-4 h-4 text-sky-300" />
-            <span className="font-semibold text-white">Dynamic Workload Mathematical Balance:</span>
+        <div className="mt-5 pt-4 border-t border-sky-700/60 flex flex-wrap items-center justify-between text-xs text-sky-200 gap-2">
+          <div className="flex items-center space-x-2 flex-wrap gap-y-1">
+            <Info className="w-4 h-4 text-sky-300 shrink-0" />
+            <span className="font-semibold text-white">Dynamic Workload Balance:</span>
             <span>
               {project.faculty.length > 0 ? (
                 <>
-                  {regularFaculty.length} Regular × {regularFaculty[0]?.maxSupervisions || 6} ({regularCapacity}) +{' '}
-                  {hodFaculty.length} HOD × {hodFaculty[0]?.maxSupervisions || 4} ({hodCapacity}) ={' '}
-                  <strong className="text-white">{totalCapacity} Faculty Capacity</strong>
+                  <span className="tabular-nums font-mono">{regularFaculty.length}</span> Regular × <span className="tabular-nums font-mono">{regularFaculty[0]?.maxSupervisions || 6}</span> (<span className="tabular-nums font-mono">{regularCapacity}</span>) +{' '}
+                  <span className="tabular-nums font-mono">{hodFaculty.length}</span> HOD × <span className="tabular-nums font-mono">{hodFaculty[0]?.maxSupervisions || 4}</span> (<span className="tabular-nums font-mono">{hodCapacity}</span>) ={' '}
+                  <strong className="text-white tabular-nums font-mono">{totalCapacity} Faculty Capacity</strong>
                 </>
               ) : (
                 <span className="text-amber-200 font-semibold">
@@ -200,22 +200,22 @@ export const Dashboard: React.FC = () => {
             </span>
             <span>⟷</span>
             <span>
-              {activeDates.length} Active Dates × 57 Sessions/Day ={' '}
-              <strong className="text-white">{validation.totalRequiredPositions} Required Positions</strong>
+              <span className="tabular-nums font-mono">{activeDates.length}</span> Dates × 57 Sessions ={' '}
+              <strong className="text-white tabular-nums font-mono">{validation.totalRequiredPositions} Required Positions</strong>
             </span>
           </div>
           <div className="mt-1 md:mt-0 font-medium">
             {project.faculty.length === 0 ? (
               <span className="text-amber-200 font-medium">Upload CSV to calculate balance</span>
             ) : totalCapacity === validation.totalRequiredPositions ? (
-              <span className="text-emerald-300 flex items-center space-x-1">
+              <span className="text-emerald-300 flex items-center space-x-1 font-semibold">
                 <CheckCircle2 className="w-3.5 h-3.5" />
                 <span>Perfect Mathematical Equilibrium</span>
               </span>
             ) : totalCapacity > validation.totalRequiredPositions ? (
-              <span className="text-sky-300">Surplus Capacity (+{totalCapacity - validation.totalRequiredPositions})</span>
+              <span className="text-sky-300 font-semibold">Surplus Capacity (+<span className="tabular-nums font-mono">{totalCapacity - validation.totalRequiredPositions}</span>)</span>
             ) : (
-              <span className="text-amber-300 font-bold">Deficit: Need +{validation.totalRequiredPositions - totalCapacity} positions</span>
+              <span className="text-amber-300 font-bold">Deficit: Need +<span className="tabular-nums font-mono">{validation.totalRequiredPositions - totalCapacity}</span> positions</span>
             )}
           </div>
         </div>
@@ -224,59 +224,61 @@ export const Dashboard: React.FC = () => {
       {/* KPI Cards Grid */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3.5">
         {/* Total Faculty */}
-        <div className="apple-glass-card p-4 rounded-2xl relative overflow-hidden">
+        <div className="apple-glass-card p-4 rounded-2xl relative overflow-hidden group">
           <div className="apple-specular-rim" />
-          <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-1">
-            <span className="text-xs font-semibold uppercase tracking-wider">Faculty</span>
-            <Users className="w-4 h-4 text-slate-400 dark:text-slate-400" />
+          <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-2">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Faculty</span>
+            <div className="w-8 h-8 rounded-xl bg-sky-500/15 text-sky-600 dark:text-sky-400 flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform duration-200">
+              <Users className="w-4 h-4" />
+            </div>
           </div>
-          <div className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">{project.faculty.length}</div>
-          <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-            {regularFaculty.length} Regular • {hodFaculty.length} HOD
+          <div className="text-2xl font-black text-slate-900 dark:text-white tracking-tight tabular-nums font-mono">{project.faculty.length}</div>
+          <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+            <span className="tabular-nums font-mono font-semibold">{regularFaculty.length}</span> Regular • <span className="tabular-nums font-mono font-semibold">{hodFaculty.length}</span> HOD
           </div>
         </div>
 
         {/* Active Dates */}
-        <div className="apple-glass-card p-4 rounded-2xl relative overflow-hidden">
+        <div className="apple-glass-card p-4 rounded-2xl relative overflow-hidden group">
           <div className="apple-specular-rim" />
-          <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-1">
-            <span className="text-xs font-semibold uppercase tracking-wider">Active Dates</span>
-            <Calendar className="w-4 h-4 text-slate-400 dark:text-slate-400" />
+          <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-2">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Active Dates</span>
+            <div className="w-8 h-8 rounded-xl bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform duration-200">
+              <Calendar className="w-4 h-4" />
+            </div>
           </div>
-          <div className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">{activeDates.length}</div>
-          <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-            {project.examPeriod.dates.length - activeDates.length} Excluded (Holidays)
+          <div className="text-2xl font-black text-slate-900 dark:text-white tracking-tight tabular-nums font-mono">{activeDates.length}</div>
+          <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+            <span className="tabular-nums font-mono font-semibold">{project.examPeriod.dates.length - activeDates.length}</span> Excluded (Holidays)
           </div>
         </div>
 
         {/* Required Positions */}
-        <div className="apple-glass-card p-4 rounded-2xl relative overflow-hidden">
+        <div className="apple-glass-card p-4 rounded-2xl relative overflow-hidden group">
           <div className="apple-specular-rim" />
-          <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-1">
-            <span className="text-xs font-semibold uppercase tracking-wider">Required</span>
-            <Layers className="w-4 h-4 text-slate-400 dark:text-slate-400" />
+          <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-2">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Required</span>
+            <div className="w-8 h-8 rounded-xl bg-purple-500/15 text-purple-600 dark:text-purple-400 flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform duration-200">
+              <Layers className="w-4 h-4" />
+            </div>
           </div>
-          <div className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">{validation.totalRequiredPositions}</div>
-          <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-            57 / day across 3 JRS sessions
+          <div className="text-2xl font-black text-slate-900 dark:text-white tracking-tight tabular-nums font-mono">{validation.totalRequiredPositions}</div>
+          <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 font-medium">
+            57 / day across 3 JRS
           </div>
         </div>
 
         {/* Filled Positions */}
-        <div className="apple-glass-card p-4 rounded-2xl relative overflow-hidden">
+        <div className="apple-glass-card p-4 rounded-2xl relative overflow-hidden group">
           <div className="apple-specular-rim" />
-          <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-1">
-            <span className="text-xs font-semibold uppercase tracking-wider">Filled</span>
-            <CheckCircle2
-              className={`w-4 h-4 ${
-                validation.totalFilledPositions === validation.totalRequiredPositions
-                  ? 'text-emerald-500'
-                  : 'text-amber-500'
-              }`}
-            />
+          <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-2">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Filled</span>
+            <div className="w-8 h-8 rounded-xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform duration-200">
+              <CheckCircle2 className="w-4 h-4" />
+            </div>
           </div>
           <div
-            className={`text-2xl font-black tracking-tight ${
+            className={`text-2xl font-black tracking-tight tabular-nums font-mono ${
               validation.totalFilledPositions === validation.totalRequiredPositions
                 ? 'text-emerald-600 dark:text-emerald-400'
                 : 'text-amber-600 dark:text-amber-400'
@@ -284,46 +286,48 @@ export const Dashboard: React.FC = () => {
           >
             {validation.totalFilledPositions}
           </div>
-          <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+          <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
             {validation.unfilledPositions > 0 ? (
-              <span className="text-rose-600 dark:text-rose-400 font-semibold">{validation.unfilledPositions} unfilled</span>
+              <span className="text-rose-600 dark:text-rose-400 font-bold"><span className="tabular-nums font-mono">{validation.unfilledPositions}</span> unfilled</span>
             ) : (
-              <span className="text-emerald-600 dark:text-emerald-400 font-medium">100% Staffed</span>
+              <span className="text-emerald-600 dark:text-emerald-400 font-semibold">100% Staffed</span>
             )}
           </div>
         </div>
 
         {/* Hard Conflicts */}
-        <div className="apple-glass-card p-4 rounded-2xl relative overflow-hidden">
+        <div className="apple-glass-card p-4 rounded-2xl relative overflow-hidden group">
           <div className="apple-specular-rim" />
-          <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-1">
-            <span className="text-xs font-semibold uppercase tracking-wider">Hard Conflicts</span>
-            <AlertCircle
-              className={`w-4 h-4 ${validation.hardConflictsCount > 0 ? 'text-rose-500' : 'text-emerald-500'}`}
-            />
+          <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-2">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Hard Conflicts</span>
+            <div className={`w-8 h-8 rounded-xl flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform duration-200 ${validation.hardConflictsCount > 0 ? 'bg-rose-500/15 text-rose-600 dark:text-rose-400' : 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'}`}>
+              <AlertCircle className="w-4 h-4" />
+            </div>
           </div>
           <div
-            className={`text-2xl font-black tracking-tight ${
+            className={`text-2xl font-black tracking-tight tabular-nums font-mono ${
               validation.hardConflictsCount > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'
             }`}
           >
             {validation.hardConflictsCount}
           </div>
-          <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+          <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 font-medium">
             {validation.hardConflictsCount === 0 ? 'Strict Rules Met' : 'Violation(s) detected'}
           </div>
         </div>
 
         {/* Workload Range */}
-        <div className="apple-glass-card p-4 rounded-2xl relative overflow-hidden">
+        <div className="apple-glass-card p-4 rounded-2xl relative overflow-hidden group">
           <div className="apple-specular-rim" />
-          <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-1">
-            <span className="text-xs font-semibold uppercase tracking-wider">Workload</span>
-            <FileSpreadsheet className="w-4 h-4 text-slate-400 dark:text-slate-400" />
+          <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-2">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Workload</span>
+            <div className="w-8 h-8 rounded-xl bg-amber-500/15 text-amber-600 dark:text-amber-400 flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform duration-200">
+              <FileSpreadsheet className="w-4 h-4" />
+            </div>
           </div>
-          <div className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">{avgWorkload}</div>
-          <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-            Min: {minWorkload} • Max: {maxWorkload}
+          <div className="text-2xl font-black text-slate-900 dark:text-white tracking-tight tabular-nums font-mono">{avgWorkload}</div>
+          <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+            Min: <span className="tabular-nums font-mono font-semibold">{minWorkload}</span> • Max: <span className="tabular-nums font-mono font-semibold">{maxWorkload}</span>
           </div>
         </div>
       </div>

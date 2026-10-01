@@ -254,6 +254,7 @@ export const ExamPeriodManager: React.FC = () => {
     <div className="space-y-6">
       {/* Period Setup Card */}
       <div className="apple-glass-card p-6 space-y-4">
+        <div className="apple-specular-rim" />
         <div>
           <h2 className="text-xl font-bold text-slate-900 dark:text-white">Examination Period Setup</h2>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
@@ -282,7 +283,7 @@ export const ExamPeriodManager: React.FC = () => {
               type="date"
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
-              className="w-full px-3 py-1.5 text-xs bg-white/70 dark:bg-slate-900/70 border border-slate-300 dark:border-white/10 rounded-lg text-slate-900 dark:text-white focus:ring-2 focus:ring-sky-500 transition"
+              className="w-full px-3 py-1.5 text-xs bg-white/70 dark:bg-slate-900/70 border border-slate-300 dark:border-white/10 rounded-lg text-slate-900 dark:text-white focus:ring-2 focus:ring-sky-500 transition tabular-nums"
             />
           </div>
 
@@ -294,19 +295,19 @@ export const ExamPeriodManager: React.FC = () => {
               type="date"
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
-              className="w-full px-3 py-1.5 text-xs bg-white/70 dark:bg-slate-900/70 border border-slate-300 dark:border-white/10 rounded-lg text-slate-900 dark:text-white focus:ring-2 focus:ring-sky-500 transition"
+              className="w-full px-3 py-1.5 text-xs bg-white/70 dark:bg-slate-900/70 border border-slate-300 dark:border-white/10 rounded-lg text-slate-900 dark:text-white focus:ring-2 focus:ring-sky-500 transition tabular-nums"
             />
           </div>
         </div>
 
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pt-2">
           <div className="text-xs text-slate-500 dark:text-slate-400">
-            Current configuration: <strong className="text-slate-800 dark:text-slate-200">{activeDates.length}</strong> active exam dates,{' '}
-            <strong className="text-slate-800 dark:text-slate-200">{totalPeriodPositions}</strong> total positions required.
+            Current configuration: <strong className="text-slate-800 dark:text-slate-200 tabular-nums">{activeDates.length}</strong> active exam dates,{' '}
+            <strong className="text-slate-800 dark:text-slate-200 tabular-nums">{totalPeriodPositions}</strong> total positions required.
           </div>
           <button
             onClick={handleGenerateDates}
-            className="px-4 py-2 text-xs font-semibold text-white bg-sky-600 hover:bg-sky-500 active:scale-98 rounded-lg shadow-sm hover:shadow transition"
+            className="btn-spring px-4 py-2 text-xs font-semibold text-white bg-sky-600 hover:bg-sky-500 rounded-lg shadow-sm hover:shadow cursor-pointer"
           >
             GENERATE DATES
           </button>
@@ -315,12 +316,13 @@ export const ExamPeriodManager: React.FC = () => {
 
       {/* Global Staffing Template & Apply All */}
       <div className="apple-glass-card p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 border-sky-200/50 dark:border-sky-500/20 bg-sky-50/40 dark:bg-sky-950/20">
+        <div className="apple-specular-rim" />
         <div>
           <div className="flex items-center space-x-2">
             <h3 className="text-xs font-bold text-sky-900 dark:text-sky-300 uppercase tracking-wider">
               Daily Staffing Requirements
             </h3>
-            <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-sky-100 dark:bg-sky-900/60 text-sky-700 dark:text-sky-300 border border-sky-200 dark:border-sky-800/40">
+            <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-sky-100 dark:bg-sky-900/60 text-sky-700 dark:text-sky-300 border border-sky-200 dark:border-sky-800/40 tabular-nums font-mono">
               {(project.sessions || []).length} Sessions Configured
             </span>
           </div>
@@ -341,14 +343,14 @@ export const ExamPeriodManager: React.FC = () => {
                 min="0"
                 value={getTemplateReq(s.id, s.defaultRequirement)}
                 onChange={(e) => setTemplateReq(s.id, parseInt(e.target.value, 10) || 0)}
-                className="w-14 text-center font-bold text-slate-900 dark:text-white bg-transparent border-b border-sky-300 dark:border-sky-600 focus:outline-none"
+                className="w-14 text-center font-bold text-slate-900 dark:text-white bg-transparent border-b border-sky-300 dark:border-sky-600 focus:outline-none tabular-nums font-mono"
               />
             </div>
           ))}
 
           <button
             onClick={handleApplyToAllActiveDates}
-            className="px-3.5 py-1.5 text-xs font-semibold bg-sky-600 hover:bg-sky-500 text-white rounded-lg shadow-sm hover:shadow transition"
+            className="btn-spring px-3.5 py-1.5 text-xs font-semibold bg-sky-600 hover:bg-sky-500 text-white rounded-lg shadow-sm hover:shadow cursor-pointer"
           >
             Apply to all dates
           </button>
@@ -356,7 +358,7 @@ export const ExamPeriodManager: React.FC = () => {
           {/* Manage Sessions & Timings Modal Trigger */}
           <button
             onClick={() => setIsSessionManagerModalOpen(true)}
-            className="inline-flex items-center space-x-1.5 px-3 py-1.5 text-xs font-semibold text-purple-700 dark:text-purple-300 bg-purple-100/80 dark:bg-purple-950/40 hover:bg-purple-200 dark:hover:bg-purple-900/50 border border-purple-300/80 dark:border-purple-800/40 rounded-lg shadow-2xs transition"
+            className="btn-spring inline-flex items-center space-x-1.5 px-3 py-1.5 text-xs font-semibold text-purple-700 dark:text-purple-300 bg-purple-100/80 dark:bg-purple-950/40 hover:bg-purple-200 dark:hover:bg-purple-900/50 border border-purple-300/80 dark:border-purple-800/40 rounded-lg shadow-2xs cursor-pointer"
             title="Add additional JRS sessions (e.g. JRS 4) or edit timings"
           >
             <Clock className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
@@ -367,6 +369,7 @@ export const ExamPeriodManager: React.FC = () => {
 
       {/* Date-by-Date Configuration Table */}
       <div className="apple-glass-card overflow-hidden">
+        <div className="apple-specular-rim" />
         <div className="p-4 border-b border-slate-100 dark:border-white/5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
           <div>
             <h3 className="text-sm font-bold text-slate-900 dark:text-white">

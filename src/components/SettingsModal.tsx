@@ -84,8 +84,10 @@ export const SettingsModal: React.FC = () => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto" data-lenis-prevent>
-      <div className="apple-glass-card bg-white/95 dark:bg-slate-900/95 rounded-3xl max-w-xl w-full max-h-[92dvh] my-auto flex flex-col shadow-2xl border border-slate-200/80 dark:border-white/10 animate-modal-spring relative overflow-hidden">
+    <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-y-auto" data-lenis-prevent>
+      <div className="apple-glass-card bg-white/95 dark:bg-slate-900/95 rounded-t-3xl sm:rounded-3xl max-w-xl w-full max-h-[92dvh] sm:my-auto flex flex-col shadow-2xl border border-slate-200/80 dark:border-white/10 animate-sheet-up sm:animate-modal-spring relative overflow-hidden">
+        {/* Mobile Pull Handle */}
+        <div className="w-10 h-1.5 bg-slate-300 dark:bg-slate-700 rounded-full mx-auto my-2.5 sm:hidden shrink-0" />
         <div className="p-5 sm:p-6 border-b border-slate-200/60 dark:border-white/10 flex justify-between items-center">
           <div className="flex items-center space-x-2">
             <div className="w-8 h-8 rounded-xl bg-sky-100 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400 flex items-center justify-center">

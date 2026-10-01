@@ -83,6 +83,7 @@ export const AvailabilityManager: React.FC = () => {
     <div className="space-y-6">
       {/* Header & Quick Bulk Controls */}
       <div className="apple-glass-card p-5 space-y-4">
+        <div className="apple-specular-rim" />
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <div className="flex items-center space-x-2">
@@ -100,7 +101,7 @@ export const AvailabilityManager: React.FC = () => {
           <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={handleMarkAllAvailable}
-              className="inline-flex items-center space-x-1.5 px-3 py-1.5 text-xs font-medium text-emerald-700 dark:text-emerald-300 bg-emerald-50/80 dark:bg-emerald-950/40 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 border border-emerald-200 dark:border-emerald-800/40 rounded-lg transition"
+              className="btn-spring inline-flex items-center space-x-1.5 px-3 py-1.5 text-xs font-medium text-emerald-700 dark:text-emerald-300 bg-emerald-50/80 dark:bg-emerald-950/40 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 border border-emerald-200 dark:border-emerald-800/40 rounded-lg cursor-pointer"
             >
               <CheckCheck className="w-3.5 h-3.5" />
               <span>Mark All Available</span>
@@ -108,7 +109,7 @@ export const AvailabilityManager: React.FC = () => {
 
             <button
               onClick={handleMarkAllUnavailable}
-              className="inline-flex items-center space-x-1.5 px-3 py-1.5 text-xs font-medium text-rose-700 dark:text-rose-300 bg-rose-50/80 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-900/50 border border-rose-200 dark:border-rose-800/40 rounded-lg transition"
+              className="btn-spring inline-flex items-center space-x-1.5 px-3 py-1.5 text-xs font-medium text-rose-700 dark:text-rose-300 bg-rose-50/80 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-900/50 border border-rose-200 dark:border-rose-800/40 rounded-lg cursor-pointer"
             >
               <Ban className="w-3.5 h-3.5" />
               <span>Mark Filtered Unavailable</span>
@@ -149,7 +150,7 @@ export const AvailabilityManager: React.FC = () => {
             </select>
             <button
               onClick={handleCopyDate}
-              className="px-3 py-1 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-medium rounded-lg transition"
+              className="btn-spring px-3 py-1 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-medium rounded-lg cursor-pointer"
             >
               Apply Copy
             </button>
@@ -208,7 +209,29 @@ export const AvailabilityManager: React.FC = () => {
 
       {/* Availability Matrix Grid */}
       <div className="apple-glass-card overflow-hidden">
-        <div className="overflow-x-auto touch-scroll">
+        <div className="apple-specular-rim" />
+
+        {/* Quick Date Jumper for Mobile Screens */}
+        {activeDates.length > 0 && (
+          <div className="sm:hidden flex items-center space-x-1.5 overflow-x-auto no-scrollbar py-2 px-3 border-b border-slate-100 dark:border-white/5 bg-slate-50/50 dark:bg-slate-900/50" data-lenis-prevent>
+            <span className="text-[10px] font-bold text-slate-400 shrink-0 uppercase tracking-wider">Date Jump:</span>
+            {activeDates.map((d) => (
+              <button
+                key={d.date}
+                type="button"
+                onClick={() => {
+                  const el = document.getElementById(`avail-date-th-${d.date}`);
+                  el?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+                }}
+                className="btn-spring px-2 py-1 rounded-lg text-[10px] font-bold bg-white/80 dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200/80 dark:border-white/10 shrink-0 tabular-nums cursor-pointer"
+              >
+                {d.displayDate.split(' ')[0]} {d.displayDate.split(' ')[1]}
+              </button>
+            ))}
+          </div>
+        )}
+
+        <div className="table-fade-indicator overflow-x-auto touch-scroll" data-lenis-prevent>
           <table className="w-full text-left text-xs">
             <thead className="bg-slate-50/70 dark:bg-slate-800/70 text-slate-600 dark:text-slate-300 font-semibold uppercase tracking-wider border-b border-slate-200/60 dark:border-white/5 text-[11px] sticky top-0 z-20 backdrop-blur-md">
               <tr>
@@ -217,8 +240,8 @@ export const AvailabilityManager: React.FC = () => {
                 <th className="py-3 px-3 w-20">Role</th>
                 <th className="py-3 px-3 w-24">Arrival</th>
                 {activeDates.map((d) => (
-                  <th key={d.date} className="py-3 px-3 text-center min-w-[110px]">
-                    <div className="font-bold text-slate-900 dark:text-white">{d.displayDate}</div>
+                  <th key={d.date} id={`avail-date-th-${d.date}`} className="py-3 px-3 text-center min-w-[110px]">
+                    <div className="font-bold text-slate-900 dark:text-white tabular-nums">{d.displayDate}</div>
                     <div className="text-[10px] font-normal text-slate-400 dark:text-slate-500">{d.dayOfWeek}</div>
                   </th>
                 ))}
@@ -227,7 +250,7 @@ export const AvailabilityManager: React.FC = () => {
             <tbody className="divide-y divide-slate-100 dark:divide-white/5">
               {filteredFaculty.map((f) => (
                 <tr key={f.srNo} className="group hover:bg-sky-50/30 dark:hover:bg-white/5 transition">
-                  <td className="py-2.5 px-3 sm:px-4 font-mono font-medium text-slate-400 dark:text-slate-500 sticky left-0 z-10 bg-white/95 dark:bg-slate-900/95 group-hover:bg-slate-50 dark:group-hover:bg-slate-850">
+                  <td className="py-2.5 px-3 sm:px-4 font-mono tabular-nums font-medium text-slate-400 dark:text-slate-500 sticky left-0 z-10 bg-white/95 dark:bg-slate-900/95 group-hover:bg-slate-50 dark:group-hover:bg-slate-850">
                     {f.srNo}
                   </td>
                   <td className="py-2.5 px-3 sm:px-4 font-semibold text-slate-900 dark:text-white sticky left-12 sm:left-16 z-10 bg-white/95 dark:bg-slate-900/95 group-hover:bg-slate-50 dark:group-hover:bg-slate-850 border-r border-slate-200/80 dark:border-white/10 shadow-[2px_0_5px_rgba(0,0,0,0.04)]">

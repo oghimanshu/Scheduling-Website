@@ -35,18 +35,18 @@
 }
 
 @layer components {
-  /* Apple Liquid Glass Morphism Utilities */
+  /* Apple VisionOS Liquid Glass Morphism Utilities */
   .apple-glass {
-    @apply bg-white/85 dark:bg-slate-900/90 backdrop-blur-xl border border-slate-200/80 dark:border-white/10 shadow-sm dark:shadow-2xl transition-colors duration-300;
+    @apply bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl border border-slate-200/70 dark:border-white/10 shadow-[inset_0_1px_1px_0_rgba(255,255,255,0.4),0_4px_24px_0_rgba(0,0,0,0.04)] dark:shadow-[inset_0_1px_1px_0_rgba(255,255,255,0.08),0_4px_24px_0_rgba(0,0,0,0.35)] transition-colors duration-300;
   }
 
   .apple-glass-card {
-    @apply relative bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border border-slate-200/80 dark:border-white/10 shadow-sm dark:shadow-2xl text-slate-800 dark:text-slate-100 transition-all duration-300;
+    @apply relative bg-white/85 dark:bg-slate-900/85 backdrop-blur-2xl border border-slate-200/80 dark:border-white/10 shadow-[inset_0_1px_1px_0_rgba(255,255,255,0.5),0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[inset_0_1px_1px_0_rgba(255,255,255,0.08),0_8px_30px_rgb(0,0,0,0.3)] text-slate-800 dark:text-slate-100 transition-all duration-300;
     transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
   }
 
   .apple-glass-card:hover {
-    @apply border-sky-400/50 dark:border-sky-500/50 shadow-lg dark:shadow-sky-500/10;
+    @apply border-sky-400/50 dark:border-sky-500/50 shadow-[inset_0_1px_1px_0_rgba(255,255,255,0.6),0_14px_40px_rgba(56,189,248,0.12)] dark:shadow-[inset_0_1px_1px_0_rgba(255,255,255,0.12),0_14px_40px_rgba(56,189,248,0.18)];
     transform: translateY(-2px);
   }
 
@@ -58,24 +58,50 @@
     left: 0;
     right: 0;
     height: 1px;
-    background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.6) 50%, transparent 100%);
+    background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.85) 35%, rgba(56, 189, 248, 0.4) 50%, rgba(255, 255, 255, 0.85) 65%, transparent 100%);
     pointer-events: none;
     z-index: 1;
+    border-top-left-radius: inherit;
+    border-top-right-radius: inherit;
   }
 
   .dark .apple-glass-card::before, .dark .apple-glass::before {
-    background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.15) 50%, transparent 100%);
+    background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.25) 35%, rgba(56, 189, 248, 0.35) 50%, rgba(255, 255, 255, 0.25) 65%, transparent 100%);
   }
 
-  /* Safe fallback only for empty decorative divider */
-  div.apple-specular-rim:empty {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 1px;
-    background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.6) 50%, transparent 100%);
-    pointer-events: none;
+  /* Glass Status Pill */
+  .glass-pill {
+    @apply relative inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold backdrop-blur-md border shadow-sm transition-all duration-200;
+  }
+
+  /* Glass Badge */
+  .glass-badge {
+    @apply inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium backdrop-blur-md border transition-all duration-200;
+  }
+
+  /* Tactile Apple Spring Button */
+  .btn-spring {
+    transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .btn-spring:hover {
+    transform: translateY(-1px);
+  }
+  .btn-spring:active {
+    transform: scale(0.975);
+  }
+
+  /* Liquid Glass Action Button */
+  .btn-liquid {
+    @apply relative overflow-hidden transition-all duration-200 active:scale-[0.98];
+    box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.35), 0 4px 14px 0 rgba(0, 0, 0, 0.08);
+  }
+  .dark .btn-liquid {
+    box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.15), 0 4px 14px 0 rgba(0, 0, 0, 0.35);
+  }
+
+  /* Tabular Numerals for Numerical Rigor */
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
   }
 }
 
@@ -130,6 +156,21 @@
   animation: modalSpringIn 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
+@keyframes sheetUp {
+  0% {
+    opacity: 0;
+    transform: translateY(100%);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-sheet-up {
+  animation: sheetUp 0.32s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
 @keyframes floatSlow {
   0%, 100% {
     transform: translate(0px, 0px) scale(1);
@@ -154,6 +195,30 @@
 
 .animate-float-reverse {
   animation: floatReverse 24s ease-in-out infinite alternate;
+}
+
+/* Mobile Safe-Area & Dock Utilities */
+.safe-bottom-dock {
+  padding-bottom: max(0.375rem, env(safe-area-inset-bottom, 0px));
+}
+
+/* Table Horizontal Edge Fade Gradient Indicator */
+.table-fade-indicator {
+  position: relative;
+}
+.table-fade-indicator::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 24px;
+  background: linear-gradient(90deg, transparent 0%, rgba(0, 0, 0, 0.05) 100%);
+  pointer-events: none;
+  z-index: 15;
+}
+.dark .table-fade-indicator::after {
+  background: linear-gradient(90deg, transparent 0%, rgba(0, 0, 0, 0.4) 100%);
 }
 
 /* Print Friendly Styles (Clean Paper & PDF Output) */
