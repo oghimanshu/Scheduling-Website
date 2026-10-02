@@ -97,7 +97,7 @@ export const WhyValidModal: React.FC = () => {
     },
   ];
 
-  return createPortal(
+  const modalContent = (
     <div
       className="fixed inset-0 z-[9999] bg-slate-900/60 dark:bg-black/80 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-y-auto"
       data-lenis-prevent
@@ -169,7 +169,9 @@ export const WhyValidModal: React.FC = () => {
           </button>
         </div>
       </div>
-    </div>,
-    document.body
+    </div>
   );
+
+  return typeof document !== 'undefined' ? createPortal(modalContent, document.body) : modalContent;
 };
+

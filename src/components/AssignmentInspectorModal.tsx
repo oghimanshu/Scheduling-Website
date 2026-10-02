@@ -367,5 +367,5 @@ export const AssignmentInspectorModal: React.FC = () => {
     </div>
   );
 
-  return createPortal(content, document.body);
+  return typeof document !== 'undefined' ? createPortal(content, document.body) : content;
 };

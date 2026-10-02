@@ -25,6 +25,9 @@ import { generateFiveAlternatives, generateSingleAlternative } from '../services
 import { rebalanceSchedule } from '../services/scheduler/rebalance';
 import { saveProjectToStorage, loadProjectFromStorage, clearProjectStorage } from '../services/storage/localStorage';
 import { FirebaseManager, CloudSyncStatus } from '../services/storage/firebase';
+import { GoogleDriveManager } from '../services/storage/googleDrive';
+import { FolderSyncManager } from '../services/storage/folderSync';
+import { GoogleDriveSyncStatus, FolderSyncStatus } from '../types';
 
 interface SchedulerContextType {
   project: ProjectState;
@@ -50,8 +53,25 @@ interface SchedulerContextType {
   infeasibilityReport: InfeasibilityReport | null;
   currentUser: CloudUser | null;
   cloudSyncStatus: CloudSyncStatus;
+  googleDriveSyncStatus: GoogleDriveSyncStatus;
+  folderSyncStatus: FolderSyncStatus;
   isDarkMode: boolean;
   toggleDarkMode: () => void;
+
+  // Folder Auto-Sync Operations (Zero Setup)
+  pickSyncFolder: () => Promise<{ success: boolean; folderName?: string; message: string }>;
+  disconnectSyncFolder: () => Promise<void>;
+  syncNowToFolder: (customFilename?: string) => Promise<{ success: boolean; message: string }>;
+  loadProjectFromFolder: (filename: string) => Promise<boolean>;
+
+  // Google Drive Cloud Operations
+  signInWithGoogleDrive: () => Promise<{ success: boolean; message: string }>;
+  signOutFromGoogleDrive: () => Promise<void>;
+  syncNowToGoogleDrive: (customFilename?: string) => Promise<{ success: boolean; message: string }>;
+  loadProjectFromGoogleDrive: (fileId: string) => Promise<boolean>;
+  setGoogleDriveClientId: (clientId: string) => void;
+
+
 
   // Setters
   setActiveTab: (tab: TabType) => void;
@@ -209,6 +229,31 @@ export const SchedulerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     return unsub;
   }, []);
 
+  // Google Drive Sync & Auth State
+  const [googleDriveSyncStatus, setGoogleDriveSyncStatus] = useState<GoogleDriveSyncStatus>(() =>
+    GoogleDriveManager.getInstance().getStatus()
+  );
+
+  useEffect(() => {
+    const unsub = GoogleDriveManager.getInstance().subscribe((s) => {
+      setGoogleDriveSyncStatus(s);
+    });
+    return unsub;
+  }, []);
+
+  // Folder Auto-Sync State (Zero Setup)
+  const [folderSyncStatus, setFolderSyncStatus] = useState<FolderSyncStatus>(() =>
+    FolderSyncManager.getInstance().getStatus()
+  );
+
+  useEffect(() => {
+    const unsub = FolderSyncManager.getInstance().subscribe((s) => {
+      setFolderSyncStatus(s);
+    });
+    return unsub;
+  }, []);
+
+
   // Dark Mode State
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
     if (typeof window !== 'undefined' && window.localStorage) {
@@ -246,6 +291,34 @@ export const SchedulerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       setLastSaved(ts);
     }
   }, [project]);
+
+  // Debounced Auto-Sync to Google Drive (2.5s) whenever project changes and user is signed in
+  useEffect(() => {
+    const drive = GoogleDriveManager.getInstance();
+    const status = drive.getStatus();
+    if (!status.isSignedIn) return;
+
+    const timer = setTimeout(() => {
+      drive.saveProjectToDrive(project);
+    }, 2500);
+
+    return () => clearTimeout(timer);
+  }, [project]);
+
+  // Debounced Auto-Sync to Connected Folder (2.5s) whenever project changes
+  useEffect(() => {
+    const folderSync = FolderSyncManager.getInstance();
+    const status = folderSync.getStatus();
+    if (!status.isConnected) return;
+
+    const timer = setTimeout(() => {
+      folderSync.saveProject(project);
+    }, 2500);
+
+    return () => clearTimeout(timer);
+  }, [project]);
+
+
 
   // Validation is computed reactively whenever faculty, dates, assignments, availability, settings, or sessions change
   const validation = useMemo(() => {
@@ -425,7 +498,57 @@ export const SchedulerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     confetti({ particleCount: 40, spread: 60, origin: { y: 0.6 } });
   }, []);
 
+  // Google Drive Action Handlers
+  const signInWithGoogleDrive = useCallback(async () => {
+    return GoogleDriveManager.getInstance().signIn();
+  }, []);
+
+  const signOutFromGoogleDrive = useCallback(async () => {
+    return GoogleDriveManager.getInstance().signOut();
+  }, []);
+
+  const syncNowToGoogleDrive = useCallback(async (customFilename?: string) => {
+    return GoogleDriveManager.getInstance().saveProjectToDrive(project, customFilename);
+  }, [project]);
+
+  const loadProjectFromGoogleDrive = useCallback(async (fileId: string) => {
+    const loaded = await GoogleDriveManager.getInstance().downloadFile(fileId);
+    if (loaded) {
+      loadProjectFromCloudSession(loaded);
+      return true;
+    }
+    return false;
+  }, [loadProjectFromCloudSession]);
+
+  const setGoogleDriveClientId = useCallback((clientId: string) => {
+    GoogleDriveManager.getInstance().setClientId(clientId);
+  }, []);
+
+  // Folder Auto-Sync Action Handlers
+  const pickSyncFolder = useCallback(async () => {
+    return FolderSyncManager.getInstance().pickFolder();
+  }, []);
+
+  const disconnectSyncFolder = useCallback(async () => {
+    return FolderSyncManager.getInstance().disconnect();
+  }, []);
+
+  const syncNowToFolder = useCallback(async (customFilename?: string) => {
+    return FolderSyncManager.getInstance().saveProject(project, customFilename);
+  }, [project]);
+
+  const loadProjectFromFolder = useCallback(async (filename: string) => {
+    const loaded = await FolderSyncManager.getInstance().loadFile(filename);
+    if (loaded) {
+      loadProjectFromCloudSession(loaded);
+      return true;
+    }
+    return false;
+  }, [loadProjectFromCloudSession]);
+
   // Generate another alternative with custom or next seed
+
+
   const generateAnotherAlternative = useCallback((customSeed?: number) => {
     const seed = customSeed ?? Math.floor(Math.random() * 100000);
     const locked = project.assignments.filter((a) => a.isLocked);
@@ -1413,8 +1536,21 @@ export const SchedulerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         infeasibilityReport,
         currentUser,
         cloudSyncStatus,
+        googleDriveSyncStatus,
+        folderSyncStatus,
         isDarkMode,
         toggleDarkMode,
+        pickSyncFolder,
+        disconnectSyncFolder,
+        syncNowToFolder,
+        loadProjectFromFolder,
+        signInWithGoogleDrive,
+        signOutFromGoogleDrive,
+        syncNowToGoogleDrive,
+        loadProjectFromGoogleDrive,
+        setGoogleDriveClientId,
+
+
         setActiveTab,
         setScheduleViewMode,
         setSelectedAssignmentForInspect,

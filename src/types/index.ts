@@ -237,6 +237,51 @@ export interface CloudSessionSummary {
   savedByEmail?: string;
 }
 
+export interface GoogleDriveFileSummary {
+  id: string;
+  name: string;
+  projectName: string;
+  examPeriodName?: string;
+  facultyCount: number;
+  assignmentsCount: number;
+  modifiedTime: string;
+  size?: string;
+  webViewLink?: string;
+}
+
+export interface GoogleDriveSyncStatus {
+  isConfigured: boolean;
+  isSignedIn: boolean;
+  isSyncing: boolean;
+  user: CloudUser | null;
+  lastSyncedTimestamp?: string | null;
+  folderId?: string | null;
+  folderWebViewLink?: string | null;
+  error?: string | null;
+  clientId?: string;
+}
+
+export interface FolderSyncStatus {
+  isConnected: boolean;
+  folderName: string | null;
+  isSyncing: boolean;
+  lastSyncedTime: string | null;
+  isSupported: boolean;
+  error: string | null;
+}
+
+export interface FolderFileSummary {
+  name: string;
+  projectName: string;
+  examPeriodName?: string;
+  facultyCount: number;
+  assignmentsCount: number;
+  modifiedTime: string;
+  size?: string;
+}
+
+
+
 export interface SchedulerSettings {
   allowJrs1Jrs3Double: boolean; // Default false
   defaultRegularMax: number;    // Default 6

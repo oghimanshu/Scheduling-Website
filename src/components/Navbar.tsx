@@ -17,6 +17,8 @@ import {
   Award,
   Cloud,
   User,
+  FolderOpen,
+  Zap,
 } from 'lucide-react';
 import { useScheduler } from '../context/SchedulerContext';
 import { useLenis } from '../context/LenisContext';
@@ -38,6 +40,8 @@ export const Navbar: React.FC = () => {
     setIsGoogleAuthModalOpen,
     currentUser,
     cloudSyncStatus,
+    googleDriveSyncStatus,
+    folderSyncStatus,
     isDarkMode,
     toggleDarkMode,
   } = useScheduler();
@@ -137,36 +141,83 @@ export const Navbar: React.FC = () => {
               </span>
             </button>
 
-            {/* Google Sign-In / Cloud Sync Button */}
+            {/* Google Drive / Folder Auto-Sync Button */}
             <button
               onClick={() => setIsGoogleAuthModalOpen(true)}
-              className={`btn-spring inline-flex items-center space-x-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-semibold cursor-pointer border ${
-                currentUser
+              className={`btn-spring inline-flex items-center space-x-2 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-semibold cursor-pointer border transition-all ${
+                folderSyncStatus.isConnected
+                  ? 'bg-emerald-50/90 dark:bg-emerald-950/50 text-emerald-800 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800/60 hover:bg-emerald-100 shadow-xs'
+                  : googleDriveSyncStatus.isSignedIn && googleDriveSyncStatus.user
+                  ? 'bg-emerald-50/90 dark:bg-emerald-950/50 text-emerald-800 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800/60 hover:bg-emerald-100 shadow-xs'
+                  : currentUser
                   ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-800 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800/60 hover:bg-emerald-100 shadow-xs'
-                  : 'bg-white/80 dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-slate-300 dark:border-white/10 hover:bg-slate-50 shadow-xs'
+                  : 'bg-white/90 dark:bg-slate-800/90 text-slate-700 dark:text-slate-200 border-slate-300 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-slate-700 shadow-xs'
               }`}
               title={
-                currentUser
-                  ? `Signed in as ${currentUser.displayName} (${currentUser.email}). Click to manage cloud sessions.`
-                  : 'Sign in with Google to save & share sessions across users (Free)'
+                folderSyncStatus.isConnected
+                  ? `Auto-Sync Active: saving to '${folderSyncStatus.folderName}'. Click to manage backups.`
+                  : googleDriveSyncStatus.isSignedIn && googleDriveSyncStatus.user
+                  ? `Google Drive: Auto-synced to '${googleDriveSyncStatus.user.displayName}' account. Click to manage cloud backups.`
+                  : currentUser
+                  ? `Signed in as ${currentUser.displayName}. Click to manage cloud sessions.`
+                  : 'Connect Google Drive or folder for 1-click zero-setup auto-sync'
               }
             >
-              {currentUser?.photoURL ? (
-                <img
-                  src={currentUser.photoURL}
-                  alt=""
-                  className="w-4 h-4 rounded-full border border-emerald-400"
-                />
+              {folderSyncStatus.isConnected ? (
+                <>
+                  <div className="w-4 h-4 rounded-full bg-emerald-600 text-white flex items-center justify-center">
+                    <FolderOpen className="w-2.5 h-2.5" />
+                  </div>
+                  <span className="hidden sm:inline font-bold truncate max-w-[100px]">
+                    {folderSyncStatus.folderName}
+                  </span>
+                  {folderSyncStatus.isSyncing ? (
+                    <span className="w-2 h-2 rounded-full bg-sky-400 animate-ping" title="Auto-saving to folder..." />
+                  ) : (
+                    <span className="w-2 h-2 rounded-full bg-emerald-500" title="Auto-sync active" />
+                  )}
+                </>
+              ) : googleDriveSyncStatus.isSignedIn && googleDriveSyncStatus.user ? (
+                <>
+                  {googleDriveSyncStatus.user.photoURL ? (
+                    <img
+                      src={googleDriveSyncStatus.user.photoURL}
+                      alt=""
+                      className="w-4 h-4 rounded-full border border-emerald-400 object-cover"
+                    />
+                  ) : (
+                    <div className="w-4 h-4 rounded-full bg-emerald-600 text-white text-[9px] font-bold flex items-center justify-center">
+                      {googleDriveSyncStatus.user.displayName ? googleDriveSyncStatus.user.displayName[0].toUpperCase() : 'G'}
+                    </div>
+                  )}
+                  <span className="hidden sm:inline font-bold">
+                    {googleDriveSyncStatus.user.displayName?.split(' ')[0]}
+                  </span>
+                  {googleDriveSyncStatus.isSyncing ? (
+                    <span className="w-2 h-2 rounded-full bg-sky-400 animate-ping" title="Syncing to Google Drive..." />
+                  ) : (
+                    <span className="w-2 h-2 rounded-full bg-emerald-500" title="Synced to Google Drive" />
+                  )}
+                </>
               ) : currentUser ? (
-                <div className="w-4 h-4 rounded-full bg-emerald-600 text-white text-[9px] font-bold flex items-center justify-center">
-                  {currentUser.displayName ? currentUser.displayName[0].toUpperCase() : 'U'}
-                </div>
+                <>
+                  {currentUser.photoURL ? (
+                    <img src={currentUser.photoURL} alt="" className="w-4 h-4 rounded-full border border-emerald-400" />
+                  ) : (
+                    <div className="w-4 h-4 rounded-full bg-emerald-600 text-white text-[9px] font-bold flex items-center justify-center">
+                      {currentUser.displayName ? currentUser.displayName[0].toUpperCase() : 'U'}
+                    </div>
+                  )}
+                  <span className="hidden sm:inline font-bold">
+                    {currentUser.displayName?.split(' ')[0]}
+                  </span>
+                </>
               ) : (
-                <Cloud className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
+                <>
+                  <Zap className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
+                  <span className="hidden md:inline font-bold">Auto-Sync</span>
+                </>
               )}
-              <span className="hidden md:inline font-bold">
-                {currentUser ? currentUser.displayName?.split(' ')[0] : 'Sign In'}
-              </span>
             </button>
 
             <button

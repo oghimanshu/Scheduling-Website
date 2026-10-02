@@ -136,8 +136,10 @@ describe('Populated UI Components Test', () => {
         <GoogleAuthModal forceOpen={true} />
       </SchedulerProvider>
     );
-    expect(authModalHtml).toContain('Google Cloud Sync &amp; Multi-User Sessions');
-    expect(authModalHtml).toContain('100% Free');
+    expect(authModalHtml).toContain('Google Drive &amp; Cloud Auto-Sync');
+    expect(authModalHtml).toContain('1-Click Drive &amp; Folder Sync');
+    expect(authModalHtml).toContain('Google Drive API');
+    expect(authModalHtml).toContain('Firebase DB');
   });
 
   it('renders DateSessionModal, SubstituteModal, and WorkloadAnalytics cleanly', () => {
