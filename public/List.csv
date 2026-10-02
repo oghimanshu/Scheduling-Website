@@ -1,62 +1,26 @@
-﻿Sr. No.,Faculty Name,HOD,Arrival,05/10,06/10,07/10,08/10,09/10,10/10,12/10,No. of Supervision
-4,Dr. Neera Kumar,Yes,Morning,,,,,,,,
-5,Mr. Himanshu Sunil Gaur,,Morning,,,,,,,,
-6,Mr. Girish Karnad,Yes,Morning,,,,,,,,
-7,Mr. Vishal Bakhale,,Morning,,,,,,,,
-8,Dr. Bhavna Koli,,Morning,,,,,,,,
-9,Dr. Bhakti Ravindra Joshi,,Morning,,,,,,,,
-10,Ms. Aditi Kumar,,Morning,,,,,,,,
-12,Ms. Jinal Ashok Khetia,,Morning,,,,,,,,
-13,Mr. Yogendra Yashwant Dalvi,,Morning,,,,,,,,
-14,Mr. Siddhesh Hadkar,,Morning,,,,,,,,
-15,Mr. Trushant Ramesh Wadkar,,Morning,,,,,,,,
-16,Dr. Babita H Kakkar,Yes,Morning,,,,,,,,
-17,Ms. Madhurima P. Chaudhury,,Morning,,,,,,,,
-18,Ms. Rachana Prasad,,Morning,,,,,,,,
-19,Ms. Bhumika More,Yes,Morning,,,,,,,,
-20,Mr. R. Perumal,,Morning,,,,,,,,
-21,Ms. Lata Lokhande,,Morning,,,,,,,,
-22,Mr. Parth S. Joshi,,Morning,,,,,,,,
-23,Mr. Chaitanya S Songirkar,Yes,Afternoon,,,,,,,,
-24,Ms. Ananya Gon,,Afternoon,,,,,,,,
-25,Ms. Nisha Telang,,Afternoon,,,,,,,,
-26,Mr. Tanish D. Hazari,,Afternoon,,,,,,,,
-27,Ms. Rashmeet Kaur,,Afternoon,,,,,,,,
-28,Dr. Karishma Kundalani,,Afternoon,,,,,,,,
-29,Mr. Dinar B. Thavi,,Afternoon,,,,,,,,
-30,Ms. Indira Ulagaraman,,Afternoon,,,,,,,,
-31,Ms. Deepti Menon,,Afternoon,,,,,,,,
-32,Mr. Mohammed Ameer Shaikh,,Afternoon,,,,,,,,
-33,Dr. Meghna Bhatia,Yes,Afternoon,,,,,,,,
-34,Dr. Nutan K. Sawant,Yes,Afternoon,,,,,,,,
-35,Ms. Arti Bansode,,Afternoon,,,,,,,,
-36,Dr. Minal Sarode,,Afternoon,,,,,,,,
-37,Ms. Shaima Mateen Thange,,Afternoon,,,,,,,,
-38,Ms. Sameera Ibrahim,,Afternoon,,,,,,,,
-39,Ms. Sweta Bhandari,,Afternoon,,,,,,,,
-40,Mrs. Nilam Deepak Padwal,,Afternoon,,,,,,,,
-41,Ms. Rashmi Prabha,,Afternoon,,,,,,,,
-42,Ms. Varsha Ashok Shinde,,Afternoon,,,,,,,,
-43,Ms. Teena Tomy Kochupurakkal,,Afternoon,,,,,,,,
-44,Ms. Sheetal Uttam Mane,,Afternoon,,,,,,,,
-45,Dr. Sheeja. K,Yes,Morning,,,,,,,,
-46,Dr. Rajeshri P Shinkar,Yes,Morning,,,,,,,,
-47,Dr. Trupti Wani,Yes,Morning,,,,,,,,
-48,Ms. Fatema Kothari,,Morning,,,,,,,,
-49,Dr. Aditya Avinash Jinturkar,,Morning,,,,,,,,
-50,Ms. Jahara Sakriwala,,Morning,,,,,,,,
-51,Dr. Pallavi Awate,,Morning,,,,,,,,
-52,Ms. Flosia Simon Moses,,Morning,,,,,,,,
-53,Ms. Shrutika Jadhav,,Morning,,,,,,,,
-54,Ms. Deepti Patil,,Morning,,,,,,,,
-55,Mr. Aswin Gangadharan,,Morning,,,,,,,,
-56,Ms. Nisha Padmanabhan,,Mid,,,,,,,,
-57,Mr. Mithun Pillai,Yes,Afternoon,,,,,,,,
-59,Ms. Ruchira Ravindra Parab,,Afternoon,,,,,,,,
-60,Mr. Sakshat Belchada,,Afternoon,,,,,,,,
-61,Dr. Ankita Ashish Malpani,,Afternoon,,,,,,,,
-62,Ms. Mohana Anandhan,,Afternoon,,,,,,,,
-63,Dr. Jyoti Jatindar Das,Yes,Mid,,,,,,,,
-64,Ms. Rupali Zele,,Mid,,,,,,,,
-65,Ms. Kamini Narendra Thakur,,Mid,,,,,,,,
-66,Ms. Tanvi Patil,,Mid
+Sr. No.,Faculty Name,HOD,Arrival
+1,Harry Potter,No,Morning
+2,Hermione Granger,Yes,Mid
+3,Ron Weasley,No,Morning
+4,Albus Dumbledore,Yes,Mid
+5,Severus Snape,Yes,Afternoon
+6,Tony Stark,Yes,Mid
+7,Steve Rogers,No,Morning
+8,Natasha Romanoff,No,Morning
+9,Bruce Banner,No,Afternoon
+10,Peter Parker,No,Morning
+11,Wanda Maximoff,No,Afternoon
+12,Stephen Strange,Yes,Mid
+13,Luke Skywalker,No,Morning
+14,Princess Leia,Yes,Morning
+15,Han Solo,No,Afternoon
+16,Gandalf the Grey,Yes,Mid
+17,Frodo Baggins,No,Morning
+18,Samwise Gamgee,No,Morning
+19,Aragorn,No,Afternoon
+20,Legolas,No,Afternoon
+21,Ellen Ripley,No,Morning
+22,Neo,No,Mid
+23,Morpheus,Yes,Afternoon
+24,Trinity,No,Morning
+25,James Bond,No,Afternoon

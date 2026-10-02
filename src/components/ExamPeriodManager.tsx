@@ -520,22 +520,51 @@ export const ExamPeriodManager: React.FC = () => {
                       {/* Dynamic Session Columns with Quota Inputs */}
                       {(project.sessions || []).map((s) => {
                         const timing = d.sessionTimings?.[s.id] || s.defaultTiming;
+                        const req = d.sessionRequirements?.[s.id] ?? 0;
+                        const isOff = req === 0;
+
                         return (
                           <td key={s.id} className="py-3 px-3 text-center">
                             <div className="flex flex-col items-center space-y-1">
-                              <input
-                                type="number"
-                                disabled={d.isExcluded}
-                                min="0"
-                                value={d.sessionRequirements?.[s.id] ?? 0}
-                                onChange={(e) =>
-                                  handleUpdateRequirement(d.date, s.id, parseInt(e.target.value, 10) || 0)
-                                }
-                                className="w-14 text-center font-bold px-1.5 py-1 bg-white/70 dark:bg-slate-900/70 border border-slate-200 dark:border-white/10 rounded text-slate-900 dark:text-white disabled:bg-slate-100/50 dark:disabled:bg-slate-950/40 disabled:text-slate-400 dark:disabled:text-slate-600"
-                              />
+                              <div className="flex items-center space-x-1">
+                                <input
+                                  type="number"
+                                  disabled={d.isExcluded}
+                                  min="0"
+                                  value={req}
+                                  onChange={(e) =>
+                                    handleUpdateRequirement(d.date, s.id, parseInt(e.target.value, 10) || 0)
+                                  }
+                                  className={`w-14 text-center font-bold px-1.5 py-1 rounded border transition ${
+                                    isOff
+                                      ? 'bg-rose-50/70 dark:bg-rose-950/40 border-rose-300 dark:border-rose-900/50 text-rose-600 dark:text-rose-400'
+                                      : 'bg-white/70 dark:bg-slate-900/70 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white'
+                                  } disabled:bg-slate-100/50 dark:disabled:bg-slate-950/40 disabled:text-slate-400 dark:disabled:text-slate-600`}
+                                />
+                                {!d.isExcluded && (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      handleUpdateRequirement(
+                                        d.date,
+                                        s.id,
+                                        isOff ? (s.defaultRequirement || 17) : 0
+                                      )
+                                    }
+                                    className={`w-5 h-5 rounded flex items-center justify-center text-[10px] font-bold transition cursor-pointer border ${
+                                      isOff
+                                        ? 'bg-rose-100 dark:bg-rose-950/80 text-rose-700 dark:text-rose-300 border-rose-300 dark:border-rose-800'
+                                        : 'bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-rose-600 border-slate-200 dark:border-white/10'
+                                    }`}
+                                    title={isOff ? `Enable ${s.name} on this date` : `Disable/remove ${s.name} on this date`}
+                                  >
+                                    {isOff ? '+' : '×'}
+                                  </button>
+                                )}
+                              </div>
                               {!d.isExcluded && (
-                                <span className="text-[10px] font-mono text-slate-400">
-                                  {timing.start}-{timing.end}
+                                <span className={`text-[10px] font-mono ${isOff ? 'text-rose-500 dark:text-rose-400 font-bold' : 'text-slate-400'}`}>
+                                  {isOff ? 'Off (0)' : `${timing.start}-${timing.end}`}
                                 </span>
                               )}
                             </div>

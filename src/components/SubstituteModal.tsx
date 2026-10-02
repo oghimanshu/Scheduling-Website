@@ -62,7 +62,16 @@ export const SubstituteModal: React.FC<SubstituteModalProps> = ({
 
   const dateConfig = useMemo(() => {
     if (!targetAssignment) return null;
-    return project.examPeriod.dates.find((d) => d.date === targetAssignment.date) || null;
+    return (
+      project.examPeriod.dates.find((d) => d.date === targetAssignment.date) || {
+        date: targetAssignment.date,
+        displayDate: targetAssignment.date,
+        dayOfWeek: '',
+        isExcluded: false,
+        sessionRequirements: {},
+        sessionTimings: {},
+      }
+    );
   }, [targetAssignment, project.examPeriod.dates]);
 
   // Evaluate all faculty members as substitute candidates

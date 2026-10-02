@@ -233,40 +233,94 @@ export const DateSessionModal: React.FC<DateSessionModalProps> = ({
                 key={session.id}
                 className="p-4 rounded-2xl bg-slate-50/80 dark:bg-slate-800/60 border border-slate-200/80 dark:border-white/10 space-y-3"
               >
-                {/* Session Header & Capacity Badge */}
+                {/* Session Header, Active Toggle & Quota Controls */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200/60 dark:border-white/5 pb-2.5">
-                  <div className="flex items-center space-x-2">
+                  <div className="flex items-center space-x-2 flex-wrap gap-y-1">
                     <span className="font-black text-sm text-slate-900 dark:text-white">
                       {session.name}
                     </span>
                     <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded-md bg-slate-200/80 dark:bg-slate-700 text-slate-700 dark:text-slate-300">
                       {session.id}
                     </span>
+
+                    {/* Enable / Remove from This Date Toggle Button */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setRequirements((prev) => {
+                          const isCurrentlyActive = (prev[session.id] ?? 0) > 0;
+                          return {
+                            ...prev,
+                            [session.id]: isCurrentlyActive ? 0 : (session.defaultRequirement || 17),
+                          };
+                        });
+                      }}
+                      className={`px-2 py-0.5 rounded-lg text-[11px] font-bold transition flex items-center space-x-1 cursor-pointer border ${
+                        (requirements[session.id] ?? 0) > 0
+                          ? 'bg-emerald-50 dark:bg-emerald-950/70 text-emerald-800 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800'
+                          : 'bg-rose-50 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300 border-rose-300 dark:border-rose-800'
+                      }`}
+                      title={
+                        (requirements[session.id] ?? 0) > 0
+                          ? `Click to remove / disable ${session.name} for ${activeDateCfg.displayDate}`
+                          : `Click to enable ${session.name} on ${activeDateCfg.displayDate}`
+                      }
+                    >
+                      <span className={`w-1.5 h-1.5 rounded-full ${(requirements[session.id] ?? 0) > 0 ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+                      <span>{(requirements[session.id] ?? 0) > 0 ? 'Active' : 'Disabled for this date'}</span>
+                    </button>
                   </div>
 
-                  {/* Real-time Feasibility & Capacity Badge */}
-                  <div className="flex items-center space-x-2">
-                    <span
-                      className={`text-[11px] font-bold px-2.5 py-1 rounded-xl border flex items-center space-x-1.5 ${
-                        capacity.isDeficit
-                          ? 'bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border-rose-300 dark:border-rose-800/60'
-                          : capacity.surplus < 5
-                          ? 'bg-amber-50 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border-amber-300 dark:border-amber-800/60'
-                          : 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800/60'
-                      }`}
-                      title={`${capacity.eligibleCount} available faculty match the arrival filter for ${capacity.required} required duties`}
-                    >
-                      <span>
-                        Capacity: {capacity.eligibleCount} eligible / {capacity.required} required
+                  {/* Quota input & Real-time Feasibility / Capacity Badge */}
+                  <div className="flex items-center space-x-2 flex-wrap gap-y-1">
+                    <div className="flex items-center space-x-1.5">
+                      <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-400">Duties Needed:</span>
+                      <input
+                        type="number"
+                        min="0"
+                        value={requirements[session.id] ?? 0}
+                        onChange={(e) => {
+                          const val = parseInt(e.target.value, 10);
+                          setRequirements((prev) => ({
+                            ...prev,
+                            [session.id]: isNaN(val) ? 0 : Math.max(0, val),
+                          }));
+                        }}
+                        className={`w-14 px-1.5 py-0.5 text-center font-mono font-bold rounded-lg border text-xs ${
+                          (requirements[session.id] ?? 0) === 0
+                            ? 'bg-rose-50 dark:bg-rose-950/40 border-rose-300 text-rose-600 dark:text-rose-400'
+                            : 'bg-white dark:bg-slate-900 border-slate-300 dark:border-white/10 text-slate-900 dark:text-white'
+                        }`}
+                      />
+                    </div>
+
+                    {(requirements[session.id] ?? 0) === 0 ? (
+                      <span className="text-[11px] font-bold px-2 py-0.5 rounded-xl border bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-white/10">
+                        No duties (0)
                       </span>
-                      {capacity.isDeficit ? (
-                        <span className="font-black text-rose-600">({capacity.surplus} Shortage!)</span>
-                      ) : (
-                        <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold">
-                          (+{capacity.surplus} buffer)
+                    ) : (
+                      <span
+                        className={`text-[11px] font-bold px-2.5 py-1 rounded-xl border flex items-center space-x-1.5 ${
+                          capacity.isDeficit
+                            ? 'bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border-rose-300 dark:border-rose-800/60'
+                            : capacity.surplus < 5
+                            ? 'bg-amber-50 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border-amber-300 dark:border-amber-800/60'
+                            : 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800/60'
+                        }`}
+                        title={`${capacity.eligibleCount} available faculty match the arrival filter for ${capacity.required} required duties`}
+                      >
+                        <span>
+                          {capacity.eligibleCount} eligible / {capacity.required} req
                         </span>
-                      )}
-                    </span>
+                        {capacity.isDeficit ? (
+                          <span className="font-black text-rose-600">({capacity.surplus} Shortage!)</span>
+                        ) : (
+                          <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold">
+                            (+{capacity.surplus})
+                          </span>
+                        )}
+                      </span>
+                    )}
                   </div>
                 </div>
 

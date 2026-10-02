@@ -49,6 +49,7 @@ interface SchedulerContextType {
   isResetConfirmModalOpen: boolean;
   isGenerationOptionsModalOpen: boolean;
   isGoogleAuthModalOpen: boolean;
+  isQuickstartModalOpen: boolean;
   isPrintViewActive: boolean;
   infeasibilityReport: InfeasibilityReport | null;
   currentUser: CloudUser | null;
@@ -89,6 +90,7 @@ interface SchedulerContextType {
   setIsResetConfirmModalOpen: (open: boolean) => void;
   setIsGenerationOptionsModalOpen: (open: boolean) => void;
   setIsGoogleAuthModalOpen: (open: boolean) => void;
+  setIsQuickstartModalOpen: (open: boolean) => void;
   isLetterheadModalOpen: boolean;
   setIsLetterheadModalOpen: (open: boolean) => void;
   isPrintScheduleModalOpen: boolean;
@@ -210,6 +212,7 @@ export const SchedulerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [isResetConfirmModalOpen, setIsResetConfirmModalOpen] = useState(false);
   const [isGenerationOptionsModalOpen, setIsGenerationOptionsModalOpen] = useState(false);
   const [isGoogleAuthModalOpen, setIsGoogleAuthModalOpen] = useState(false);
+  const [isQuickstartModalOpen, setIsQuickstartModalOpen] = useState(false);
   const [isLetterheadModalOpen, setIsLetterheadModalOpen] = useState(false);
   const [isPrintScheduleModalOpen, setIsPrintScheduleModalOpen] = useState(false);
   const [selectedForSubstitute, setSelectedForSubstitute] = useState<Assignment | null>(null);
@@ -1161,10 +1164,13 @@ export const SchedulerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         delete newReq[sessionId];
         const newTimings = { ...d.sessionTimings };
         delete newTimings[sessionId];
+        const newArrivals = { ...(d.sessionArrivals || {}) };
+        delete newArrivals[sessionId];
         return {
           ...d,
           sessionRequirements: newReq,
           sessionTimings: newTimings,
+          sessionArrivals: newArrivals,
         };
       });
       const updatedAssignments = prev.assignments.filter((a) => a.session !== sessionId);
@@ -1524,6 +1530,7 @@ export const SchedulerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         isResetConfirmModalOpen,
         isGenerationOptionsModalOpen,
         isGoogleAuthModalOpen,
+        isQuickstartModalOpen,
         isLetterheadModalOpen,
         setIsLetterheadModalOpen,
         isPrintScheduleModalOpen,
@@ -1566,6 +1573,7 @@ export const SchedulerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         setIsResetConfirmModalOpen,
         setIsGenerationOptionsModalOpen,
         setIsGoogleAuthModalOpen,
+        setIsQuickstartModalOpen,
         setIsPrintViewActive,
         setInfeasibilityReport,
         generateAlternatives,

@@ -125,7 +125,6 @@
   background: rgba(100, 116, 139, 0.7);
 }
 
-/* Keyframes for Smooth Transitions & Fluid Aesthetics */
 @keyframes tabFadeSlide {
   0% {
     opacity: 0;
@@ -138,7 +137,48 @@
 }
 
 .animate-tab-enter {
-  animation: tabFadeSlide 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: tabFadeSlide 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes float-slow {
+  0%, 100% {
+    transform: translateY(0px) scale(1);
+  }
+  50% {
+    transform: translateY(-16px) scale(1.05);
+  }
+}
+
+@keyframes float-reverse {
+  0%, 100% {
+    transform: translateY(0px) scale(1);
+  }
+  50% {
+    transform: translateY(16px) scale(0.95);
+  }
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    opacity: 0.35;
+    filter: blur(48px);
+  }
+  50% {
+    opacity: 0.7;
+    filter: blur(64px);
+  }
+}
+
+.animate-float-slow {
+  animation: float-slow 9s ease-in-out infinite;
+}
+
+.animate-float-reverse {
+  animation: float-reverse 12s ease-in-out infinite;
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 7s ease-in-out infinite;
 }
 
 @keyframes modalSpringIn {

@@ -236,15 +236,20 @@ export const SessionManagerModal: React.FC = () => {
                       )}
                     </div>
 
-                    {!isDefaultStandard && (
+                    {(project.sessions || []).length > 1 && (
                       <button
+                        type="button"
                         onClick={() => {
-                          if (confirm(`Remove custom session "${session.name}"?`)) {
+                          if (
+                            confirm(
+                              `Remove session "${session.name}" (${session.id}) from the entire examination period?\n\nThis will remove requirements and assignments for this session across all dates.`
+                            )
+                          ) {
                             removeSession(session.id);
                           }
                         }}
-                        className="p-1 text-slate-400 hover:text-rose-600 transition"
-                        title="Delete Session"
+                        className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg transition cursor-pointer"
+                        title={`Delete ${session.name}`}
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>

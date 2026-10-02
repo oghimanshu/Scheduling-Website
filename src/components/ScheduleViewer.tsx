@@ -558,7 +558,7 @@ export const ScheduleViewer: React.FC = () => {
             </button>
 
             {/* Direct Alternative Pill Buttons */}
-            <div className="flex items-center space-x-1 overflow-x-auto no-scrollbar py-0.5" data-lenis-prevent>
+            <div className="flex items-center space-x-1 overflow-x-auto no-scrollbar py-0.5">
               {project.alternatives.map((alt, idx) => {
                 const isActive =
                   alt.id === project.activeScheduleId ||
@@ -620,7 +620,7 @@ export const ScheduleViewer: React.FC = () => {
 
           {/* Quick Date Jumper for Mobile Screens */}
           {activeDates.length > 0 && (
-            <div className="sm:hidden flex items-center space-x-1.5 overflow-x-auto no-scrollbar py-2 px-3 border-b border-slate-100 dark:border-white/5 bg-slate-50/50 dark:bg-slate-900/50 no-print" data-lenis-prevent>
+            <div className="sm:hidden flex items-center space-x-1.5 overflow-x-auto no-scrollbar py-2 px-3 border-b border-slate-100 dark:border-white/5 bg-slate-50/50 dark:bg-slate-900/50 no-print">
               <span className="text-[10px] font-bold text-slate-400 shrink-0 uppercase tracking-wider">Date Jump:</span>
               {activeDates.map((d) => (
                 <button
@@ -638,7 +638,7 @@ export const ScheduleViewer: React.FC = () => {
             </div>
           )}
 
-          <div ref={scheduleTableRef} className="table-fade-indicator overflow-x-auto touch-scroll" data-lenis-prevent>
+          <div ref={scheduleTableRef} className="table-fade-indicator overflow-x-auto touch-scroll">
 
             <table className="w-full text-left text-xs border-collapse">
               <thead className="bg-slate-50/70 dark:bg-slate-800/70 text-slate-700 dark:text-slate-300 font-semibold uppercase tracking-wider border-b border-slate-200/60 dark:border-white/5 text-[11px] sticky top-0 z-20 backdrop-blur-md">

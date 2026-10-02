@@ -28,15 +28,15 @@ describe('Examination Supervision Scheduler Engine', () => {
   it('should parse faculty CSV with mandatory columns and preserve original Sr. Nos.', () => {
     const csvContent =
       `Sr. No.,Faculty Name,HOD,Arrival\n` +
-      `4,Dr. Neera Kumar,Yes,Morning\n` +
+      `4,Dr. Synthetic One,Yes,Morning\n` +
       `5,Mr. Test Faculty,No,Morning\n` +
-      `23,Mr. Chaitanya S Songirkar,Yes,Afternoon\n` +
-      `56,Ms. Nisha Padmanabhan,No,Mid\n`;
+      `23,Mr. Synthetic Two,Yes,Afternoon\n` +
+      `56,Ms. Synthetic Three,No,Mid\n`;
     const result = parseFacultyCSV(csvContent);
     expect(result.success).toBe(true);
     expect(result.faculty.length).toBe(4);
     expect(result.faculty[0].srNo).toBe(4);
-    expect(result.faculty[0].name).toBe('Dr. Neera Kumar');
+    expect(result.faculty[0].name).toBe('Dr. Synthetic One');
     expect(result.faculty[0].isHod).toBe(true);
     expect(result.faculty[0].arrival).toBe('Morning');
     expect(result.faculty[1].srNo).toBe(5);
@@ -62,7 +62,7 @@ describe('Examination Supervision Scheduler Engine', () => {
   it('should correctly import optional No. of Supervision column when selected', () => {
     const csvWithSupervision =
       `Sr. No.,Faculty Name,HOD,Arrival,No. of Supervision\n` +
-      `4,Dr. Neera Kumar,Yes,Morning,2\n`;
+      `4,Dr. Synthetic One,Yes,Morning,2\n`;
     const result = parseFacultyCSV(csvWithSupervision, { mode: 'from_csv' });
     expect(result.success).toBe(true);
     expect(result.hasOptionalSupervisions).toBe(true);
@@ -260,7 +260,7 @@ describe('Examination Supervision Scheduler Engine', () => {
   });
 
   it('should strictly exclude unavailable faculty on that date', () => {
-    // Mark Dr. Neera Kumar (Sr. 4) unavailable on 06/10/2026
+    // Mark faculty (Sr. 4) unavailable on 06/10/2026
     const availability: Record<string, boolean> = {
       '4_2026-10-06': false,
     };
@@ -279,9 +279,15 @@ describe('Examination Supervision Scheduler Engine', () => {
     );
     expect(assignedOnUnavailable).toBe(false);
   });
-
   it('should preserve full project state across JSON serialization and deserialization', () => {
-    const testState = { ...INITIAL_PROJECT_STATE, faculty: DEFAULT_FACULTY_LIST };
+    const testState = {
+      ...INITIAL_PROJECT_STATE,
+      faculty: DEFAULT_FACULTY_LIST,
+      examPeriod: {
+        ...INITIAL_PROJECT_STATE.examPeriod,
+        dates: DEFAULT_DATES_CONFIG,
+      },
+    };
     const jsonStr = JSON.stringify(testState);
     const parsed = importProjectFromJson(jsonStr);
 

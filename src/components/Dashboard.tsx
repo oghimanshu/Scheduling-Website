@@ -31,6 +31,7 @@ export const Dashboard: React.FC = () => {
     setIsWhyValidModalOpen,
     setIsExportModalOpen,
     setIsRoleSegregationModalOpen,
+    setIsQuickstartModalOpen,
     updateHodAssignmentPriority,
     isGenerating,
   } = useScheduler();
@@ -70,40 +71,56 @@ export const Dashboard: React.FC = () => {
   const animHardConflicts = useAnimatedNumber(validation.hardConflictsCount);
 
   return (
-    <div className="space-y-6">
-      {/* Session Onboarding Prompt if No Faculty Loaded */}
+    <div className="relative space-y-6">
+      {/* Ambient Dynamic Background Glowing Orbs & Fluid Particle Motion */}
+      <div className="absolute inset-0 -z-10 pointer-events-none overflow-hidden select-none">
+        <div className="absolute top-10 left-1/4 w-80 sm:w-96 h-80 sm:h-96 rounded-full bg-gradient-to-tr from-sky-400/20 via-sky-500/10 to-transparent animate-float-slow animate-pulse-glow" />
+        <div className="absolute top-44 right-10 w-72 sm:w-[420px] h-72 sm:h-[420px] rounded-full bg-gradient-to-br from-indigo-500/20 via-purple-500/10 to-transparent animate-float-reverse animate-pulse-glow" style={{ animationDelay: '-3.5s' }} />
+        <div className="absolute bottom-24 left-1/3 w-64 sm:w-80 h-64 sm:h-80 rounded-full bg-gradient-to-r from-teal-400/15 via-emerald-400/10 to-transparent animate-float-slow" style={{ animationDelay: '-6s' }} />
+        <div className="absolute inset-0 opacity-[0.035] dark:opacity-[0.06] bg-[radial-gradient(#38bdf8_1px,transparent_1px)] [background-size:24px_24px]" />
+      </div>
+
+      {/* Session Onboarding Prompt / Let's Begin Hero Card */}
       {project.faculty.length === 0 && (
-        <div className="bg-gradient-to-r from-emerald-50/80 via-sky-50/60 to-indigo-50/80 dark:from-emerald-950/30 dark:via-sky-950/20 dark:to-indigo-950/30 border-2 border-dashed border-emerald-300/80 dark:border-emerald-700/40 rounded-3xl p-6 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4 backdrop-blur-xs">
+        <div className="apple-glass-card border-2 border-dashed border-sky-400/70 dark:border-sky-500/40 rounded-3xl p-6 sm:p-7 shadow-lg flex flex-col md:flex-row items-center justify-between gap-5 relative overflow-hidden group">
+          <div className="apple-specular-rim" />
           <div className="flex items-center space-x-4">
-            <div className="w-12 h-12 rounded-2xl bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 flex items-center justify-center shrink-0">
-              <Upload className="w-6 h-6" />
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-sky-500 via-indigo-600 to-purple-600 text-white flex items-center justify-center shrink-0 shadow-md group-hover:scale-105 transition-transform">
+              <Sparkles className="w-7 h-7" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                Welcome! Please Upload Faculty CSV for This Browser Session
-              </h3>
-              <p className="text-xs text-slate-600 dark:text-slate-300 mt-0.5">
-                Every browser session begins clean. Upload your faculty roster CSV or download our example template format to start scheduling.
+              <div className="flex items-center space-x-2">
+                <h3 className="text-base sm:text-lg font-black text-slate-900 dark:text-white">
+                  Welcome to Exam Scheduler! Let's Begin.
+                </h3>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800">
+                  Zero Knowledge Needed
+                </span>
+              </div>
+              <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 mt-1 max-w-xl leading-relaxed">
+                Start from a clean slate: click <strong>Let's Begin</strong> to launch the 3-step interactive setup wizard to import faculty, configure exam dates, and generate optimal supervision duties in seconds.
               </p>
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+          <div className="flex flex-wrap items-center gap-3 shrink-0">
             <button
-              onClick={() => downloadFacultyTemplateCSV(false)}
-              className="inline-flex items-center space-x-1.5 px-3.5 py-2 text-xs font-bold text-emerald-800 dark:text-emerald-300 bg-white/90 dark:bg-slate-800/90 hover:bg-emerald-100 dark:hover:bg-slate-700 border border-emerald-300 dark:border-emerald-800/50 rounded-xl shadow-2xs transition cursor-pointer"
-              title="Download standard CSV format with mandatory headers: Sr. No., Faculty Name, HOD, Arrival"
+              type="button"
+              onClick={() => setIsQuickstartModalOpen(true)}
+              className="btn-spring inline-flex items-center space-x-2 px-5 py-3 rounded-2xl font-black text-xs sm:text-sm text-white bg-gradient-to-r from-sky-600 via-indigo-600 to-purple-600 hover:from-sky-500 hover:to-purple-500 shadow-lg hover:shadow-xl transition cursor-pointer active:scale-98"
             >
-              <Download className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-              <span>DOWNLOAD EXAMPLE FORMAT</span>
+              <Sparkles className="w-4 h-4 text-amber-300" />
+              <span>🚀 LET'S BEGIN (GUIDED SETUP)</span>
             </button>
 
             <button
-              onClick={() => setActiveTab('faculty')}
-              className="inline-flex items-center space-x-1.5 px-4 py-2 text-xs font-bold text-white bg-sky-600 hover:bg-sky-700 rounded-xl shadow-sm transition cursor-pointer"
+              type="button"
+              onClick={() => downloadFacultyTemplateCSV(false)}
+              className="inline-flex items-center space-x-1.5 px-3.5 py-3 text-xs font-bold text-slate-700 dark:text-slate-300 bg-white/90 dark:bg-slate-800/90 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-300 dark:border-white/10 rounded-2xl shadow-xs transition cursor-pointer"
+              title="Download standard CSV format with mandatory headers: Sr. No., Faculty Name, HOD, Arrival"
             >
-              <Upload className="w-4 h-4" />
-              <span>UPLOAD FACULTY CSV</span>
+              <Download className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+              <span>Download CSV Template</span>
             </button>
           </div>
         </div>
@@ -115,9 +132,9 @@ export const Dashboard: React.FC = () => {
         <div className="absolute top-0 right-0 -mr-16 -mt-16 w-64 h-64 rounded-full bg-sky-500/10 blur-3xl pointer-events-none" />
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 relative z-10">
           <div>
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center space-x-2 flex-wrap gap-y-1">
               <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-sky-500/20 text-sky-200 border border-sky-400/30 backdrop-blur-xs">
-                Active Period: {project.examPeriod.name}
+                {activeDates.length === 0 ? 'Period: Clean Slate' : `Active Period: ${project.examPeriod.name}`}
               </span>
               <span className="text-xs text-sky-300">
                 ({activeDates.length} Active Dates, {project.examPeriod.dates.length - activeDates.length} Excluded)
@@ -161,7 +178,7 @@ export const Dashboard: React.FC = () => {
 
             <button
               onClick={generateAlternatives}
-              disabled={isGenerating || project.faculty.length === 0}
+              disabled={isGenerating || project.faculty.length === 0 || activeDates.length === 0}
               className="btn-spring inline-flex items-center space-x-2 px-4 py-2.5 rounded-xl font-bold text-sm bg-white text-sky-950 hover:bg-sky-50 shadow-md transition disabled:opacity-50 cursor-pointer"
             >
               <Sparkles className={`w-4 h-4 text-sky-600 ${isGenerating ? 'animate-spin' : ''}`} />
@@ -202,18 +219,26 @@ export const Dashboard: React.FC = () => {
                 </>
               ) : (
                 <span className="text-amber-200 font-semibold">
-                  No faculty loaded in this session (0 Capacity)
+                  0 Faculty Loaded (0 Capacity)
                 </span>
               )}
             </span>
             <span>⟷</span>
             <span>
-              <span className="tabular-nums font-mono">{activeDates.length}</span> Dates × 57 Sessions ={' '}
-              <strong className="text-white tabular-nums font-mono">{validation.totalRequiredPositions} Required Positions</strong>
+              {activeDates.length > 0 ? (
+                <>
+                  <span className="tabular-nums font-mono">{activeDates.length}</span> Active Dates ={' '}
+                  <strong className="text-white tabular-nums font-mono">{validation.totalRequiredPositions} Required Positions</strong>
+                </>
+              ) : (
+                <span className="text-sky-300 font-semibold">0 Required Positions (0 Active Dates)</span>
+              )}
             </span>
           </div>
           <div className="mt-1 md:mt-0 font-medium">
-            {project.faculty.length === 0 ? (
+            {project.faculty.length === 0 && activeDates.length === 0 ? (
+              <span className="text-sky-200 font-medium">Fresh Session: Click Let's Begin to start</span>
+            ) : project.faculty.length === 0 ? (
               <span className="text-amber-200 font-medium">Upload CSV to calculate balance</span>
             ) : totalCapacity === validation.totalRequiredPositions ? (
               <span className="text-emerald-300 flex items-center space-x-1 font-semibold">
@@ -257,7 +282,11 @@ export const Dashboard: React.FC = () => {
           </div>
           <div className="text-2xl font-black text-slate-900 dark:text-white tracking-tight tabular-nums font-mono">{animActiveDates}</div>
           <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
-            <span className="tabular-nums font-mono font-semibold">{project.examPeriod.dates.length - activeDates.length}</span> Excluded (Holidays)
+            {project.examPeriod.dates.length === 0 ? (
+              <span className="text-slate-400">0 dates configured</span>
+            ) : (
+              <span><span className="tabular-nums font-mono font-semibold">{project.examPeriod.dates.length - activeDates.length}</span> Excluded (Holidays)</span>
+            )}
           </div>
         </div>
 
@@ -271,8 +300,8 @@ export const Dashboard: React.FC = () => {
             </div>
           </div>
           <div className="text-2xl font-black text-slate-900 dark:text-white tracking-tight tabular-nums font-mono">{animRequiredPositions}</div>
-          <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 font-medium">
-            57 / day across 3 JRS
+          <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 font-medium truncate">
+            {activeDates.length === 0 ? 'Awaiting date setup' : `${validation.totalRequiredPositions} duties total`}
           </div>
         </div>
 
@@ -295,7 +324,9 @@ export const Dashboard: React.FC = () => {
             {animFilledPositions}
           </div>
           <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
-            {validation.unfilledPositions > 0 ? (
+            {validation.totalRequiredPositions === 0 ? (
+              <span className="text-slate-500 dark:text-slate-400">0 assigned</span>
+            ) : validation.unfilledPositions > 0 ? (
               <span className="text-rose-600 dark:text-rose-400 font-bold"><span className="tabular-nums font-mono">{validation.unfilledPositions}</span> unfilled</span>
             ) : (
               <span className="text-emerald-600 dark:text-emerald-400 font-semibold">100% Staffed</span>
@@ -320,7 +351,11 @@ export const Dashboard: React.FC = () => {
             {animHardConflicts}
           </div>
           <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 font-medium">
-            {validation.hardConflictsCount === 0 ? 'Strict Rules Met' : 'Violation(s) detected'}
+            {project.faculty.length === 0 && validation.totalRequiredPositions === 0
+              ? 'Engine Ready'
+              : validation.hardConflictsCount === 0
+              ? 'Strict Rules Met'
+              : 'Violation(s) detected'}
           </div>
         </div>
 
@@ -376,6 +411,32 @@ export const Dashboard: React.FC = () => {
           </div>
         </div>
 
+        {/* Clean State Beginner Helper Banner if not yet configured */}
+        {project.faculty.length === 0 && validation.totalRequiredPositions === 0 && (
+          <div className="mt-5 p-4 rounded-2xl bg-sky-50/80 dark:bg-sky-950/40 border border-sky-200/80 dark:border-sky-800/40 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div className="flex items-center space-x-3">
+              <div className="w-9 h-9 rounded-xl bg-sky-500/20 text-sky-600 dark:text-sky-300 flex items-center justify-center shrink-0">
+                <CheckCircle2 className="w-5 h-5" />
+              </div>
+              <div>
+                <h4 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">
+                  Mathematical Auditor Standing By (0 Rule Violations)
+                </h4>
+                <p className="text-[11px] sm:text-xs text-slate-600 dark:text-slate-300 mt-0.5">
+                  The mathematical verification system is idle. Once you import faculty and exam dates, the auditor checks single-duty limits, arrival compatibility, and workload parity in real time.
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsQuickstartModalOpen(true)}
+              className="btn-spring px-4 py-2 rounded-xl text-xs font-bold text-white bg-sky-600 hover:bg-sky-500 shadow-xs shrink-0 cursor-pointer"
+            >
+              Start Setup Wizard
+            </button>
+          </div>
+        )}
+
         {/* Dynamic Verification Matrix */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-5">
           <div className="p-4 rounded-2xl bg-slate-100/70 dark:bg-slate-800/60 border border-slate-200/70 dark:border-slate-700/60 backdrop-blur-xs">
@@ -384,7 +445,9 @@ export const Dashboard: React.FC = () => {
               {validation.totalFilledPositions} / {validation.totalRequiredPositions}
             </div>
             <div className="text-xs text-slate-500 dark:text-slate-400 mt-1 flex items-center space-x-1">
-              {validation.unfilledPositions === 0 ? (
+              {validation.totalRequiredPositions === 0 ? (
+                <span className="text-slate-500 dark:text-slate-400">0 duties required (baseline)</span>
+              ) : validation.unfilledPositions === 0 ? (
                 <span className="text-emerald-600 dark:text-emerald-400 font-semibold">✓ 100% Positions Staffed</span>
               ) : (
                 <span className="text-rose-600 dark:text-rose-400 font-semibold">⚠ {validation.unfilledPositions} unallocated</span>
@@ -395,11 +458,13 @@ export const Dashboard: React.FC = () => {
           <div className="p-4 rounded-2xl bg-slate-100/70 dark:bg-slate-800/60 border border-slate-200/70 dark:border-slate-700/60 backdrop-blur-xs">
             <div className="text-xs font-semibold text-slate-600 dark:text-slate-400">Regular Faculty Target (6/6)</div>
             <div className="text-xl font-black text-slate-900 dark:text-white mt-1">
-              {validation.regularAtTargetCount} / {validation.regularCount}
+              {validation.regularCount === 0 ? '0 / 0' : `${validation.regularAtTargetCount} / ${validation.regularCount}`}
             </div>
             <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-              {validation.regularAtTargetCount === validation.regularCount ? (
-                <span className="text-emerald-600 dark:text-emerald-400 font-semibold">✓ All 49 faculty at exactly 6</span>
+              {validation.regularCount === 0 ? (
+                <span className="text-slate-500 dark:text-slate-400">No regular faculty loaded</span>
+              ) : validation.regularAtTargetCount === validation.regularCount ? (
+                <span className="text-emerald-600 dark:text-emerald-400 font-semibold">✓ All {validation.regularCount} faculty at target</span>
               ) : (
                 <span className="text-amber-600 dark:text-amber-400 font-semibold">
                   {validation.regularCount - validation.regularAtTargetCount} deviating from target
@@ -411,11 +476,13 @@ export const Dashboard: React.FC = () => {
           <div className="p-4 rounded-2xl bg-slate-100/70 dark:bg-slate-800/60 border border-slate-200/70 dark:border-slate-700/60 backdrop-blur-xs">
             <div className="text-xs font-semibold text-slate-600 dark:text-slate-400">HOD Target (4/4)</div>
             <div className="text-xl font-black text-slate-900 dark:text-white mt-1">
-              {validation.hodAtTargetCount} / {validation.hodCount}
+              {validation.hodCount === 0 ? '0 / 0' : `${validation.hodAtTargetCount} / ${validation.hodCount}`}
             </div>
             <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-              {validation.hodAtTargetCount === validation.hodCount ? (
-                <span className="text-emerald-600 dark:text-emerald-400 font-semibold">✓ All 12 HODs at exactly 4</span>
+              {validation.hodCount === 0 ? (
+                <span className="text-slate-500 dark:text-slate-400">No HODs loaded</span>
+              ) : validation.hodAtTargetCount === validation.hodCount ? (
+                <span className="text-emerald-600 dark:text-emerald-400 font-semibold">✓ All {validation.hodCount} HODs at target</span>
               ) : (
                 <span className="text-amber-600 dark:text-amber-400 font-semibold">
                   {validation.hodCount - validation.hodAtTargetCount} deviating from target

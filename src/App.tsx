@@ -30,6 +30,7 @@ import { LiquidClickRipple } from './components/LiquidClickRipple';
 import { SolverTelemetryModal } from './components/SolverTelemetryModal';
 import { LetterheadCustomizerModal } from './components/LetterheadCustomizerModal';
 import { PrintScheduleModal } from './components/PrintScheduleModal';
+import { QuickstartWizardModal } from './components/QuickstartWizardModal';
 
 const AppContent: React.FC = () => {
   const {
@@ -123,6 +124,7 @@ const AppContent: React.FC = () => {
       <PrintScheduleModal />
       <GenerationOptionsModal />
       <GoogleAuthModal />
+      <QuickstartWizardModal />
       <SubstituteModal
         assignment={selectedForSubstitute}
         isOpen={isSubstituteModalOpen}

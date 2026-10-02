@@ -17,19 +17,10 @@ export function useScrollIsolation(ref: RefObject<HTMLElement | null>) {
     const el = ref.current;
     if (!el) return;
 
-    const enter = () => {
-      el.setAttribute('data-lenis-prevent', '');
-    };
-    const leave = () => {
-      el.removeAttribute('data-lenis-prevent');
-    };
-
-    el.addEventListener('mouseenter', enter);
-    el.addEventListener('mouseleave', leave);
+    el.setAttribute('data-scroll-isolated', 'true');
 
     return () => {
-      el.removeEventListener('mouseenter', enter);
-      el.removeEventListener('mouseleave', leave);
+      el.removeAttribute('data-scroll-isolated');
     };
   }, [ref]);
 }

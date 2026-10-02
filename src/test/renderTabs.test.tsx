@@ -12,6 +12,7 @@ import { DutySlipsModal } from '../components/DutySlipsModal';
 import { RoleManagerView } from '../components/RoleManagerView';
 import { GenerationOptionsModal } from '../components/GenerationOptionsModal';
 import { GoogleAuthModal } from '../components/GoogleAuthModal';
+import { QuickstartWizardModal } from '../components/QuickstartWizardModal';
 import { DateSessionModal } from '../components/DateSessionModal';
 import { SubstituteModal } from '../components/SubstituteModal';
 import { WorkloadAnalytics } from '../components/WorkloadAnalytics';
@@ -23,7 +24,7 @@ import { ExportModal } from '../components/ExportModal';
 import { setPrintOrientation, clearPrintOrientation } from '../utils/printHelper';
 import { generateSampleFacultyCSV } from '../services/csvParser';
 import { MOCK_FACULTY_LIST as DEFAULT_FACULTY_LIST } from './fixtures/mockFaculty';
-import { INITIAL_PROJECT_STATE } from '../data/defaultData';
+import { INITIAL_PROJECT_STATE, DEFAULT_DATES_CONFIG } from '../data/defaultData';
 
 function PopulatedScheduleTester({ mode }: { mode: 'faculty' | 'session' | 'workload' }) {
   const { setScheduleViewMode, updateFacultyList } = useScheduler();
@@ -140,13 +141,22 @@ describe('Populated UI Components Test', () => {
     expect(authModalHtml).toContain('1-Click Drive &amp; Folder Sync');
     expect(authModalHtml).toContain('Google Drive API');
     expect(authModalHtml).toContain('Firebase DB');
+
+    const quickstartHtml = renderToString(
+      <SchedulerProvider>
+        <QuickstartWizardModal forceOpen={true} />
+      </SchedulerProvider>
+    );
+    expect(quickstartHtml).toContain("Let&#x27;s Begin — Intuitive Quickstart");
+    expect(quickstartHtml).toContain('Faculty List');
+    expect(quickstartHtml).toContain('Dates &amp; Sessions');
   });
 
   it('renders DateSessionModal, SubstituteModal, and WorkloadAnalytics cleanly', () => {
     const dateModalHtml = renderToString(
       <SchedulerProvider>
         <DateSessionModal
-          dateConfig={null}
+          dateConfig={DEFAULT_DATES_CONFIG[1]}
           isOpen={true}
           onClose={() => {}}
           forceOpen={true}

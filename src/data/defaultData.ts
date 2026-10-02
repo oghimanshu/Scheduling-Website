@@ -149,9 +149,9 @@ export const INITIAL_PROJECT_STATE: ProjectState = {
   sessions: DEFAULT_SESSIONS,
   examPeriod: {
     name: 'End Semester Examinations 2026',
-    startDate: '2026-10-05',
-    endDate: '2026-10-12',
-    dates: DEFAULT_DATES_CONFIG,
+    startDate: '',
+    endDate: '',
+    dates: [],
   },
   availability: {}, // Default is available
   activeScheduleId: null,
