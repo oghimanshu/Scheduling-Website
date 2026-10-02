@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
   CheckCircle2,
   X,
@@ -18,7 +19,17 @@ export const WhyValidModal: React.FC = () => {
     project,
   } = useScheduler();
 
+  useEffect(() => {
+    if (!isWhyValidModalOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setIsWhyValidModalOpen(false);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isWhyValidModalOpen, setIsWhyValidModalOpen]);
+
   if (!isWhyValidModalOpen) return null;
+
 
   const activeDates = project.examPeriod.dates.filter((d) => !d.isExcluded);
 
@@ -86,9 +97,16 @@ export const WhyValidModal: React.FC = () => {
     },
   ];
 
-  return (
-    <div className="fixed inset-0 z-50 bg-slate-900/60 dark:bg-black/80 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-y-auto" data-lenis-prevent>
-      <div className="apple-glass-card bg-white/95 dark:bg-slate-900/95 rounded-t-3xl sm:rounded-2xl max-w-2xl w-full p-4 sm:p-6 shadow-2xl border border-slate-200/80 dark:border-white/10 space-y-5 animate-sheet-up sm:animate-modal-spring sm:my-auto max-h-[92dvh] flex flex-col">
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[9999] bg-slate-900/60 dark:bg-black/80 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-y-auto"
+      data-lenis-prevent
+      onClick={() => setIsWhyValidModalOpen(false)}
+    >
+      <div
+        className="apple-glass-card bg-white/95 dark:bg-slate-900/95 rounded-t-3xl sm:rounded-2xl max-w-2xl w-full p-4 sm:p-6 shadow-2xl border border-slate-200/80 dark:border-white/10 space-y-5 animate-sheet-up sm:animate-modal-spring sm:my-auto max-h-[92dvh] flex flex-col"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Mobile Pull Handle */}
         <div className="w-10 h-1.5 bg-slate-300 dark:bg-slate-700 rounded-full mx-auto -mt-1 sm:hidden shrink-0" />
         <div className="flex justify-between items-start border-b border-slate-100 dark:border-white/10 pb-4">
@@ -151,6 +169,7 @@ export const WhyValidModal: React.FC = () => {
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

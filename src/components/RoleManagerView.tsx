@@ -1,4 +1,7 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
+
+
 import {
   Users,
   Award,
@@ -18,9 +21,14 @@ import {
 } from 'lucide-react';
 import { useScheduler } from '../context/SchedulerContext';
 import { CustomRoleDefinition, DEFAULT_CUSTOM_ROLES } from '../types';
+import { useScrollIsolation } from '../hooks/useScrollIsolation';
 
 export const RoleManagerView: React.FC = () => {
   const { project, bulkSegregateRoles, updateCustomRoles, updateFacultyList } = useScheduler();
+
+  // Scroll isolation for the faculty table (pointer-aware Lenis bypass)
+  const tableScrollRef = useRef<HTMLDivElement>(null);
+  useScrollIsolation(tableScrollRef);
 
   const [activeSubTab, setActiveSubTab] = useState<'assign' | 'manage_roles'>('assign');
   const [searchTerm, setSearchTerm] = useState('');
@@ -39,6 +47,16 @@ export const RoleManagerView: React.FC = () => {
   const [editRolePriority, setEditRolePriority] = useState<'concession_last' | 'standard' | 'priority_first'>('standard');
   const [editRoleColor, setEditRoleColor] = useState('sky');
   const [editSyncToFaculty, setEditSyncToFaculty] = useState(true);
+
+  // Escape key listener to close edit modal
+  useEffect(() => {
+    if (!isEditModalOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setIsEditModalOpen(false);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isEditModalOpen]);
 
   // Custom roles management state
   const rolesList: CustomRoleDefinition[] = useMemo(() => {
@@ -365,7 +383,8 @@ export const RoleManagerView: React.FC = () => {
 
           {/* Faculty Table */}
           <div className="apple-glass-card rounded-2xl overflow-hidden border border-slate-200/80 dark:border-white/10 shadow-sm">
-            <div className="overflow-x-auto max-h-[60vh]">
+            <div ref={tableScrollRef} className="overflow-x-auto overflow-y-auto max-h-[60vh]">
+
               <table className="w-full text-left text-xs text-slate-700 dark:text-slate-200">
                 <thead className="bg-slate-100/90 dark:bg-slate-800/90 sticky top-0 z-10 text-[11px] font-bold text-slate-600 dark:text-slate-300 border-b border-slate-200 dark:border-white/10 uppercase tracking-wider">
                   <tr>
@@ -675,9 +694,10 @@ export const RoleManagerView: React.FC = () => {
       )}
 
       {/* Edit Role Tier & Rules Modal */}
-      {isEditModalOpen && editingRole && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 dark:bg-black/80 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-y-auto" data-lenis-prevent>
-          <div className="apple-glass-card bg-white dark:bg-slate-900 rounded-t-3xl sm:rounded-2xl max-w-lg w-full p-4 sm:p-6 shadow-2xl border border-sky-300/80 dark:border-sky-900/50 space-y-5 animate-sheet-up sm:animate-modal-spring my-0 sm:my-auto">
+      {isEditModalOpen && editingRole && createPortal(
+        <div className="fixed inset-0 z-[9999] bg-slate-900/60 dark:bg-black/80 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-y-auto" data-lenis-prevent onClick={() => setIsEditModalOpen(false)}>
+          <div className="apple-glass-card bg-white dark:bg-slate-900 rounded-t-3xl sm:rounded-2xl max-w-lg w-full p-4 sm:p-6 shadow-2xl border border-sky-300/80 dark:border-sky-900/50 space-y-5 animate-sheet-up sm:animate-modal-spring my-0 sm:my-auto" onClick={(e) => e.stopPropagation()}>
+
             <div className="sm:hidden w-12 h-1.5 bg-slate-300 dark:bg-slate-600 rounded-full mx-auto mb-1 shrink-0" />
             <div className="flex items-start justify-between border-b border-slate-100 dark:border-white/10 pb-4">
               <div className="flex items-center space-x-3">
@@ -825,7 +845,7 @@ export const RoleManagerView: React.FC = () => {
             </div>
           </div>
         </div>
-      )}
+      , document.body)}
     </div>
   );
 };

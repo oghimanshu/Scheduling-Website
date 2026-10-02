@@ -29,6 +29,7 @@ export const LenisProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       smoothWheel: true,
       syncTouch: true,
       touchMultiplier: 1.15,
+      allowNestedScroll: true,
     });
 
     setLenisInstance(lenis);

@@ -1,4 +1,7 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
+import { useScrollIsolation } from '../hooks/useScrollIsolation';
+
 import {
   Upload,
   Download,
@@ -93,7 +96,35 @@ export const FacultyManager: React.FC = () => {
     return { totalDays, examDays, sundaysCount, error: null };
   }, [importStartDate, importEndDate, importExcludeSundays]);
 
+  // Scroll isolation refs (pointer-aware Lenis bypass)
+  const tableScrollRef = useRef<HTMLDivElement>(null);
+  const importModalScrollRef = useRef<HTMLDivElement>(null);
+  const editModalScrollRef = useRef<HTMLFormElement>(null);
+  const dateExclusionListRef = useRef<HTMLDivElement>(null);
+
+  useScrollIsolation(tableScrollRef);
+  useScrollIsolation(importModalScrollRef);
+  useScrollIsolation(editModalScrollRef);
+  useScrollIsolation(dateExclusionListRef);
+
+  // Escape key dismissal for all inline modals
+
+  useEffect(() => {
+    const anyOpen = !!editingFaculty || !!dateExclusionFaculty || isImportModalOpen;
+    if (!anyOpen) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setEditingFaculty(null);
+        setDateExclusionFaculty(null);
+        setIsImportModalOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [editingFaculty, dateExclusionFaculty, isImportModalOpen]);
+
   // Calculate dynamic stats
+
   const facultyStats = useMemo(() => {
     let regularCount = 0;
     let hodCount = 0;
@@ -570,7 +601,8 @@ export const FacultyManager: React.FC = () => {
 
       {/* Faculty Table */}
       <div className="apple-glass-card rounded-2xl border border-white/60 dark:border-white/10 shadow-glass dark:shadow-glass-dark relative overflow-hidden">
-        <div className="table-fade-indicator overflow-x-auto touch-scroll" data-lenis-prevent>
+        <div ref={tableScrollRef} className="table-fade-indicator overflow-x-auto overflow-y-auto touch-scroll max-h-[70vh]">
+
           <table className="w-full text-left text-xs">
             <thead className="bg-slate-100/90 dark:bg-slate-900/90 text-slate-600 dark:text-slate-300 font-bold uppercase tracking-wider border-b border-slate-200/60 dark:border-white/10 text-[11px] sticky top-0 z-20 backdrop-blur-md">
               <tr>
@@ -816,9 +848,10 @@ export const FacultyManager: React.FC = () => {
       </div>
 
       {/* Date-Specific Faculty Exclusion Modal */}
-      {dateExclusionFaculty && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 dark:bg-black/80 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-y-auto" data-lenis-prevent>
-          <div className="apple-glass-card bg-white/95 dark:bg-slate-900/95 rounded-t-3xl sm:rounded-2xl max-w-xl w-full p-4 sm:p-6 shadow-2xl border border-slate-200/80 dark:border-white/10 space-y-5 animate-sheet-up sm:animate-modal-spring relative overflow-hidden flex flex-col my-0 sm:my-auto max-h-[90dvh]">
+      {dateExclusionFaculty && createPortal(
+        <div className="fixed inset-0 z-[9999] bg-slate-900/60 dark:bg-black/80 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-y-auto" data-lenis-prevent onClick={() => setDateExclusionFaculty(null)}>
+          <div className="apple-glass-card bg-white/95 dark:bg-slate-900/95 rounded-t-3xl sm:rounded-2xl max-w-xl w-full p-4 sm:p-6 shadow-2xl border border-slate-200/80 dark:border-white/10 space-y-5 animate-sheet-up sm:animate-modal-spring relative overflow-hidden flex flex-col my-0 sm:my-auto max-h-[90dvh]" onClick={(e) => e.stopPropagation()}>
+
             <div className="sm:hidden w-12 h-1.5 bg-slate-300 dark:bg-slate-600 rounded-full mx-auto mb-1 shrink-0" />
             <div className="flex justify-between items-start border-b border-slate-200/60 dark:border-white/10 pb-4">
               <div>
@@ -880,7 +913,8 @@ export const FacultyManager: React.FC = () => {
             </div>
 
             {/* Dates List */}
-            <div className="flex-1 overflow-y-auto space-y-2 pr-1 max-h-[340px]">
+            <div ref={dateExclusionListRef} className="flex-1 overflow-y-auto space-y-2 pr-1 max-h-[340px]">
+
               {project.examPeriod.dates
                 .filter((d) => !d.isExcluded)
                 .map((d) => {
@@ -955,12 +989,13 @@ export const FacultyManager: React.FC = () => {
             </div>
           </div>
         </div>
-      )}
+      , document.body)}
 
       {/* CSV Import Modal with Initial Supervision Selector */}
-      {isImportModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 dark:bg-black/80 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-y-auto" data-lenis-prevent>
-          <div className="apple-glass-card bg-white dark:bg-slate-900 rounded-t-3xl sm:rounded-2xl max-w-xl w-full max-h-[92dvh] flex flex-col shadow-2xl border border-slate-200 dark:border-white/10 relative overflow-hidden my-0 sm:my-auto animate-sheet-up sm:animate-modal-spring">
+      {isImportModalOpen && createPortal(
+        <div className="fixed inset-0 z-[9999] bg-slate-900/60 dark:bg-black/80 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-y-auto" data-lenis-prevent onClick={() => { setIsImportModalOpen(false); setImportErrors([]); setImportWarnings([]); }}>
+          <div className="apple-glass-card bg-white dark:bg-slate-900 rounded-t-3xl sm:rounded-2xl max-w-xl w-full max-h-[92dvh] flex flex-col shadow-2xl border border-slate-200 dark:border-white/10 relative overflow-hidden my-0 sm:my-auto animate-sheet-up sm:animate-modal-spring" onClick={(e) => e.stopPropagation()}>
+
             <div className="sm:hidden w-12 h-1.5 bg-slate-300 dark:bg-slate-600 rounded-full mx-auto mt-3 mb-1 shrink-0" />
             {/* Header */}
             <div className="p-5 sm:p-6 border-b border-slate-200/80 dark:border-white/10 flex items-start justify-between">
@@ -992,7 +1027,8 @@ export const FacultyManager: React.FC = () => {
             </div>
 
             {/* Scrollable Content Body */}
-            <div className="p-5 sm:p-6 overflow-y-auto space-y-5 flex-1 text-xs">
+            <div ref={importModalScrollRef} className="p-5 sm:p-6 overflow-y-auto space-y-5 flex-1 text-xs">
+
               {/* Error alerts */}
               {importErrors.length > 0 && (
                 <div className="p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800/50 text-rose-900 dark:text-rose-200 space-y-2">
@@ -1250,12 +1286,13 @@ export const FacultyManager: React.FC = () => {
             </div>
           </div>
         </div>
-      )}
+      , document.body)}
 
       {/* Faculty Individual Edit Modal */}
-      {editingFaculty && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 dark:bg-black/80 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-y-auto" data-lenis-prevent>
-          <div className="apple-glass-card bg-white/95 dark:bg-slate-900/95 rounded-t-3xl sm:rounded-2xl max-w-lg w-full p-4 sm:p-6 shadow-2xl border border-slate-200/80 dark:border-white/10 space-y-4 animate-sheet-up sm:animate-modal-spring relative overflow-hidden my-0 sm:my-auto max-h-[90dvh] flex flex-col">
+      {editingFaculty && createPortal(
+        <div className="fixed inset-0 z-[9999] bg-slate-900/60 dark:bg-black/80 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-y-auto" data-lenis-prevent onClick={() => setEditingFaculty(null)}>
+          <div className="apple-glass-card bg-white/95 dark:bg-slate-900/95 rounded-t-3xl sm:rounded-2xl max-w-lg w-full p-4 sm:p-6 shadow-2xl border border-slate-200/80 dark:border-white/10 space-y-4 animate-sheet-up sm:animate-modal-spring relative overflow-hidden my-0 sm:my-auto max-h-[90dvh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+
             <div className="sm:hidden w-12 h-1.5 bg-slate-300 dark:bg-slate-600 rounded-full mx-auto mb-1 shrink-0" />
             <div className="flex justify-between items-center border-b border-slate-200/60 dark:border-white/10 pb-3">
               <h3 className="text-base font-bold text-slate-900 dark:text-white">
@@ -1270,7 +1307,8 @@ export const FacultyManager: React.FC = () => {
               </button>
             </div>
 
-            <form onSubmit={handleSaveEdit} className="space-y-4 text-xs flex-1 overflow-y-auto pr-1">
+            <form ref={editModalScrollRef} onSubmit={handleSaveEdit} className="space-y-4 text-xs flex-1 overflow-y-auto pr-1">
+
               <div>
                 <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">Faculty Name</label>
                 <input
@@ -1584,7 +1622,7 @@ export const FacultyManager: React.FC = () => {
             </form>
           </div>
         </div>
-      )}
+      , document.body)}
     </div>
   );
 };

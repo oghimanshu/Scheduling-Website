@@ -1,4 +1,5 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
+
 import {
   FileSpreadsheet,
   Calendar,
@@ -31,6 +32,8 @@ import { DragDropCollisionModal } from './DragDropCollisionModal';
 import { DragDropOverrideModal } from './DragDropOverrideModal';
 import { ScheduleContextMenu, ContextMenuTarget } from './ScheduleContextMenu';
 import { SwapFacultyModal } from './SwapFacultyModal';
+import { useScrollIsolation } from '../hooks/useScrollIsolation';
+
 
 export const ScheduleViewer: React.FC = () => {
   const {
@@ -334,7 +337,12 @@ export const ScheduleViewer: React.FC = () => {
     return () => window.removeEventListener('keydown', handlePrintShortcut);
   }, [setIsPrintScheduleModalOpen]);
 
+  // Scroll isolation for main schedule table (pointer-aware Lenis bypass)
+  const scheduleTableRef = useRef<HTMLDivElement>(null);
+  useScrollIsolation(scheduleTableRef);
+
   return (
+
     <div className="space-y-6">
       {/* Print-only Institutional Header */}
       {(() => {
@@ -630,7 +638,8 @@ export const ScheduleViewer: React.FC = () => {
             </div>
           )}
 
-          <div className="table-fade-indicator overflow-x-auto touch-scroll" data-lenis-prevent>
+          <div ref={scheduleTableRef} className="table-fade-indicator overflow-x-auto touch-scroll" data-lenis-prevent>
+
             <table className="w-full text-left text-xs border-collapse">
               <thead className="bg-slate-50/70 dark:bg-slate-800/70 text-slate-700 dark:text-slate-300 font-semibold uppercase tracking-wider border-b border-slate-200/60 dark:border-white/5 text-[11px] sticky top-0 z-20 backdrop-blur-md">
                 <tr>
