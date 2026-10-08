@@ -26,11 +26,15 @@ import { GoogleAuthModal } from './components/GoogleAuthModal';
 import { SubstituteModal } from './components/SubstituteModal';
 import { MobileBottomDock } from './components/MobileBottomDock';
 import { AcademicConstellation } from './components/AcademicConstellation';
+import { CherryBlossomBackground } from './components/CherryBlossomBackground';
 import { LiquidClickRipple } from './components/LiquidClickRipple';
 import { SolverTelemetryModal } from './components/SolverTelemetryModal';
 import { LetterheadCustomizerModal } from './components/LetterheadCustomizerModal';
 import { PrintScheduleModal } from './components/PrintScheduleModal';
 import { QuickstartWizardModal } from './components/QuickstartWizardModal';
+import { GlobalFileDropzone } from './components/GlobalFileDropzone';
+import { RoomManager } from './components/RoomManager';
+import { RoomChartModal } from './components/RoomChartModal';
 
 const AppContent: React.FC = () => {
   const {
@@ -48,11 +52,17 @@ const AppContent: React.FC = () => {
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 transition-colors duration-300 relative overflow-hidden">
+      {/* Global Universal File Drag & Drop Receiver */}
+      <GlobalFileDropzone />
+
       {/* Global Hardware-Accelerated Liquid Click Ripple */}
       <LiquidClickRipple />
 
       {/* Dynamic Academic Graph Orbitals & Mathematical Constellation Network */}
       <AcademicConstellation />
+
+      {/* Dark Mode Cherry Blossom Drifting Petals Ambient Effect */}
+      <CherryBlossomBackground />
 
       {/* Apple VisionOS Ambient Radial Glow Orbs with Floating Motion */}
       <div className="ambient-glow-orbs no-print print:hidden fixed inset-0 pointer-events-none overflow-hidden z-0" aria-hidden="true">
@@ -76,6 +86,7 @@ const AppContent: React.FC = () => {
           {activeTab === 'faculty' && <FacultyManager />}
           {activeTab === 'roles' && <RoleManagerView />}
           {activeTab === 'period' && <ExamPeriodManager />}
+          {activeTab === 'rooms' && <RoomManager />}
           {activeTab === 'availability' && <AvailabilityManager />}
           {activeTab === 'schedule' && <ScheduleViewer />}
           {activeTab === 'instructions' && <InstructionsView />}
@@ -120,6 +131,7 @@ const AppContent: React.FC = () => {
       <ResetSessionConfirmModal />
       <RoleSegregationModal />
       <DutySlipsModal />
+      <RoomChartModal />
       <LetterheadCustomizerModal />
       <PrintScheduleModal />
       <GenerationOptionsModal />

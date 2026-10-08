@@ -28,6 +28,7 @@ import {
   generateSampleFacultyCSV,
   InitialSupervisionOption,
 } from '../services/csvParser';
+import { FileDropZone } from './FileDropZone';
 
 export const FacultyManager: React.FC = () => {
   const {
@@ -174,6 +175,20 @@ export const FacultyManager: React.FC = () => {
     });
   }, [project.faculty, searchTerm, roleFilter, arrivalFilter, inclusionFilter]);
 
+  // Handle CSV file content
+  const handleFileContent = (content: string) => {
+    setCsvRawText(content);
+    const prelim = parseFacultyCSV(content, { mode: 'zero' });
+    setImportErrors(prelim.errors);
+    setImportWarnings(prelim.warnings);
+    // Pre-fill date fields
+    setImportPeriodName(project.examPeriod?.name || 'New Examination Period');
+    setImportStartDate(project.examPeriod?.startDate || '');
+    setImportEndDate(project.examPeriod?.endDate || '');
+    setModifyDatesOnImport(!project.examPeriod?.startDate || (project.examPeriod?.dates?.length ?? 0) === 0);
+    setIsImportModalOpen(true);
+  };
+
   // Handle CSV file upload
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -182,16 +197,7 @@ export const FacultyManager: React.FC = () => {
     const reader = new FileReader();
     reader.onload = (evt) => {
       const content = (evt.target?.result as string) || '';
-      setCsvRawText(content);
-      const prelim = parseFacultyCSV(content, { mode: 'zero' });
-      setImportErrors(prelim.errors);
-      setImportWarnings(prelim.warnings);
-      // Pre-fill date fields
-      setImportPeriodName(project.examPeriod?.name || 'New Examination Period');
-      setImportStartDate(project.examPeriod?.startDate || '');
-      setImportEndDate(project.examPeriod?.endDate || '');
-      setModifyDatesOnImport(!project.examPeriod?.startDate || (project.examPeriod?.dates?.length ?? 0) === 0);
-      setIsImportModalOpen(true);
+      handleFileContent(content);
     };
     reader.readAsText(file);
     e.target.value = ''; // Reset input
@@ -351,18 +357,23 @@ export const FacultyManager: React.FC = () => {
 
       {/* Empty State / Session Upload Prompt */}
       {project.faculty.length === 0 && (
-        <div className="bg-gradient-to-br from-sky-50 via-indigo-50/50 to-white dark:from-slate-900 dark:via-slate-900/80 dark:to-slate-950 border-2 border-dashed border-sky-300 dark:border-sky-700/50 rounded-2xl p-8 text-center shadow-xs">
-          <div className="w-14 h-14 mx-auto rounded-2xl bg-sky-100 dark:bg-sky-950/80 text-sky-600 dark:text-sky-300 flex items-center justify-center shadow-inner mb-3">
-            <Upload className="w-7 h-7" />
-          </div>
-          <div className="max-w-lg mx-auto">
+        <div className="bg-gradient-to-br from-sky-50 via-indigo-50/50 to-white dark:from-slate-900 dark:via-slate-900/80 dark:to-slate-950 border border-sky-200 dark:border-sky-800/40 rounded-3xl p-6 sm:p-8 text-center shadow-xs space-y-4">
+          <div className="max-w-xl mx-auto space-y-1">
             <h3 className="text-lg font-bold text-slate-900 dark:text-white">Upload Faculty Master CSV for This Session</h3>
-            <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
-              Every browser session starts clean. Please upload your college faculty CSV roster, or download the example format below to fill in your data.
+            <p className="text-xs text-slate-600 dark:text-slate-400">
+              Every browser session starts clean. Drop your faculty CSV roster below to begin, or download our clean example format.
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center justify-center gap-3 pt-5">
+          <FileDropZone
+            onFileLoaded={(text) => handleFileContent(text)}
+            accept=".csv"
+            title="Drop Faculty CSV Here"
+            description="Drag & drop your CSV file or click to browse"
+            supportedFormatsText="Headers: Sr. No., Faculty Name, HOD (Yes/No), Arrival (Morning/Mid/Afternoon)"
+          />
+
+          <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
             <button
               onClick={() => handleDownloadSample(false)}
               className="inline-flex items-center space-x-2 px-4 py-2.5 text-xs font-bold text-emerald-800 dark:text-emerald-300 bg-emerald-100/90 dark:bg-emerald-950/80 hover:bg-emerald-200 dark:hover:bg-emerald-900/80 border border-emerald-300 dark:border-emerald-800/60 rounded-xl shadow-xs transition cursor-pointer"
@@ -371,17 +382,6 @@ export const FacultyManager: React.FC = () => {
               <Download className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
               <span>DOWNLOAD EXAMPLE FORMAT (.CSV)</span>
             </button>
-
-            <label className="inline-flex items-center space-x-2 px-5 py-2.5 text-xs font-bold text-white bg-sky-600 hover:bg-sky-700 rounded-xl shadow-md cursor-pointer transition">
-              <Upload className="w-4 h-4" />
-              <span>IMPORT FACULTY CSV</span>
-              <input
-                type="file"
-                accept=".csv"
-                onChange={handleFileUpload}
-                className="hidden"
-              />
-            </label>
           </div>
         </div>
       )}

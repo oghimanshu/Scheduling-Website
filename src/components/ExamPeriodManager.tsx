@@ -597,7 +597,7 @@ export const ExamPeriodManager: React.FC = () => {
                             <span>Edit</span>
                           </button>
                         ) : (
-                          <span className="text-slate-400 text-[11px]">—</span>
+                          <span className="text-slate-400 text-[11px]">-</span>
                         )}
                       </td>
                     </tr>

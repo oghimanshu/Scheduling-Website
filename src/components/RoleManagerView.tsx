@@ -18,6 +18,7 @@ import {
   Info,
   Pencil,
   X,
+  GripVertical,
 } from 'lucide-react';
 import { useScheduler } from '../context/SchedulerContext';
 import { CustomRoleDefinition, DEFAULT_CUSTOM_ROLES } from '../types';
@@ -36,6 +37,19 @@ export const RoleManagerView: React.FC = () => {
   const [selectedSrNos, setSelectedSrNos] = useState<number[]>([]);
   const [targetRoleToApply, setTargetRoleToApply] = useState<string>('assistant_prof');
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  // Drag-and-drop state for Role assignment
+  const [draggedFacultySrNos, setDraggedFacultySrNos] = useState<number[] | null>(null);
+  const [dragOverRoleId, setDragOverRoleId] = useState<string | null>(null);
+
+  const handleDropOnRole = (roleId: string, roleName: string) => {
+    if (!draggedFacultySrNos || draggedFacultySrNos.length === 0) return;
+    bulkSegregateRoles(draggedFacultySrNos, roleId);
+    setSuccessMessage(`Assigned ${draggedFacultySrNos.length} faculty member(s) to "${roleName}"!`);
+    setDraggedFacultySrNos(null);
+    setDragOverRoleId(null);
+    setTimeout(() => setSuccessMessage(null), 4000);
+  };
 
   // Edit existing role state
   const [editingRole, setEditingRole] = useState<CustomRoleDefinition | null>(null);
@@ -381,6 +395,75 @@ export const RoleManagerView: React.FC = () => {
             </div>
           </div>
 
+          {/* Drag & Drop Quick-Assign Role Strip */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+              <span className="flex items-center space-x-1.5 font-bold">
+                <Sparkles className="w-3.5 h-3.5 text-purple-500" />
+                <span>Drag &amp; Drop Role Target Bar:</span>
+              </span>
+              <span className="text-[11px]">
+                {draggedFacultySrNos
+                  ? `Dragging ${draggedFacultySrNos.length} member(s), drop on any role below!`
+                  : 'Drag any table row or selected group and drop onto a role card to instantly assign'}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
+              {rolesList.map((r) => {
+                const isDragOver = dragOverRoleId === r.id;
+                const isTarget = targetRoleToApply === r.id;
+                return (
+                  <div
+                    key={r.id}
+                    onDragOver={(e) => {
+                      if (draggedFacultySrNos) {
+                        e.preventDefault();
+                        e.dataTransfer.dropEffect = 'copy';
+                        if (dragOverRoleId !== r.id) setDragOverRoleId(r.id);
+                      }
+                    }}
+                    onDragLeave={() => {
+                      if (dragOverRoleId === r.id) setDragOverRoleId(null);
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      handleDropOnRole(r.id, r.name);
+                    }}
+                    onClick={() => {
+                      if (selectedSrNos.length > 0) {
+                        bulkSegregateRoles(selectedSrNos, r.id);
+                        setSuccessMessage(`Assigned ${selectedSrNos.length} faculty member(s) to "${r.name}"!`);
+                        setTimeout(() => setSuccessMessage(null), 4000);
+                      } else {
+                        setTargetRoleToApply(r.id);
+                      }
+                    }}
+                    className={`p-2.5 rounded-2xl border text-center transition-all cursor-pointer select-none flex flex-col justify-between ${
+                      isDragOver
+                        ? 'border-purple-500 ring-3 ring-purple-500/30 bg-purple-500/20 scale-[1.03] shadow-lg animate-pulse'
+                        : isTarget
+                        ? 'border-sky-400 dark:border-sky-500/50 bg-sky-50/80 dark:bg-sky-950/40 shadow-xs'
+                        : 'border-slate-200/80 dark:border-white/10 bg-white/70 dark:bg-white/5 hover:border-purple-300 dark:hover:border-purple-500/40 hover:bg-purple-50/30'
+                    }`}
+                  >
+                    <div>
+                      <span className="text-[11px] font-bold text-slate-900 dark:text-white block truncate" title={r.name}>
+                        {r.name}
+                      </span>
+                      <span className="text-[10px] text-slate-500 dark:text-slate-400 font-mono">
+                        Max: {r.defaultMax} &bull; {r.concessionDelta < 0 ? `${r.concessionDelta}` : r.concessionDelta > 0 ? `+${r.concessionDelta}` : '0'}
+                      </span>
+                    </div>
+                    <span className="text-[9px] font-semibold text-purple-600 dark:text-purple-400 pt-1 block">
+                      {isDragOver ? 'Drop Here' : 'Drop or Click'}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
           {/* Faculty Table */}
           <div className="apple-glass-card rounded-2xl overflow-hidden border border-slate-200/80 dark:border-white/10 shadow-sm">
             <div ref={tableScrollRef} className="overflow-x-auto overflow-y-auto max-h-[60vh]">
@@ -421,20 +504,37 @@ export const RoleManagerView: React.FC = () => {
                     return (
                       <tr
                         key={f.srNo}
+                        draggable
+                        onDragStart={(e) => {
+                          const toDrag = selectedSrNos.includes(f.srNo) && selectedSrNos.length > 0 ? selectedSrNos : [f.srNo];
+                          setDraggedFacultySrNos(toDrag);
+                          e.dataTransfer.setData('text/plain', JSON.stringify(toDrag));
+                          e.dataTransfer.effectAllowed = 'copy';
+                        }}
+                        onDragEnd={() => {
+                          setDraggedFacultySrNos(null);
+                          setDragOverRoleId(null);
+                        }}
                         onClick={() => handleToggleSelectOne(f.srNo)}
-                        className={`transition cursor-pointer ${
+                        className={`transition cursor-grab active:cursor-grabbing select-none ${
                           isSelected
                             ? 'bg-sky-500/10 dark:bg-sky-500/15'
                             : 'hover:bg-slate-50 dark:hover:bg-white/5'
+                        } ${
+                          draggedFacultySrNos?.includes(f.srNo) ? 'opacity-40' : ''
                         }`}
+                        title="Drag this faculty member to any role card above to assign"
                       >
                         <td className="py-2.5 px-3 text-center" onClick={(e) => e.stopPropagation()}>
-                          <input
-                            type="checkbox"
-                            checked={isSelected}
-                            onChange={() => handleToggleSelectOne(f.srNo)}
-                            className="rounded text-sky-600 focus:ring-sky-500 cursor-pointer"
-                          />
+                          <div className="flex items-center justify-center space-x-1">
+                            <GripVertical className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => handleToggleSelectOne(f.srNo)}
+                              className="rounded text-sky-600 focus:ring-sky-500 cursor-pointer"
+                            />
+                          </div>
                         </td>
                         <td className="py-2.5 px-3 font-mono tabular-nums font-bold text-slate-500 dark:text-slate-400">
                           #{f.srNo}
@@ -512,7 +612,25 @@ export const RoleManagerView: React.FC = () => {
                 return (
                   <div
                     key={role.id}
-                    className="apple-glass-card p-4 rounded-2xl border border-slate-200/80 dark:border-white/10 space-y-3 relative overflow-hidden"
+                    onDragOver={(e) => {
+                      if (draggedFacultySrNos) {
+                        e.preventDefault();
+                        e.dataTransfer.dropEffect = 'copy';
+                        if (dragOverRoleId !== role.id) setDragOverRoleId(role.id);
+                      }
+                    }}
+                    onDragLeave={() => {
+                      if (dragOverRoleId === role.id) setDragOverRoleId(null);
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      handleDropOnRole(role.id, role.name);
+                    }}
+                    className={`apple-glass-card p-4 rounded-2xl border transition-all ${
+                      dragOverRoleId === role.id
+                        ? 'border-purple-500 ring-4 ring-purple-500/30 bg-purple-500/20 scale-[1.02] shadow-lg'
+                        : 'border-slate-200/80 dark:border-white/10'
+                    } space-y-3 relative overflow-hidden`}
                   >
                     <div className="flex items-start justify-between">
                       <div>

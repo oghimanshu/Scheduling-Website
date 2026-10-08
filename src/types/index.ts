@@ -121,6 +121,23 @@ export interface SubstituteCandidate {
   conflictReasons: string[];
 }
 
+export interface ExamRoom {
+  id: string;
+  name: string;
+  block?: string;
+  capacity: number;
+  invigilatorsRequired: number;
+  isActive: boolean;
+  floor?: string;
+}
+
+export interface ExamSubject {
+  id: string;
+  code: string;
+  name: string;
+  department?: string;
+}
+
 export interface Assignment {
   id: string;                // Unique ID: `${facultySrNo}-${date}-${session}`
   facultySrNo: number;
@@ -132,6 +149,9 @@ export interface Assignment {
   overrideTimestamp?: string;
   assignedBy?: string;       // Admin identifier if authenticated
   isReserve?: boolean;       // When true, assigned as standby/reserve supervisor
+  roomId?: string;           // Assigned Exam Hall / Room ID
+  roomName?: string;         // Room Name & Block (e.g. "Hall 101, Science Block")
+  subjectName?: string;      // Course / Subject Name
 }
 
 export interface ValidationConflict {
@@ -215,6 +235,7 @@ export type TabType =
   | 'faculty'
   | 'roles'
   | 'period'
+  | 'rooms'
   | 'availability'
   | 'schedule'
   | 'instructions';
@@ -350,5 +371,7 @@ export interface ProjectState {
   overrides: AdministratorOverride[];
   settings: SchedulerSettings;
   institution?: InstitutionalHeaderConfig;
+  rooms: ExamRoom[];
+  subjects?: ExamSubject[];
   lastSavedTimestamp?: string;
 }

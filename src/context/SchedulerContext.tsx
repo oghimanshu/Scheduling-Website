@@ -17,8 +17,16 @@ import {
   SchedulerSettings,
   InstitutionalHeaderConfig,
   SigningAuthority,
+  ExamRoom,
 } from '../types';
-import { INITIAL_PROJECT_STATE, EMPTY_SESSION_PROJECT_STATE, DEFAULT_SESSIONS, DEFAULT_INSTITUTION_CONFIG } from '../data/defaultData';
+import {
+  INITIAL_PROJECT_STATE,
+  EMPTY_SESSION_PROJECT_STATE,
+  DEFAULT_SESSIONS,
+  DEFAULT_INSTITUTION_CONFIG,
+  DEFAULT_ROOMS_CONFIG,
+} from '../data/defaultData';
+import { allocateRoomsToAssignmentList } from '../services/roomParser';
 import { validateSchedule } from '../services/validation/validator';
 import { analyzeInfeasibility, InfeasibilityReport } from '../services/validation/infeasibility';
 import { generateFiveAlternatives, generateSingleAlternative } from '../services/scheduler/alternatives';
@@ -99,6 +107,8 @@ interface SchedulerContextType {
   setSelectedForSubstitute: (assignment: Assignment | null) => void;
   isSubstituteModalOpen: boolean;
   setIsSubstituteModalOpen: (open: boolean) => void;
+  isRoomChartModalOpen: boolean;
+  setIsRoomChartModalOpen: (open: boolean) => void;
   setIsPrintViewActive: (active: boolean) => void;
   setInfeasibilityReport: (report: InfeasibilityReport | null) => void;
 
@@ -136,7 +146,9 @@ interface SchedulerContextType {
     action: 'replace' | 'swap',
     isOverride?: boolean,
     overrideReason?: string,
-    lockAfterTransfer?: boolean
+    lockAfterTransfer?: boolean,
+    targetDate?: string,
+    targetSession?: SessionType
   ) => { success: boolean; error?: string };
   swapFacultyAssignments: (
     srNo1: number,
@@ -178,6 +190,14 @@ interface SchedulerContextType {
   removeSigningAuthority: (id: string) => void;
   reorderSigningAuthorities: (newAuthorities: SigningAuthority[]) => void;
   applyAuthorityPreset: (preset: 'single' | 'dual' | 'three_tier' | 'quad') => void;
+  addRoom: (room: ExamRoom) => void;
+  updateRoom: (room: ExamRoom) => void;
+  deleteRoom: (roomId: string) => void;
+  toggleRoomActive: (roomId: string) => void;
+  updateRoomsList: (rooms: ExamRoom[]) => void;
+  allocateRoomsToAssignments: (assignmentsToProcess?: Assignment[]) => Assignment[];
+  assignRoomsSeparately: () => void;
+  assignRoomToDuty: (assignmentId: string, roomId?: string) => void;
 }
 
 const SchedulerContext = createContext<SchedulerContextType | undefined>(undefined);
@@ -191,6 +211,9 @@ export const SchedulerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
     if (!st.institution) {
       st.institution = DEFAULT_INSTITUTION_CONFIG;
+    }
+    if (!st.rooms || !Array.isArray(st.rooms)) {
+      st.rooms = DEFAULT_ROOMS_CONFIG;
     }
     return st;
   });
@@ -215,6 +238,7 @@ export const SchedulerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [isQuickstartModalOpen, setIsQuickstartModalOpen] = useState(false);
   const [isLetterheadModalOpen, setIsLetterheadModalOpen] = useState(false);
   const [isPrintScheduleModalOpen, setIsPrintScheduleModalOpen] = useState(false);
+  const [isRoomChartModalOpen, setIsRoomChartModalOpen] = useState(false);
   const [selectedForSubstitute, setSelectedForSubstitute] = useState<Assignment | null>(null);
   const [isSubstituteModalOpen, setIsSubstituteModalOpen] = useState(false);
   const [isPrintViewActive, setIsPrintViewActive] = useState(false);
@@ -396,14 +420,21 @@ export const SchedulerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           return;
         }
 
-        // Apply first alternative as default active
+        // Apply first alternative as default active with automatic room distribution
         const bestAlt = alternatives[0];
+        const roomsToUse = project.rooms || DEFAULT_ROOMS_CONFIG;
+        const allocatedBestAssignments = allocateRoomsToAssignmentList(bestAlt.assignments, roomsToUse);
+        const allocatedAlternatives = alternatives.map((alt) => ({
+          ...alt,
+          assignments: allocateRoomsToAssignmentList(alt.assignments, roomsToUse),
+        }));
+
         setProject((prev) => ({
           ...prev,
           settings: effectiveSettings,
           activeScheduleId: bestAlt.id,
-          assignments: bestAlt.assignments,
-          alternatives,
+          assignments: allocatedBestAssignments,
+          alternatives: allocatedAlternatives,
         }));
         setIsAlternativesModalOpen(true);
       } catch (err: any) {
@@ -565,27 +596,34 @@ export const SchedulerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       project.sessions
     );
     if (alt) {
+      const roomsToUse = project.rooms || DEFAULT_ROOMS_CONFIG;
+      const allocatedAlt = {
+        ...alt,
+        assignments: allocateRoomsToAssignmentList(alt.assignments, roomsToUse),
+      };
       setProject((prev) => ({
         ...prev,
-        alternatives: [alt, ...prev.alternatives.slice(0, 4)],
-        activeScheduleId: alt.id,
-        assignments: alt.assignments,
+        alternatives: [allocatedAlt, ...prev.alternatives.slice(0, 4)],
+        activeScheduleId: allocatedAlt.id,
+        assignments: allocatedAlt.assignments,
       }));
     }
-  }, [project.faculty, project.examPeriod.dates, project.availability, project.settings, project.assignments, project.sessions]);
+  }, [project.faculty, project.examPeriod.dates, project.availability, project.settings, project.assignments, project.sessions, project.rooms]);
 
   // Select one alternative as active
   const selectAlternative = useCallback((alternativeId: string) => {
     const found = project.alternatives.find((a) => a.id === alternativeId);
     if (found) {
+      const roomsToUse = project.rooms || DEFAULT_ROOMS_CONFIG;
+      const allocated = allocateRoomsToAssignmentList(found.assignments, roomsToUse);
       setProject((prev) => ({
         ...prev,
         activeScheduleId: found.id,
-        assignments: found.assignments,
+        assignments: allocated,
       }));
       setIsAlternativesModalOpen(false);
     }
-  }, [project.alternatives]);
+  }, [project.alternatives, project.rooms]);
 
   // Rebalance current schedule
   const rebalanceCurrentSchedule = useCallback(() => {
@@ -759,7 +797,9 @@ export const SchedulerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     action: 'replace' | 'swap',
     isOverride = false,
     overrideReason?: string,
-    lockAfterTransfer = false
+    lockAfterTransfer = false,
+    customTargetDate?: string,
+    customTargetSession?: SessionType
   ): { success: boolean; error?: string } => {
     let resultError: string | undefined;
 
@@ -776,12 +816,18 @@ export const SchedulerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         return prev;
       }
 
-      const date = sourceAssignment.date;
-      const session = sourceAssignment.session;
+      const srcDate = sourceAssignment.date;
+      const srcSession = sourceAssignment.session;
+      const tgtDate = customTargetDate || srcDate;
+      const tgtSession = customTargetSession || srcSession;
 
-      // Existing assignment of target faculty on this date & session
+      // Existing assignment of target faculty on target date & session
       const targetAssignment = prev.assignments.find(
-        (a) => Number(a.facultySrNo) === Number(targetFacultySrNo) && a.date === date && a.session === session
+        (a) =>
+          Number(a.facultySrNo) === Number(targetFacultySrNo) &&
+          a.date === tgtDate &&
+          a.session === tgtSession &&
+          a.id !== sourceAssignment.id
       );
 
       let newAssignments: Assignment[];
@@ -793,8 +839,10 @@ export const SchedulerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           if (a.id === sourceAssignment.id) {
             return {
               ...a,
-              id: `${targetFacultySrNo}-${date}-${session}`,
+              id: `${targetFacultySrNo}-${tgtDate}-${tgtSession}`,
               facultySrNo: targetFacultySrNo,
+              date: tgtDate,
+              session: tgtSession,
               isLocked: lockAfterTransfer ? true : a.isLocked,
               isOverride: isOverride || a.isOverride,
               overrideReason: isOverride ? overrideReason : a.overrideReason,
@@ -803,14 +851,16 @@ export const SchedulerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           if (a.id === targetAssignment.id) {
             return {
               ...a,
-              id: `${sourceAssignment.facultySrNo}-${date}-${session}`,
+              id: `${sourceAssignment.facultySrNo}-${srcDate}-${srcSession}`,
               facultySrNo: sourceAssignment.facultySrNo,
+              date: srcDate,
+              session: srcSession,
             };
           }
           return a;
         });
       } else {
-        // One-way transfer / replacement: target takes the duty
+        // One-way transfer / replacement: target takes the duty on target date & session
         newAssignments = prev.assignments
           .filter((a) => {
             // If target already had a duty in this slot and we are replacing, remove target's old duty
@@ -821,8 +871,10 @@ export const SchedulerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             if (a.id === sourceAssignment.id) {
               return {
                 ...a,
-                id: `${targetFacultySrNo}-${date}-${session}`,
+                id: `${targetFacultySrNo}-${tgtDate}-${tgtSession}`,
                 facultySrNo: targetFacultySrNo,
+                date: tgtDate,
+                session: tgtSession,
                 isLocked: lockAfterTransfer ? true : a.isLocked,
                 isOverride: isOverride || a.isOverride,
                 overrideReason: isOverride ? overrideReason : a.overrideReason,
@@ -836,11 +888,11 @@ export const SchedulerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       if (isOverride && overrideReason) {
         const overrideRecord: AdministratorOverride = {
           id: `ovr-${Date.now()}`,
-          assignmentId: `${targetFacultySrNo}-${date}-${session}`,
+          assignmentId: `${targetFacultySrNo}-${tgtDate}-${tgtSession}`,
           facultySrNo: targetFacultySrNo,
           facultyName: targetFaculty.name,
-          date,
-          session,
+          date: tgtDate,
+          session: tgtSession,
           overrideType: 'eligibility',
           reason: overrideReason,
           timestamp: new Date().toLocaleString(),
@@ -1508,6 +1560,140 @@ export const SchedulerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     });
   }, []);
 
+  // Room & Hall Management Operations
+  const addRoom = useCallback((room: ExamRoom) => {
+    setProject((prev) => {
+      const updatedRooms = [...(prev.rooms || []), room];
+      const updatedState = {
+        ...prev,
+        rooms: updatedRooms,
+        lastSavedTimestamp: new Date().toLocaleTimeString('en-GB'),
+      };
+      saveProjectToStorage(updatedState);
+      return updatedState;
+    });
+  }, []);
+
+  const updateRoom = useCallback((room: ExamRoom) => {
+    setProject((prev) => {
+      const updatedRooms = (prev.rooms || []).map((r) => (r.id === room.id ? room : r));
+      const updatedAssignments = prev.assignments.map((a) =>
+        a.roomId === room.id ? { ...a, roomName: `${room.name} (${room.block})` } : a
+      );
+      const updatedState = {
+        ...prev,
+        rooms: updatedRooms,
+        assignments: updatedAssignments,
+        lastSavedTimestamp: new Date().toLocaleTimeString('en-GB'),
+      };
+      saveProjectToStorage(updatedState);
+      return updatedState;
+    });
+  }, []);
+
+  const deleteRoom = useCallback((roomId: string) => {
+    setProject((prev) => {
+      const updatedRooms = (prev.rooms || []).filter((r) => r.id !== roomId);
+      const updatedAssignments = prev.assignments.map((a) =>
+        a.roomId === roomId ? { ...a, roomId: undefined, roomName: undefined } : a
+      );
+      const updatedState = {
+        ...prev,
+        rooms: updatedRooms,
+        assignments: updatedAssignments,
+        lastSavedTimestamp: new Date().toLocaleTimeString('en-GB'),
+      };
+      saveProjectToStorage(updatedState);
+      return updatedState;
+    });
+  }, []);
+
+  const toggleRoomActive = useCallback((roomId: string) => {
+    setProject((prev) => {
+      const updatedRooms = (prev.rooms || []).map((r) =>
+        r.id === roomId ? { ...r, isActive: r.isActive === false ? true : false } : r
+      );
+      const updatedState = {
+        ...prev,
+        rooms: updatedRooms,
+        lastSavedTimestamp: new Date().toLocaleTimeString('en-GB'),
+      };
+      saveProjectToStorage(updatedState);
+      return updatedState;
+    });
+  }, []);
+
+  const updateRoomsList = useCallback((rooms: ExamRoom[]) => {
+    setProject((prev) => {
+      const updatedState = {
+        ...prev,
+        rooms,
+        lastSavedTimestamp: new Date().toLocaleTimeString('en-GB'),
+      };
+      saveProjectToStorage(updatedState);
+      return updatedState;
+    });
+  }, []);
+
+  const allocateRoomsToAssignments = useCallback(
+    (assignmentsToProcess?: Assignment[]): Assignment[] => {
+      const assignments = assignmentsToProcess ?? project.assignments;
+      return allocateRoomsToAssignmentList(assignments, project.rooms || DEFAULT_ROOMS_CONFIG);
+    },
+    [project.assignments, project.rooms]
+  );
+
+  const assignRoomsSeparately = useCallback(() => {
+    setProject((prev) => {
+      const allocated = allocateRoomsToAssignmentList(prev.assignments, prev.rooms || DEFAULT_ROOMS_CONFIG);
+      const updated = {
+        ...prev,
+        assignments: allocated,
+        lastSavedTimestamp: new Date().toLocaleTimeString('en-GB'),
+      };
+      saveProjectToStorage(updated);
+      return updated;
+    });
+  }, []);
+
+  const assignRoomToDuty = useCallback((assignmentId: string, roomId?: string) => {
+    setProject((prev) => {
+      const room = prev.rooms?.find((r) => r.id === roomId);
+      const newAssignments = prev.assignments.map((a) => {
+        if (a.id !== assignmentId) return a;
+        if (!roomId) {
+          const { roomId: _rid, roomName: _rname, ...rest } = a;
+          return rest as Assignment;
+        }
+        if (roomId === 'reserve-pool' || roomId === 'reserve') {
+          return {
+            ...a,
+            roomId: 'reserve-pool',
+            roomName: 'Exam Control / Reserve Pool',
+            isReserve: true,
+          };
+        }
+        if (room) {
+          return {
+            ...a,
+            roomId: room.id,
+            roomName: `${room.name} (${room.block})`,
+            isReserve: false,
+          };
+        }
+        return a;
+      });
+
+      const updated = {
+        ...prev,
+        assignments: newAssignments,
+        lastSavedTimestamp: new Date().toLocaleTimeString('en-GB'),
+      };
+      saveProjectToStorage(updated);
+      return updated;
+    });
+  }, []);
+
   return (
     <SchedulerContext.Provider
       value={{
@@ -1535,6 +1721,8 @@ export const SchedulerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         setIsLetterheadModalOpen,
         isPrintScheduleModalOpen,
         setIsPrintScheduleModalOpen,
+        isRoomChartModalOpen,
+        setIsRoomChartModalOpen,
         selectedForSubstitute,
         setSelectedForSubstitute,
         isSubstituteModalOpen,
@@ -1556,8 +1744,6 @@ export const SchedulerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         syncNowToGoogleDrive,
         loadProjectFromGoogleDrive,
         setGoogleDriveClientId,
-
-
         setActiveTab,
         setScheduleViewMode,
         setSelectedAssignmentForInspect,
@@ -1625,6 +1811,14 @@ export const SchedulerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         removeSigningAuthority,
         reorderSigningAuthorities,
         applyAuthorityPreset,
+        addRoom,
+        updateRoom,
+        deleteRoom,
+        toggleRoomActive,
+        updateRoomsList,
+        allocateRoomsToAssignments,
+        assignRoomsSeparately,
+        assignRoomToDuty,
       }}
     >
       {children}

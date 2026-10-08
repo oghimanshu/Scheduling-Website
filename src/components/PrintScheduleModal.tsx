@@ -403,7 +403,7 @@ export const PrintScheduleModal: React.FC<{ forceOpen?: boolean }> = ({ forceOpe
                             })}
                           </div>
                         ) : (
-                          <span className="text-gray-300 font-mono text-[9px]">—</span>
+                          <span className="text-gray-300 font-mono text-[9px]">-</span>
                         )}
                       </td>
                     );

@@ -19,6 +19,7 @@ import {
   User,
   FolderOpen,
   Zap,
+  Building,
 } from 'lucide-react';
 import { useScheduler } from '../context/SchedulerContext';
 import { useLenis } from '../context/LenisContext';
@@ -285,6 +286,7 @@ export const Navbar: React.FC = () => {
             { id: 'faculty', label: 'Faculty Management', shortLabel: 'Faculty', icon: Users },
             { id: 'roles', label: 'Role Manager', shortLabel: 'Roles', icon: Award },
             { id: 'period', label: 'Examination Period', shortLabel: 'Period', icon: Clock },
+            { id: 'rooms', label: 'Rooms & Halls', shortLabel: 'Rooms', icon: Building },
             { id: 'availability', label: 'Availability Matrix', shortLabel: 'Availability', icon: CheckCircle2 },
             { id: 'schedule', label: 'Schedule Views', shortLabel: 'Schedule', icon: FileSpreadsheet },
             { id: 'instructions', label: 'Instructions & Guide', shortLabel: 'Guide', icon: BookOpen },

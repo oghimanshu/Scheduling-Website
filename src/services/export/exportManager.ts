@@ -99,7 +99,11 @@ export function buildExcelWorkbook(state: ProjectState): XLSX.WorkBook {
       );
       const req = d.sessionRequirements[session] || 0;
       const supervisorNames = assigned
-        .map((a) => facultyMap.get(Number(a.facultySrNo))?.name || `Sr ${a.facultySrNo}`)
+        .map((a) => {
+          const name = facultyMap.get(Number(a.facultySrNo))?.name || `Sr ${a.facultySrNo}`;
+          const roomTag = a.roomName ? ` [${a.roomName}]` : a.isReserve ? ' [Reserve]' : '';
+          return `${name}${roomTag}`;
+        })
         .join('; ');
 
       sessionRows.push({
@@ -145,6 +149,20 @@ export function buildExcelWorkbook(state: ProjectState): XLSX.WorkBook {
 
   const workloadWs = XLSX.utils.json_to_sheet(workloadRows);
   XLSX.utils.book_append_sheet(wb, workloadWs, 'Workload Analysis');
+
+  // 4. Sheet 4: Exam Rooms & Halls Configuration
+  if (state.rooms && state.rooms.length > 0) {
+    const roomRows = state.rooms.map((r) => ({
+      'Room / Hall Name': r.name,
+      'Building / Block': r.block,
+      'Floor': r.floor || 'Standard',
+      'Candidate Capacity': r.capacity,
+      'Invigilators Required': r.invigilatorsRequired || 1,
+      'Active Status': r.isActive !== false ? 'Yes' : 'No',
+    }));
+    const roomsWs = XLSX.utils.json_to_sheet(roomRows);
+    XLSX.utils.book_append_sheet(wb, roomsWs, 'Exam Halls & Rooms');
+  }
 
   return wb;
 }

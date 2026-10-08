@@ -14,10 +14,12 @@ import {
   Minus,
   Plus,
   Check,
+  Calendar,
 } from 'lucide-react';
 import { useScheduler } from '../context/SchedulerContext';
 import { Faculty, Assignment } from '../types';
 import { setPrintOrientation, clearPrintOrientation } from '../utils/printHelper';
+import { downloadFacultyCalendarIcs } from '../services/calendarService';
 
 export const DutySlipsModal: React.FC<{ forceOpen?: boolean }> = ({ forceOpen }) => {
   const { project, isDutySlipsModalOpen, setIsDutySlipsModalOpen, setIsLetterheadModalOpen } = useScheduler();
@@ -326,6 +328,7 @@ export const DutySlipsModal: React.FC<{ forceOpen?: boolean }> = ({ forceOpen })
               <th className={`${isDense ? 'py-0.5 px-1' : 'py-1 px-2'} border-r border-black`}>Date</th>
               {!isDense && <th className="py-1 px-2 border-r border-black">Day</th>}
               <th className={`${isDense ? 'py-0.5 px-1' : 'py-1 px-2'} border-r border-black`}>Session</th>
+              <th className={`${isDense ? 'py-0.5 px-1' : 'py-1 px-2'} border-r border-black`}>Designated Hall</th>
               <th className={`${isDense ? 'py-0.5 px-1' : 'py-1 px-2'} border-r border-black`}>Exam Timings</th>
               <th className={`${isDense ? 'py-0.5 px-1' : 'py-1 px-2'}`}>Reporting</th>
             </tr>
@@ -335,6 +338,7 @@ export const DutySlipsModal: React.FC<{ forceOpen?: boolean }> = ({ forceOpen })
               const dateCfg = project.examPeriod.dates.find((d) => d.date === duty.date);
               const timing = dateCfg?.sessionTimings?.[duty.session];
               const timingStr = timing ? `${timing.start} - ${timing.end}` : 'Standard';
+              const roomStr = duty.roomName || (duty.isReserve ? 'Exam Control Room' : 'Standard Hall');
 
               return (
                 <tr key={duty.id}>
@@ -350,6 +354,9 @@ export const DutySlipsModal: React.FC<{ forceOpen?: boolean }> = ({ forceOpen })
                         (Reserve)
                       </span>
                     )}
+                  </td>
+                  <td className={`${isDense ? 'py-0.5 px-1' : 'py-1 px-2'} font-semibold border-r border-gray-300 text-slate-800`}>
+                    {roomStr}
                   </td>
                   <td className={`${isDense ? 'py-0.5 px-1' : 'py-1 px-2'} font-mono border-r border-gray-300`}>{timingStr}</td>
                   <td className={`${isDense ? 'py-0.5 px-1' : 'py-1 px-2'} font-mono text-gray-700`}>
@@ -668,15 +675,33 @@ export const DutySlipsModal: React.FC<{ forceOpen?: boolean }> = ({ forceOpen })
                         </span>
                       )}
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => triggerPrintOrPdf(false, activeFaculty.name, activeFaculty.srNo)}
-                      className="px-3 py-1.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-500 rounded-xl shadow-xs transition cursor-pointer flex items-center space-x-1.5"
-                      title={`Print or Save PDF for ${activeFaculty.name}`}
-                    >
-                      <Download className="w-3.5 h-3.5" />
-                      <span>Download PDF / Print This Slip</span>
-                    </button>
+                    <div className="flex items-center space-x-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          downloadFacultyCalendarIcs(
+                            activeFaculty,
+                            getFacultyDuties(activeFaculty.srNo),
+                            project.examPeriod.dates
+                          );
+                        }}
+                        className="px-3 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 border border-slate-300 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-xl shadow-xs transition cursor-pointer flex items-center space-x-1.5"
+                        title="Export iCalendar (.ics) for Google Calendar, Apple Calendar, and Outlook"
+                      >
+                        <Calendar className="w-3.5 h-3.5 text-indigo-500" />
+                        <span>Sync Calendar (.ics)</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => triggerPrintOrPdf(false, activeFaculty.name, activeFaculty.srNo)}
+                        className="px-3 py-1.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-500 rounded-xl shadow-xs transition cursor-pointer flex items-center space-x-1.5"
+                        title={`Print or Save PDF for ${activeFaculty.name}`}
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                        <span>Download PDF / Print This Slip</span>
+                      </button>
+                    </div>
                   </div>
 
                   {/* Single Slip Paper Card */}

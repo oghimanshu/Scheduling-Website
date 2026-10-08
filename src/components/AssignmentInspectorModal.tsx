@@ -15,6 +15,7 @@ import {
   Calendar,
   Layers,
   BarChart3,
+  Building,
 } from 'lucide-react';
 import { useScheduler } from '../context/SchedulerContext';
 import { isFacultyEligibleForSession } from '../services/validation/validator';
@@ -29,6 +30,7 @@ export const AssignmentInspectorModal: React.FC = () => {
     removeAssignment,
     setSelectedForSubstitute,
     setIsSubstituteModalOpen,
+    assignRoomToDuty,
   } = useScheduler();
 
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -231,6 +233,31 @@ export const AssignmentInspectorModal: React.FC = () => {
                   <><Unlock className="w-3 h-3" /><span>Unlocked</span></>
                 )}
               </span>
+            </div>
+
+            {/* Designated Examination Hall */}
+            <div className="border-t border-slate-200/80 dark:border-white/10 p-3 flex items-center justify-between gap-3">
+              <div className="flex items-center space-x-1.5 text-slate-500 dark:text-slate-400">
+                <Building className="w-3.5 h-3.5 text-indigo-500" />
+                <span className="font-medium">Designated Room</span>
+              </div>
+              <div>
+                <select
+                  value={a.roomId || (a.isReserve ? 'reserve-pool' : '')}
+                  onChange={(e) => assignRoomToDuty(a.id, e.target.value)}
+                  className="py-1 px-2 text-xs font-semibold rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                >
+                  <option value="">Unassigned</option>
+                  <option value="reserve-pool">Exam Control / Reserve Pool</option>
+                  {(project.rooms || [])
+                    .filter((r) => r.isActive !== false)
+                    .map((r) => (
+                      <option key={r.id} value={r.id}>
+                        {r.name} ({r.block})
+                      </option>
+                    ))}
+                </select>
+              </div>
             </div>
           </div>
 

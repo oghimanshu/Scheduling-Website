@@ -16,12 +16,16 @@ import {
   Layers,
   FileSpreadsheet,
   Check,
-  Zap,
+  Building,
+  RotateCcw,
 } from 'lucide-react';
 import { useScheduler } from '../context/SchedulerContext';
 import { parseFacultyCSV, downloadFacultyTemplateCSV } from '../services/csvParser';
+import { parseRoomsCSV, downloadRoomsTemplateCSV } from '../services/roomParser';
 import { MOCK_FACULTY_LIST } from '../test/fixtures/mockFaculty';
-import { ExamDateConfig, SessionType } from '../types';
+import { DEFAULT_ROOMS_CONFIG } from '../data/defaultData';
+import { ExamDateConfig, SessionType, ExamRoom } from '../types';
+import { FileDropZone } from './FileDropZone';
 
 export const QuickstartWizardModal: React.FC<{ forceOpen?: boolean }> = ({ forceOpen }) => {
   const {
@@ -31,11 +35,13 @@ export const QuickstartWizardModal: React.FC<{ forceOpen?: boolean }> = ({ force
     updateFacultyList,
     updateExamDates,
     updateExamPeriodInfo,
+    updateRoomsList,
+    toggleRoomActive,
     updateHodAssignmentPriority,
     generateAlternatives,
   } = useScheduler();
 
-  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Step 1 state
@@ -58,14 +64,18 @@ export const QuickstartWizardModal: React.FC<{ forceOpen?: boolean }> = ({ force
   );
   const [supervisorsPerSession, setSupervisorsPerSession] = useState<number>(15);
 
-  // Step 3 state
+  // Step 3 (Rooms) state
+  const [roomUploadError, setRoomUploadError] = useState<string | null>(null);
+  const [roomUploadSuccess, setRoomUploadSuccess] = useState<string | null>(null);
+
+  // Step 4 state
   const [selectedPriority, setSelectedPriority] = useState(
     project.settings.hodAssignmentPriority || 'regular_first_hod_last'
   );
 
   if (!forceOpen && !isQuickstartModalOpen) return null;
 
-  // Handle CSV file upload
+  // Handle CSV file upload for faculty
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -123,7 +133,6 @@ export const QuickstartWizardModal: React.FC<{ forceOpen?: boolean }> = ({ force
       const sessionTimings: Record<SessionType, any> = {};
       sessions.forEach((s, idx) => {
         sessionTimings[s.id] = (s as any).defaultTiming || { start: '08:00', end: '10:00' };
-        // Only allocate requirements to sessions up to dailySessionCount
         if (idx < sessionCount) {
           sessionRequirements[s.id] = isSunday ? 0 : quota;
         } else {
@@ -163,7 +172,7 @@ export const QuickstartWizardModal: React.FC<{ forceOpen?: boolean }> = ({ force
     setStep(3);
   };
 
-  // Step 3 final submit
+  // Step 4 final submit
   const handleFinalGenerate = () => {
     updateHodAssignmentPriority(selectedPriority);
     setIsQuickstartModalOpen(false);
@@ -182,6 +191,12 @@ export const QuickstartWizardModal: React.FC<{ forceOpen?: boolean }> = ({ force
   const activeDaysCount = previewDates.filter((d) => !d.isExcluded).length;
   const totalRequiredDuties = activeDaysCount * dailySessionCount * supervisorsPerSession;
   const isFeasible = totalCapacity >= totalRequiredDuties;
+
+  // Rooms stats
+  const rooms = project.rooms && project.rooms.length > 0 ? project.rooms : DEFAULT_ROOMS_CONFIG;
+  const activeRooms = rooms.filter((r) => r.isActive !== false);
+  const totalSeatingCapacity = activeRooms.reduce((sum, r) => sum + (r.capacity || 0), 0);
+  const totalRoomInvigilators = activeRooms.reduce((sum, r) => sum + (r.invigilatorsRequired || 1), 0);
 
   const modalContent = (
     <div
@@ -204,13 +219,13 @@ export const QuickstartWizardModal: React.FC<{ forceOpen?: boolean }> = ({ force
             </div>
             <div>
               <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white flex items-center space-x-2">
-                <span>Let's Begin — Intuitive Quickstart</span>
+                <span>Let's Begin - Intuitive Quickstart</span>
                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-sky-100 dark:bg-sky-950 text-sky-800 dark:text-sky-300 border border-sky-300 dark:border-sky-800/40">
-                  Step {step} of 3
+                  Step {step} of 4
                 </span>
               </h3>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                Guiding you from raw faculty list to optimal exam schedule in 3 simple steps
+                Guiding you from raw faculty list to optimal exam schedule in 4 simple steps
               </p>
             </div>
           </div>
@@ -224,11 +239,11 @@ export const QuickstartWizardModal: React.FC<{ forceOpen?: boolean }> = ({ force
         </div>
 
         {/* Stepper Progress Bar */}
-        <div className="grid grid-cols-3 gap-2 shrink-0">
+        <div className="grid grid-cols-4 gap-1.5 sm:gap-2 shrink-0">
           <button
             type="button"
             onClick={() => setStep(1)}
-            className={`p-2.5 rounded-xl border text-left transition cursor-pointer ${
+            className={`p-2 sm:p-2.5 rounded-xl border text-left transition cursor-pointer ${
               step === 1
                 ? 'bg-sky-50 dark:bg-sky-950/60 border-sky-400 text-sky-900 dark:text-sky-200 shadow-2xs font-bold'
                 : totalFaculty > 0
@@ -236,10 +251,10 @@ export const QuickstartWizardModal: React.FC<{ forceOpen?: boolean }> = ({ force
                 : 'bg-slate-50 dark:bg-slate-800/40 border-slate-200 dark:border-white/5 text-slate-400'
             }`}
           >
-            <span className="text-[10px] uppercase tracking-wider block opacity-70">Step 1</span>
-            <span className="text-xs flex items-center space-x-1">
-              {totalFaculty > 0 && <Check className="w-3.5 h-3.5 text-emerald-600" />}
-              <span>Faculty List</span>
+            <span className="text-[9px] uppercase tracking-wider block opacity-70">Step 1</span>
+            <span className="text-xs flex items-center space-x-1 truncate">
+              {totalFaculty > 0 && <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />}
+              <span className="truncate">Faculty List</span>
             </span>
           </button>
 
@@ -247,7 +262,7 @@ export const QuickstartWizardModal: React.FC<{ forceOpen?: boolean }> = ({ force
             type="button"
             onClick={() => totalFaculty > 0 && setStep(2)}
             disabled={totalFaculty === 0}
-            className={`p-2.5 rounded-xl border text-left transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
+            className={`p-2 sm:p-2.5 rounded-xl border text-left transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
               step === 2
                 ? 'bg-sky-50 dark:bg-sky-950/60 border-sky-400 text-sky-900 dark:text-sky-200 shadow-2xs font-bold'
                 : step > 2
@@ -255,9 +270,9 @@ export const QuickstartWizardModal: React.FC<{ forceOpen?: boolean }> = ({ force
                 : 'bg-slate-50 dark:bg-slate-800/40 border-slate-200 dark:border-white/5 text-slate-400'
             }`}
           >
-            <span className="text-[10px] uppercase tracking-wider block opacity-70">Step 2</span>
-            <span className="text-xs flex items-center space-x-1">
-              <span>Dates &amp; Sessions</span>
+            <span className="text-[9px] uppercase tracking-wider block opacity-70">Step 2</span>
+            <span className="text-xs flex items-center space-x-1 truncate">
+              <span className="truncate">Dates &amp; Sessions</span>
             </span>
           </button>
 
@@ -265,15 +280,33 @@ export const QuickstartWizardModal: React.FC<{ forceOpen?: boolean }> = ({ force
             type="button"
             onClick={() => totalFaculty > 0 && setStep(3)}
             disabled={totalFaculty === 0}
-            className={`p-2.5 rounded-xl border text-left transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
+            className={`p-2 sm:p-2.5 rounded-xl border text-left transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
               step === 3
+                ? 'bg-sky-50 dark:bg-sky-950/60 border-sky-400 text-sky-900 dark:text-sky-200 shadow-2xs font-bold'
+                : step > 3
+                ? 'bg-emerald-50/60 dark:bg-emerald-950/30 border-emerald-300 dark:border-emerald-800/40 text-emerald-800 dark:text-emerald-300'
+                : 'bg-slate-50 dark:bg-slate-800/40 border-slate-200 dark:border-white/5 text-slate-400'
+            }`}
+          >
+            <span className="text-[9px] uppercase tracking-wider block opacity-70">Step 3</span>
+            <span className="text-xs flex items-center space-x-1 truncate">
+              <span className="truncate">Halls &amp; Rooms</span>
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => totalFaculty > 0 && setStep(4)}
+            disabled={totalFaculty === 0}
+            className={`p-2 sm:p-2.5 rounded-xl border text-left transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
+              step === 4
                 ? 'bg-sky-50 dark:bg-sky-950/60 border-sky-400 text-sky-900 dark:text-sky-200 shadow-2xs font-bold'
                 : 'bg-slate-50 dark:bg-slate-800/40 border-slate-200 dark:border-white/5 text-slate-400'
             }`}
           >
-            <span className="text-[10px] uppercase tracking-wider block opacity-70">Step 3</span>
-            <span className="text-xs flex items-center space-x-1">
-              <span>Generate</span>
+            <span className="text-[9px] uppercase tracking-wider block opacity-70">Step 4</span>
+            <span className="text-xs flex items-center space-x-1 truncate">
+              <span className="truncate">Generate</span>
             </span>
           </button>
         </div>
@@ -296,29 +329,23 @@ export const QuickstartWizardModal: React.FC<{ forceOpen?: boolean }> = ({ force
               </div>
 
               {/* Upload Dropzone */}
-              <div
-                onClick={() => fileInputRef.current?.click()}
-                className="p-6 border-2 border-dashed border-sky-300 dark:border-sky-700/60 hover:border-sky-500 rounded-3xl bg-slate-50/70 dark:bg-slate-800/50 hover:bg-sky-50/40 dark:hover:bg-sky-950/20 text-center transition cursor-pointer space-y-3"
-              >
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept=".csv,.xlsx,.xls"
-                  onChange={handleFileUpload}
-                  className="hidden"
-                />
-                <div className="w-12 h-12 rounded-2xl bg-sky-100 dark:bg-sky-950 text-sky-600 dark:text-sky-300 mx-auto flex items-center justify-center shadow-xs">
-                  <Upload className="w-6 h-6" />
-                </div>
-                <div>
-                  <span className="font-bold text-slate-900 dark:text-white text-sm block">
-                    Click to browse or drop your Faculty CSV file here
-                  </span>
-                  <span className="text-slate-500 dark:text-slate-400 text-[11px]">
-                    Requires columns: Sr. No., Faculty Name, HOD (Yes/No), Arrival (Morning/Mid/Afternoon)
-                  </span>
-                </div>
-              </div>
+              <FileDropZone
+                onFileLoaded={(text, file) => {
+                  setUploadError(null);
+                  setUploadSuccess(null);
+                  const res = parseFacultyCSV(text, { mode: 'zero' });
+                  if (res.success && res.faculty.length > 0) {
+                    updateFacultyList(res.faculty);
+                    setUploadSuccess(`Successfully loaded ${res.faculty.length} faculty members from "${file.name}"!`);
+                  } else {
+                    setUploadError(res.errors[0] || 'Failed to parse faculty CSV. Please verify column headers.');
+                  }
+                }}
+                accept=".csv"
+                title="Drop Faculty CSV Here"
+                description="or click to browse from your device"
+                supportedFormatsText="Requires columns: Sr. No., Faculty Name, HOD (Yes/No), Arrival (Morning/Mid/Afternoon)"
+              />
 
               {/* Quick Actions */}
               <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
@@ -535,8 +562,134 @@ export const QuickstartWizardModal: React.FC<{ forceOpen?: boolean }> = ({ force
             </div>
           )}
 
-          {/* STEP 3: REVIEW & GENERATE */}
+          {/* STEP 3: ROOMS & EXAMINATION HALLS */}
           {step === 3 && (
+            <div className="space-y-4 animate-in fade-in duration-200">
+              <div className="p-4 rounded-2xl bg-teal-50/70 dark:bg-teal-950/40 border border-teal-200 dark:border-teal-800/40 flex items-start space-x-3">
+                <Building className="w-5 h-5 text-teal-600 dark:text-teal-400 shrink-0 mt-0.5" />
+                <div>
+                  <h4 className="font-bold text-slate-900 dark:text-white text-sm">
+                    Configure Examination Halls &amp; Seating Rooms
+                  </h4>
+                  <p className="text-slate-600 dark:text-slate-300 mt-1 leading-relaxed">
+                    Set up your exam halls, seating capacities, and invigilator requirements. You can upload custom halls, download a sample CSV, or proceed with standard default halls.
+                  </p>
+                </div>
+              </div>
+
+              {/* Upload Dropzone for Rooms */}
+              <FileDropZone
+                onFileLoaded={(text, file) => {
+                  setRoomUploadError(null);
+                  setRoomUploadSuccess(null);
+                  const res = parseRoomsCSV(text);
+                  if (res.success && res.rooms.length > 0) {
+                    updateRoomsList(res.rooms);
+                    setRoomUploadSuccess(`Successfully loaded ${res.rooms.length} examination halls from "${file.name}"!`);
+                  } else {
+                    setRoomUploadError(res.errors[0] || 'Failed to parse rooms CSV. Please check formatting.');
+                  }
+                }}
+                accept=".csv"
+                title="Drop Examination Halls CSV Here"
+                description="or click to browse from your device"
+                supportedFormatsText="Columns: Room Number / Name, Building / Block, Floor, Seating Capacity, Invigilators Required, Active"
+              />
+
+              {/* Quick Actions for Rooms */}
+              <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={downloadRoomsTemplateCSV}
+                  className="px-3 py-2 rounded-xl text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 hover:bg-emerald-100 border border-emerald-300 dark:border-emerald-800/50 font-bold inline-flex items-center space-x-1.5 transition cursor-pointer shadow-xs"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Download Sample Rooms CSV</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    updateRoomsList(DEFAULT_ROOMS_CONFIG);
+                    setRoomUploadSuccess(`Reset to standard default 15 examination halls!`);
+                    setRoomUploadError(null);
+                  }}
+                  className="px-3.5 py-2 rounded-xl text-teal-800 dark:text-teal-300 bg-teal-50 dark:bg-teal-950/60 hover:bg-teal-100 border border-teal-300 dark:border-teal-800/50 font-bold inline-flex items-center space-x-1.5 transition cursor-pointer shadow-xs"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  <span>Use Standard Default Halls ({DEFAULT_ROOMS_CONFIG.length})</span>
+                </button>
+              </div>
+
+              {/* Room Upload Feedback */}
+              {roomUploadSuccess && (
+                <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-300 text-emerald-800 dark:text-emerald-200 flex items-center space-x-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span className="font-bold">{roomUploadSuccess}</span>
+                </div>
+              )}
+              {roomUploadError && (
+                <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/60 border border-rose-300 text-rose-800 dark:text-rose-200 flex items-center space-x-2">
+                  <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+                  <span>{roomUploadError}</span>
+                </div>
+              )}
+
+              {/* Loaded Rooms Summary Card */}
+              <div className="p-4 rounded-2xl bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-white/10 shadow-xs space-y-3">
+                <div className="flex items-center justify-between font-bold text-slate-900 dark:text-white">
+                  <span className="flex items-center space-x-2">
+                    <Building className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+                    <span>Examination Halls Configuration</span>
+                  </span>
+                  <span className="text-teal-600 dark:text-teal-400 font-mono text-sm">
+                    {activeRooms.length} of {rooms.length} Halls Active
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2 text-center text-[11px] pt-1 border-t border-slate-100 dark:border-white/5">
+                  <div className="p-2 rounded-xl bg-slate-50 dark:bg-slate-900/50">
+                    <span className="text-slate-500 dark:text-slate-400 block">Total Halls</span>
+                    <strong className="text-slate-900 dark:text-white font-mono text-xs">{rooms.length}</strong>
+                  </div>
+                  <div className="p-2 rounded-xl bg-slate-50 dark:bg-slate-900/50">
+                    <span className="text-slate-500 dark:text-slate-400 block">Active Capacity</span>
+                    <strong className="text-teal-600 dark:text-teal-400 font-mono text-xs">{totalSeatingCapacity} seats</strong>
+                  </div>
+                  <div className="p-2 rounded-xl bg-slate-50 dark:bg-slate-900/50">
+                    <span className="text-slate-500 dark:text-slate-400 block">Invigilator Quota</span>
+                    <strong className="text-indigo-600 dark:text-indigo-400 font-mono text-xs">{totalRoomInvigilators} / session</strong>
+                  </div>
+                </div>
+
+                {/* Quick Hall Badges Preview */}
+                <div className="flex flex-wrap gap-1.5 pt-1">
+                  {rooms.slice(0, 8).map((r) => (
+                    <span
+                      key={r.id}
+                      onClick={() => toggleRoomActive(r.id)}
+                      className={`px-2 py-0.5 rounded-lg text-[10px] font-semibold cursor-pointer transition border ${
+                        r.isActive !== false
+                          ? 'bg-teal-50 dark:bg-teal-950/60 text-teal-800 dark:text-teal-300 border-teal-300 dark:border-teal-800/50'
+                          : 'bg-slate-100 dark:bg-slate-800 text-slate-400 border-slate-200 dark:border-white/10 line-through'
+                      }`}
+                      title="Click to toggle active status"
+                    >
+                      {r.name} ({r.capacity} seats)
+                    </span>
+                  ))}
+                  {rooms.length > 8 && (
+                    <span className="px-2 py-0.5 rounded-lg text-[10px] text-slate-500 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-white/5">
+                      +{rooms.length - 8} more halls
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* STEP 4: REVIEW & GENERATE */}
+          {step === 4 && (
             <div className="space-y-4 animate-in fade-in duration-200">
               <div className="p-4 rounded-2xl bg-emerald-50/70 dark:bg-emerald-950/40 border border-emerald-300/80 dark:border-emerald-800/40 flex items-start space-x-3">
                 <Sparkles className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
@@ -545,7 +698,7 @@ export const QuickstartWizardModal: React.FC<{ forceOpen?: boolean }> = ({ force
                     Everything is Set! Generate Your Optimal Schedule
                   </h4>
                   <p className="text-slate-600 dark:text-slate-300 mt-1 leading-relaxed">
-                    The constraint scheduler will mathematically solve duty allocation guaranteeing rest rules, arrival alignment, and workload equity.
+                    The constraint scheduler will mathematically solve duty allocation guaranteeing rest rules, arrival alignment, workload equity, and designated hall assignments.
                   </p>
                 </div>
               </div>
@@ -561,8 +714,8 @@ export const QuickstartWizardModal: React.FC<{ forceOpen?: boolean }> = ({ force
                   <span className="text-base font-black text-slate-900 dark:text-white font-mono">{activeDaysCount}</span>
                 </div>
                 <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-white/10">
-                  <span className="text-[11px] text-slate-500 dark:text-slate-400 block">Daily Sessions</span>
-                  <span className="text-base font-black text-slate-900 dark:text-white font-mono">{dailySessionCount} JRS</span>
+                  <span className="text-[11px] text-slate-500 dark:text-slate-400 block">Active Halls</span>
+                  <span className="text-base font-black text-slate-900 dark:text-white font-mono">{activeRooms.length}</span>
                 </div>
                 <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-white/10">
                   <span className="text-[11px] text-slate-500 dark:text-slate-400 block">Total Duties</span>
@@ -667,6 +820,17 @@ export const QuickstartWizardModal: React.FC<{ forceOpen?: boolean }> = ({ force
               <button
                 type="button"
                 onClick={handleProceedToStep3}
+                className="px-5 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold inline-flex items-center space-x-2 transition cursor-pointer shadow-md"
+              >
+                <span>Next: Examination Halls</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            )}
+
+            {step === 3 && (
+              <button
+                type="button"
+                onClick={() => setStep(4)}
                 className="px-5 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold inline-flex items-center space-x-2 transition cursor-pointer shadow-md"
               >
                 <span>Next: Review &amp; Generate</span>

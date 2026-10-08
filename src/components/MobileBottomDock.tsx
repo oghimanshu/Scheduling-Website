@@ -12,6 +12,7 @@ import {
   Award,
   X,
   RotateCcw,
+  Building,
 } from 'lucide-react';
 import { useScheduler } from '../context/SchedulerContext';
 import { useLenis } from '../context/LenisContext';
@@ -118,6 +119,21 @@ export const MobileBottomDock: React.FC = () => {
                 <div>
                   <div className="font-bold">Instructions</div>
                   <div className="text-[10px] text-slate-400">Guidelines &amp; Help</div>
+                </div>
+              </button>
+
+              <button
+                onClick={() => handleTabSelect('rooms')}
+                className={`btn-spring p-3 rounded-xl flex items-center space-x-2.5 text-left border ${
+                  activeTab === 'rooms'
+                    ? 'bg-sky-500/15 border-sky-400 text-sky-700 dark:text-sky-300 font-bold'
+                    : 'bg-white/60 dark:bg-slate-800/60 border-slate-200/80 dark:border-white/10 text-slate-700 dark:text-slate-300'
+                }`}
+              >
+                <Building className="w-4 h-4 text-purple-500 shrink-0" />
+                <div>
+                  <div className="font-bold">Rooms &amp; Halls</div>
+                  <div className="text-[10px] text-slate-400">Exam Venues</div>
                 </div>
               </button>
             </div>

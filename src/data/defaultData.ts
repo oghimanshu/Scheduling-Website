@@ -1,4 +1,4 @@
-import { Faculty, ExamDateConfig, SchedulerSettings, ProjectState, SessionDefinition, InstitutionalHeaderConfig } from '../types';
+import { Faculty, ExamDateConfig, SchedulerSettings, ProjectState, SessionDefinition, InstitutionalHeaderConfig, ExamRoom, ExamSubject } from '../types';
 
 export const DEFAULT_INSTITUTION_CONFIG: InstitutionalHeaderConfig = {
   institutionName: 'College of Engineering & Technology',
@@ -25,6 +25,24 @@ export const DEFAULT_SESSION_TIMINGS = {
   'JRS 2': { start: '10:30', end: '12:30' },
   'JRS 3': { start: '14:00', end: '16:00' },
 };
+
+export const DEFAULT_ROOMS_CONFIG: ExamRoom[] = [
+  { id: 'room-101', name: 'Hall 101', block: 'Academic Block A', floor: '1st Floor', capacity: 32, invigilatorsRequired: 1, isActive: true },
+  { id: 'room-102', name: 'Hall 102', block: 'Academic Block A', floor: '1st Floor', capacity: 32, invigilatorsRequired: 1, isActive: true },
+  { id: 'room-103', name: 'Hall 103', block: 'Academic Block A', floor: '1st Floor', capacity: 32, invigilatorsRequired: 1, isActive: true },
+  { id: 'room-104', name: 'Hall 104', block: 'Academic Block A', floor: '1st Floor', capacity: 32, invigilatorsRequired: 1, isActive: true },
+  { id: 'room-201', name: 'Hall 201', block: 'Academic Block B', floor: '2nd Floor', capacity: 35, invigilatorsRequired: 1, isActive: true },
+  { id: 'room-202', name: 'Hall 202', block: 'Academic Block B', floor: '2nd Floor', capacity: 35, invigilatorsRequired: 1, isActive: true },
+  { id: 'room-203', name: 'Hall 203', block: 'Academic Block B', floor: '2nd Floor', capacity: 35, invigilatorsRequired: 1, isActive: true },
+  { id: 'room-204', name: 'Hall 204', block: 'Academic Block B', floor: '2nd Floor', capacity: 35, invigilatorsRequired: 1, isActive: true },
+  { id: 'room-lt1', name: 'Lecture Theatre 1 (LT-1)', block: 'Science Complex', floor: 'Ground Floor', capacity: 64, invigilatorsRequired: 2, isActive: true },
+  { id: 'room-lt2', name: 'Lecture Theatre 2 (LT-2)', block: 'Science Complex', floor: 'Ground Floor', capacity: 64, invigilatorsRequired: 2, isActive: true },
+  { id: 'room-lt3', name: 'Lecture Theatre 3 (LT-3)', block: 'Science Complex', floor: '1st Floor', capacity: 64, invigilatorsRequired: 2, isActive: true },
+  { id: 'room-audi', name: 'Main Auditorium', block: 'Central Wing', floor: 'Ground Floor', capacity: 120, invigilatorsRequired: 3, isActive: true },
+  { id: 'room-seminar', name: 'Central Seminar Hall', block: 'Central Wing', floor: '2nd Floor', capacity: 80, invigilatorsRequired: 2, isActive: true },
+  { id: 'room-dh1', name: 'Drawing Hall 1 (DH-1)', block: 'Engineering Annex', floor: '3rd Floor', capacity: 48, invigilatorsRequired: 1, isActive: true },
+  { id: 'room-dh2', name: 'Drawing Hall 2 (DH-2)', block: 'Engineering Annex', floor: '3rd Floor', capacity: 48, invigilatorsRequired: 1, isActive: true },
+];
 
 
 export const DEFAULT_DATES_CONFIG: ExamDateConfig[] = [
@@ -145,7 +163,7 @@ export const DEFAULT_SESSIONS: SessionDefinition[] = [
 export const INITIAL_PROJECT_STATE: ProjectState = {
   version: '1.0.0',
   projectName: 'College Examination Supervision - October 2026',
-  faculty: [], // Clean slate on every browser session — requires CSV upload
+  faculty: [], // Clean slate on every browser session, requires CSV upload
   sessions: DEFAULT_SESSIONS,
   examPeriod: {
     name: 'End Semester Examinations 2026',
@@ -160,6 +178,8 @@ export const INITIAL_PROJECT_STATE: ProjectState = {
   overrides: [],
   settings: DEFAULT_SETTINGS,
   institution: DEFAULT_INSTITUTION_CONFIG,
+  rooms: DEFAULT_ROOMS_CONFIG,
+  subjects: [],
 };
 
 export const EMPTY_SESSION_PROJECT_STATE: ProjectState = {
@@ -180,4 +200,6 @@ export const EMPTY_SESSION_PROJECT_STATE: ProjectState = {
   overrides: [],
   settings: DEFAULT_SETTINGS,
   institution: DEFAULT_INSTITUTION_CONFIG,
+  rooms: DEFAULT_ROOMS_CONFIG,
+  subjects: [],
 };

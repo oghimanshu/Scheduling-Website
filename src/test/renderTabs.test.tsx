@@ -147,7 +147,7 @@ describe('Populated UI Components Test', () => {
         <QuickstartWizardModal forceOpen={true} />
       </SchedulerProvider>
     );
-    expect(quickstartHtml).toContain("Let&#x27;s Begin — Intuitive Quickstart");
+    expect(quickstartHtml).toContain("Let&#x27;s Begin - Intuitive Quickstart");
     expect(quickstartHtml).toContain('Faculty List');
     expect(quickstartHtml).toContain('Dates &amp; Sessions');
   });

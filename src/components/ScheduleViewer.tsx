@@ -22,6 +22,7 @@ import {
   CheckCircle2,
   Printer,
   Building2,
+  Building,
 } from 'lucide-react';
 import { useScheduler } from '../context/SchedulerContext';
 import { SessionType, Assignment, Faculty, ExamDateConfig } from '../types';
@@ -35,10 +36,12 @@ import { SwapFacultyModal } from './SwapFacultyModal';
 import { useScrollIsolation } from '../hooks/useScrollIsolation';
 
 
-export const ScheduleViewer: React.FC = () => {
+export const ScheduleViewer: React.FC<{ viewModeOverride?: 'faculty' | 'session' | 'workload' }> = ({
+  viewModeOverride,
+}) => {
   const {
     project,
-    scheduleViewMode,
+    scheduleViewMode: contextScheduleViewMode,
     setScheduleViewMode,
     toggleLockAssignment,
     setSelectedAssignmentForInspect,
@@ -55,7 +58,11 @@ export const ScheduleViewer: React.FC = () => {
     setIsDutySlipsModalOpen,
     setIsLetterheadModalOpen,
     setIsPrintScheduleModalOpen,
+    setIsRoomChartModalOpen,
+    assignRoomsSeparately,
   } = useScheduler();
+
+  const scheduleViewMode = viewModeOverride || contextScheduleViewMode;
 
   const [searchTerm, setSearchTerm] = useState('');
   const [sessionFilter, setSessionFilter] = useState<'All' | SessionType>('All');
@@ -65,6 +72,7 @@ export const ScheduleViewer: React.FC = () => {
   // Drag & Drop State
   const [draggedDuty, setDraggedDuty] = useState<{ assignment: Assignment; faculty: Faculty } | null>(null);
   const [dragOverCell, setDragOverCell] = useState<{ facultySrNo: number; date: string } | null>(null);
+  const [dragOverSession, setDragOverSession] = useState<{ date: string; session: string } | null>(null);
 
   // Mobile Tap-to-Transfer State
   const [mobileSelectedDuty, setMobileSelectedDuty] = useState<{ assignment: Assignment; faculty: Faculty } | null>(null);
@@ -76,6 +84,8 @@ export const ScheduleViewer: React.FC = () => {
     targetFaculty: Faculty;
     targetAssignment: Assignment;
     dateDisplay: string;
+    targetDate?: string;
+    targetSession?: SessionType;
   } | null>(null);
 
   // Override Modal State
@@ -86,6 +96,8 @@ export const ScheduleViewer: React.FC = () => {
     conflictReasons: string[];
     dateDisplay: string;
     pendingAction: 'replace' | 'swap';
+    targetDate?: string;
+    targetSession?: SessionType;
   } | null>(null);
 
   // Action Toast
@@ -154,33 +166,39 @@ export const ScheduleViewer: React.FC = () => {
   }, [project.alternatives, project.activeScheduleId]);
 
   // Check conflicts for drag-and-drop target
-  const checkDropConflicts = (targetFaculty: Faculty, sourceAssignment: Assignment, dateConfig: ExamDateConfig) => {
+  const checkDropConflicts = (
+    targetFaculty: Faculty,
+    sourceAssignment: Assignment,
+    dateConfig: ExamDateConfig,
+    targetSession?: SessionType
+  ) => {
     const reasons: string[] = [];
+    const sessionToCheck = targetSession || sourceAssignment.session;
 
     // 1. Availability check (including date exclusion, slot micro-exclusions, and allowedSessions)
     const isAvail = isFacultyAvailableForSlot(
       targetFaculty,
-      sourceAssignment.date,
-      sourceAssignment.session,
+      dateConfig.date,
+      sessionToCheck,
       project.availability
     );
     if (!isAvail) {
-      if (targetFaculty.allowedSessions && targetFaculty.allowedSessions.length > 0 && !targetFaculty.allowedSessions.includes(sourceAssignment.session)) {
+      if (targetFaculty.allowedSessions && targetFaculty.allowedSessions.length > 0 && !targetFaculty.allowedSessions.includes(sessionToCheck)) {
         reasons.push(`Session restricted to ${targetFaculty.allowedSessions.join(', ')}`);
       } else {
-        reasons.push(`Marked unavailable for ${sourceAssignment.session} on ${dateConfig.displayDate}`);
+        reasons.push(`Marked unavailable for ${sessionToCheck} on ${dateConfig.displayDate}`);
       }
     }
 
     // 2. Arrival policy check
     const isEligibleArrival = isFacultyEligibleForSession(
       targetFaculty.arrival,
-      sourceAssignment.session,
+      sessionToCheck,
       project.sessions,
       dateConfig
     );
     if (!isEligibleArrival) {
-      reasons.push(`Ineligible arrival category (${targetFaculty.arrival}) for ${sourceAssignment.session}`);
+      reasons.push(`Ineligible arrival category (${targetFaculty.arrival}) for ${sessionToCheck}`);
     }
 
     // 3. Max supervision limit check
@@ -194,7 +212,7 @@ export const ScheduleViewer: React.FC = () => {
 
     // 4. Daily duty limit check (more than 2 duties on same date)
     const dutiesOnDate = project.assignments.filter(
-      (a) => Number(a.facultySrNo) === Number(targetFaculty.srNo) && a.date === sourceAssignment.date && a.id !== sourceAssignment.id
+      (a) => Number(a.facultySrNo) === Number(targetFaculty.srNo) && a.date === dateConfig.date && a.id !== sourceAssignment.id
     );
     if (dutiesOnDate.length >= 2) {
       reasons.push('Already assigned to 2 duties on this date (daily limit reached)');
@@ -203,36 +221,44 @@ export const ScheduleViewer: React.FC = () => {
     return reasons;
   };
 
-  // Initiate duty transfer from source faculty to target faculty
+  // Initiate duty transfer from source faculty to target faculty (supports cross-date and cross-session)
   const initiateDutyTransfer = (
     sourceAssignment: Assignment,
     sourceFaculty: Faculty,
     targetFaculty: Faculty,
-    targetDate: string
+    targetDate: string,
+    targetSession?: SessionType
   ) => {
-    if (sourceAssignment.date !== targetDate) {
-      setActionToast('Transfers must be on the same date.');
-      setTimeout(() => setActionToast(null), 2500);
-      return;
-    }
+    const tgtSession = targetSession || sourceAssignment.session;
 
-    if (sourceFaculty.srNo === targetFaculty.srNo) {
-      return; // Same faculty, no-op
+    // If moving to same faculty and same date and same session: no-op
+    if (
+      sourceFaculty.srNo === targetFaculty.srNo &&
+      sourceAssignment.date === targetDate &&
+      sourceAssignment.session === tgtSession
+    ) {
+      return;
     }
 
     const dateConfig = project.examPeriod.dates.find((d) => d.date === targetDate);
     const dateDisplay = dateConfig?.displayDate || targetDate;
 
-    // Check if target faculty already has an assignment in that same session
+    // Check if target faculty already has an assignment in that target date & session
     const targetExistingDuty = project.assignments.find(
       (a) =>
         Number(a.facultySrNo) === Number(targetFaculty.srNo) &&
         a.date === targetDate &&
-        a.session === sourceAssignment.session &&
+        a.session === tgtSession &&
         a.id !== sourceAssignment.id
     );
 
     if (targetExistingDuty) {
+      if (sourceFaculty.srNo === targetFaculty.srNo) {
+        setActionToast(`${targetFaculty.name} is already assigned to ${tgtSession} on ${dateDisplay}.`);
+        setTimeout(() => setActionToast(null), 3000);
+        return;
+      }
+
       // Collision detected -> Open collision modal
       setCollisionModalData({
         sourceAssignment,
@@ -240,13 +266,15 @@ export const ScheduleViewer: React.FC = () => {
         targetFaculty,
         targetAssignment: targetExistingDuty,
         dateDisplay,
+        targetDate,
+        targetSession: tgtSession,
       });
       return;
     }
 
     // Check for eligibility/availability/cap conflicts
     if (dateConfig) {
-      const conflicts = checkDropConflicts(targetFaculty, sourceAssignment, dateConfig);
+      const conflicts = checkDropConflicts(targetFaculty, sourceAssignment, dateConfig, tgtSession);
       if (conflicts.length > 0) {
         setOverrideModalData({
           sourceAssignment,
@@ -255,15 +283,30 @@ export const ScheduleViewer: React.FC = () => {
           conflictReasons: conflicts,
           dateDisplay,
           pendingAction: 'replace',
+          targetDate,
+          targetSession: tgtSession,
         });
         return;
       }
     }
 
     // Clean transfer with no conflict or collision
-    const res = atomicTransferOrSwapDuty(sourceAssignment.id, targetFaculty.srNo, 'replace');
+    const res = atomicTransferOrSwapDuty(
+      sourceAssignment.id,
+      targetFaculty.srNo,
+      'replace',
+      false,
+      undefined,
+      false,
+      targetDate,
+      tgtSession
+    );
     if (res.success) {
-      setActionToast(`Transferred ${sourceAssignment.session} from ${sourceFaculty.name} to ${targetFaculty.name}`);
+      if (sourceFaculty.srNo === targetFaculty.srNo) {
+        setActionToast(`Moved ${tgtSession} duty to ${dateDisplay}`);
+      } else {
+        setActionToast(`Transferred ${tgtSession} to ${targetFaculty.name} on ${dateDisplay}`);
+      }
     } else {
       setActionToast(res.error || 'Duty transfer failed');
     }
@@ -273,12 +316,14 @@ export const ScheduleViewer: React.FC = () => {
   // Resolve collision (swap vs replace)
   const handleCollisionResolve = (action: 'swap' | 'replace') => {
     if (!collisionModalData) return;
-    const { sourceAssignment, sourceFaculty, targetFaculty, dateDisplay } = collisionModalData;
+    const { sourceAssignment, sourceFaculty, targetFaculty, dateDisplay, targetDate, targetSession } = collisionModalData;
     setCollisionModalData(null);
 
-    const dateConfig = project.examPeriod.dates.find((d) => d.date === sourceAssignment.date);
+    const tgtDate = targetDate || sourceAssignment.date;
+    const tgtSession = targetSession || sourceAssignment.session;
+    const dateConfig = project.examPeriod.dates.find((d) => d.date === tgtDate);
     if (dateConfig) {
-      const conflicts = checkDropConflicts(targetFaculty, sourceAssignment, dateConfig);
+      const conflicts = checkDropConflicts(targetFaculty, sourceAssignment, dateConfig, tgtSession);
       if (conflicts.length > 0) {
         setOverrideModalData({
           sourceAssignment,
@@ -287,12 +332,23 @@ export const ScheduleViewer: React.FC = () => {
           conflictReasons: conflicts,
           dateDisplay,
           pendingAction: action,
+          targetDate: tgtDate,
+          targetSession: tgtSession,
         });
         return;
       }
     }
 
-    const res = atomicTransferOrSwapDuty(sourceAssignment.id, targetFaculty.srNo, action);
+    const res = atomicTransferOrSwapDuty(
+      sourceAssignment.id,
+      targetFaculty.srNo,
+      action,
+      false,
+      undefined,
+      false,
+      tgtDate,
+      tgtSession
+    );
     if (res.success) {
       const verb = action === 'swap' ? 'Swapped duties between' : 'Replaced duty from';
       setActionToast(`${verb} ${sourceFaculty.name} and ${targetFaculty.name}`);
@@ -305,8 +361,11 @@ export const ScheduleViewer: React.FC = () => {
   // Confirm administrator override
   const handleOverrideConfirm = (reason: string, lockAfter: boolean) => {
     if (!overrideModalData) return;
-    const { sourceAssignment, sourceFaculty, targetFaculty, pendingAction } = overrideModalData;
+    const { sourceAssignment, sourceFaculty, targetFaculty, pendingAction, targetDate, targetSession } = overrideModalData;
     setOverrideModalData(null);
+
+    const tgtDate = targetDate || sourceAssignment.date;
+    const tgtSession = targetSession || sourceAssignment.session;
 
     const res = atomicTransferOrSwapDuty(
       sourceAssignment.id,
@@ -314,11 +373,13 @@ export const ScheduleViewer: React.FC = () => {
       pendingAction,
       true,
       reason,
-      lockAfter
+      lockAfter,
+      tgtDate,
+      tgtSession
     );
 
     if (res.success) {
-      setActionToast(`Authorized override transfer of ${sourceAssignment.session} to ${targetFaculty.name}`);
+      setActionToast(`Authorized override transfer of ${tgtSession} to ${targetFaculty.name}`);
     } else {
       setActionToast(res.error || 'Override transfer failed');
     }
@@ -487,6 +548,18 @@ export const ScheduleViewer: React.FC = () => {
             <Building2 className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
             <span className="sm:hidden">Header</span>
             <span className="hidden sm:inline">Letterhead</span>
+          </button>
+
+          {/* Noticeboard Room Chart Button */}
+          <button
+            type="button"
+            onClick={() => setIsRoomChartModalOpen(true)}
+            className="btn-spring flex items-center justify-center space-x-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer border bg-indigo-500/10 dark:bg-indigo-950/40 text-indigo-800 dark:text-indigo-300 border-indigo-300 dark:border-indigo-800 hover:bg-indigo-500/20 shadow-2xs flex-1 sm:flex-initial"
+            title="Open printable Noticeboard Room-wise Invigilation Chart"
+          >
+            <Building className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+            <span className="sm:hidden">Noticeboard</span>
+            <span className="hidden sm:inline">Noticeboard Chart</span>
           </button>
         </div>
 
@@ -723,7 +796,7 @@ export const ScheduleViewer: React.FC = () => {
                         const dayAssignments = fDateMap?.get(d.date) || [];
                         const isDouble = dayAssignments.length >= 2;
                         const isDragOver = dragOverCell?.facultySrNo === f.srNo && dragOverCell?.date === d.date;
-                        const isMobileTarget = mobileSelectedDuty && mobileSelectedDuty.assignment.date === d.date && mobileSelectedDuty.faculty.srNo !== f.srNo;
+                        const isMobileTarget = mobileSelectedDuty && !(mobileSelectedDuty.assignment.date === d.date && mobileSelectedDuty.faculty.srNo === f.srNo);
 
                         return (
                           <td
@@ -741,7 +814,7 @@ export const ScheduleViewer: React.FC = () => {
                               }
                             }}
                             onDragOver={(e) => {
-                              if (draggedDuty && draggedDuty.assignment.date === d.date && draggedDuty.faculty.srNo !== f.srNo) {
+                              if (draggedDuty && !(draggedDuty.assignment.date === d.date && draggedDuty.faculty.srNo === f.srNo)) {
                                 e.preventDefault();
                                 e.dataTransfer.dropEffect = 'move';
                                 if (dragOverCell?.facultySrNo !== f.srNo || dragOverCell?.date !== d.date) {
@@ -758,7 +831,7 @@ export const ScheduleViewer: React.FC = () => {
                               e.preventDefault();
                               e.stopPropagation();
                               setDragOverCell(null);
-                              if (draggedDuty && draggedDuty.assignment.date === d.date && draggedDuty.faculty.srNo !== f.srNo) {
+                              if (draggedDuty && !(draggedDuty.assignment.date === d.date && draggedDuty.faculty.srNo === f.srNo)) {
                                 const srcAssignment = draggedDuty.assignment;
                                 const srcFaculty = draggedDuty.faculty;
                                 const tgtFaculty = f;
@@ -772,7 +845,7 @@ export const ScheduleViewer: React.FC = () => {
                               }
                             }}
                             onClick={() => {
-                              if (mobileSelectedDuty && mobileSelectedDuty.assignment.date === d.date && mobileSelectedDuty.faculty.srNo !== f.srNo) {
+                              if (mobileSelectedDuty && !(mobileSelectedDuty.assignment.date === d.date && mobileSelectedDuty.faculty.srNo === f.srNo)) {
                                 const srcAssignment = mobileSelectedDuty.assignment;
                                 const srcFaculty = mobileSelectedDuty.faculty;
                                 const tgtFaculty = f;
@@ -836,7 +909,7 @@ export const ScheduleViewer: React.FC = () => {
                                       }}
                                       onClick={(e) => {
                                         e.stopPropagation();
-                                        if (mobileSelectedDuty && mobileSelectedDuty.assignment.date === d.date && mobileSelectedDuty.faculty.srNo !== f.srNo) {
+                                        if (mobileSelectedDuty && !(mobileSelectedDuty.assignment.date === d.date && mobileSelectedDuty.faculty.srNo === f.srNo)) {
                                           initiateDutyTransfer(mobileSelectedDuty.assignment, mobileSelectedDuty.faculty, f, d.date);
                                           setMobileSelectedDuty(null);
                                           return;
@@ -856,7 +929,7 @@ export const ScheduleViewer: React.FC = () => {
                                           ? 'bg-indigo-500/15 dark:bg-indigo-950/60 text-indigo-900 dark:text-indigo-200 hover:bg-indigo-500/25 border border-indigo-400/50 dark:border-indigo-800/50 shadow-xs'
                                           : 'bg-emerald-500/15 dark:bg-emerald-950/60 text-emerald-900 dark:text-emerald-200 hover:bg-emerald-500/25 border border-emerald-400/50 dark:border-emerald-800/50 shadow-xs'
                                       }`}
-                                      title={`${a.isReserve ? 'Designated Standby / Reserve Duty' : 'Primary Supervision Duty'} — Drag or tap grip to transfer`}
+                                      title={`${a.isReserve ? 'Designated Standby / Reserve Duty' : 'Primary Supervision Duty'} - Drag or tap grip to transfer`}
                                     >
                                       <div className="flex items-center space-x-1 truncate">
                                         <button
@@ -1003,7 +1076,43 @@ export const ScheduleViewer: React.FC = () => {
                     const isFilled = primaryAssignments.length >= required;
 
                     return (
-                      <div key={session} className="p-4 flex flex-col md:flex-row gap-4 items-start">
+                      <div
+                        key={session}
+                        onDragOver={(e) => {
+                          if (draggedDuty) {
+                            e.preventDefault();
+                            e.dataTransfer.dropEffect = 'move';
+                            if (dragOverSession?.date !== d.date || dragOverSession?.session !== session) {
+                              setDragOverSession({ date: d.date, session });
+                            }
+                          }
+                        }}
+                        onDragLeave={(e) => {
+                          if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                            if (dragOverSession?.date === d.date && dragOverSession?.session === session) {
+                              setDragOverSession(null);
+                            }
+                          }
+                        }}
+                        onDrop={(e) => {
+                          if (draggedDuty) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            const srcAssignment = draggedDuty.assignment;
+                            const srcFaculty = draggedDuty.faculty;
+                            setDraggedDuty(null);
+                            setDragOverSession(null);
+                            setTimeout(() => {
+                              initiateDutyTransfer(srcAssignment, srcFaculty, srcFaculty, d.date, session);
+                            }, 20);
+                          }
+                        }}
+                        className={`p-4 flex flex-col md:flex-row gap-4 items-start transition-all duration-150 rounded-2xl ${
+                          dragOverSession?.date === d.date && dragOverSession?.session === session
+                            ? 'ring-2 ring-sky-500 bg-sky-50/70 dark:bg-sky-950/60 shadow-md'
+                            : ''
+                        }`}
+                      >
                         {/* Session details */}
                         <div className="w-full md:w-56 shrink-0 space-y-1">
                           <div className="flex items-center space-x-2">
@@ -1046,16 +1155,66 @@ export const ScheduleViewer: React.FC = () => {
                           {/* Primary Supervisors */}
                           <div>
                             <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 block mb-1 tabular-nums">
-                              Primary Supervisors ({primaryAssignments.length}/{required})
+                              Primary Supervisors ({primaryAssignments.length}/{required}) &bull; <span className="text-[9px] font-normal normal-case">Drag badge to swap or move</span>
                             </span>
                             <div className="flex flex-wrap gap-1.5">
                               {primaryAssignments.map((a) => {
                                 const fac = facultyMap.get(a.facultySrNo);
+                                const isCurrentDrag = draggedDuty?.assignment.id === a.id;
                                 return (
                                   <div
                                     key={a.id}
+                                    draggable={!a.isLocked}
+                                    onDragStart={(e) => {
+                                      if (fac && !a.isLocked) {
+                                        e.stopPropagation();
+                                        e.dataTransfer.setData(
+                                          'text/plain',
+                                          JSON.stringify({
+                                            assignmentId: a.id,
+                                            facultySrNo: fac.srNo,
+                                            date: d.date,
+                                            session,
+                                          })
+                                        );
+                                        e.dataTransfer.effectAllowed = 'move';
+                                        setDraggedDuty({ assignment: a, faculty: fac });
+                                      }
+                                    }}
+                                    onDragEnd={() => {
+                                      setDraggedDuty(null);
+                                      setDragOverSession(null);
+                                    }}
+                                    onDragOver={(e) => {
+                                      if (draggedDuty && draggedDuty.assignment.id !== a.id) {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        e.dataTransfer.dropEffect = 'move';
+                                      }
+                                    }}
+                                    onDrop={(e) => {
+                                      if (draggedDuty && draggedDuty.assignment.id !== a.id && fac) {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        const srcAssignment = draggedDuty.assignment;
+                                        const srcFaculty = draggedDuty.faculty;
+                                        const tgtFaculty = fac;
+                                        setDraggedDuty(null);
+                                        setDragOverSession(null);
+                                        setTimeout(() => {
+                                          initiateDutyTransfer(srcAssignment, srcFaculty, tgtFaculty, d.date, session);
+                                        }, 20);
+                                      }
+                                    }}
                                     onClick={() => setSelectedAssignmentForInspect(a)}
-                                    className="btn-spring px-2.5 py-1 rounded-lg bg-white/80 dark:bg-slate-800/80 hover:bg-sky-100 dark:hover:bg-sky-950/60 text-slate-800 dark:text-slate-200 hover:text-sky-900 dark:hover:text-sky-300 border border-slate-200/80 dark:border-white/10 hover:border-sky-300 dark:hover:border-sky-800/40 font-medium cursor-pointer flex items-center space-x-1.5 shadow-2xs backdrop-blur-xs"
+                                    className={`btn-spring px-2.5 py-1 rounded-lg border font-medium flex items-center space-x-1.5 shadow-2xs backdrop-blur-xs select-none transition-all ${
+                                      !a.isLocked ? 'cursor-grab active:cursor-grabbing hover:scale-105' : 'cursor-pointer'
+                                    } ${
+                                      isCurrentDrag
+                                        ? 'opacity-40 ring-2 ring-sky-500 bg-sky-200 dark:bg-sky-900'
+                                        : 'bg-white/80 dark:bg-slate-800/80 hover:bg-sky-100 dark:hover:bg-sky-950/60 text-slate-800 dark:text-slate-200 hover:text-sky-900 dark:hover:text-sky-300 border-slate-200/80 dark:border-white/10 hover:border-sky-300 dark:hover:border-sky-800/40'
+                                    }`}
+                                    title={!a.isLocked ? 'Drag to reassign or swap' : 'Locked assignment'}
                                   >
                                     <span className="text-[10px] font-mono tabular-nums text-slate-400 dark:text-slate-500">
                                       #{a.facultySrNo}
@@ -1063,6 +1222,17 @@ export const ScheduleViewer: React.FC = () => {
                                     <span>{fac?.name || `Sr ${a.facultySrNo}`}</span>
                                     {fac?.isHod && (
                                       <span className="text-[9px] font-bold text-indigo-600 dark:text-indigo-400">HOD</span>
+                                    )}
+                                    {a.roomName && (
+                                      <span
+                                        className="text-[9px] font-semibold px-1.5 py-0.2 rounded bg-indigo-50 dark:bg-indigo-950/70 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-900/60"
+                                        title={`Designated Room: ${a.roomName}`}
+                                      >
+                                        <span className="inline-flex items-center space-x-1">
+                                          <Building className="w-2.5 h-2.5 text-indigo-500" />
+                                          <span>{a.roomName.split('(')[0].trim()}</span>
+                                        </span>
+                                      </span>
                                     )}
                                     <button
                                       type="button"
@@ -1086,6 +1256,26 @@ export const ScheduleViewer: React.FC = () => {
                               {primaryAssignments.length < required && (
                                 <button
                                   type="button"
+                                  onDragOver={(e) => {
+                                    if (draggedDuty) {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      e.dataTransfer.dropEffect = 'move';
+                                    }
+                                  }}
+                                  onDrop={(e) => {
+                                    if (draggedDuty) {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      const srcAssignment = draggedDuty.assignment;
+                                      const srcFaculty = draggedDuty.faculty;
+                                      setDraggedDuty(null);
+                                      setDragOverSession(null);
+                                      setTimeout(() => {
+                                        initiateDutyTransfer(srcAssignment, srcFaculty, srcFaculty, d.date, session);
+                                      }, 20);
+                                    }
+                                  }}
                                   onClick={() =>
                                     setManualEditSlot({
                                       date: d.date,
@@ -1093,7 +1283,7 @@ export const ScheduleViewer: React.FC = () => {
                                     })
                                   }
                                   className="btn-spring px-2.5 py-1 rounded-lg bg-rose-500/15 dark:bg-rose-950/60 hover:bg-rose-500/25 text-rose-700 dark:text-rose-300 border border-dashed border-rose-400/60 dark:border-rose-700/60 font-bold cursor-pointer flex items-center space-x-1.5 shadow-2xs backdrop-blur-xs"
-                                  title="Click to manually assign an available faculty member or substitute to this unfilled position"
+                                  title="Drop duty here to fill, or click to manually assign"
                                 >
                                   <AlertTriangle className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400 shrink-0" />
                                   <span>⚠️ Unfilled Slot (Short by {required - primaryAssignments.length})</span>
@@ -1126,12 +1316,61 @@ export const ScheduleViewer: React.FC = () => {
                               <div className="flex flex-wrap gap-1.5">
                                 {reserveAssignments.map((a) => {
                                   const fac = facultyMap.get(a.facultySrNo);
+                                  const isCurrentDrag = draggedDuty?.assignment.id === a.id;
                                   return (
                                     <div
                                       key={a.id}
+                                      draggable={!a.isLocked}
+                                      onDragStart={(e) => {
+                                        if (fac && !a.isLocked) {
+                                          e.stopPropagation();
+                                          e.dataTransfer.setData(
+                                            'text/plain',
+                                            JSON.stringify({
+                                              assignmentId: a.id,
+                                              facultySrNo: fac.srNo,
+                                              date: d.date,
+                                              session,
+                                            })
+                                          );
+                                          e.dataTransfer.effectAllowed = 'move';
+                                          setDraggedDuty({ assignment: a, faculty: fac });
+                                        }
+                                      }}
+                                      onDragEnd={() => {
+                                        setDraggedDuty(null);
+                                        setDragOverSession(null);
+                                      }}
+                                      onDragOver={(e) => {
+                                        if (draggedDuty && draggedDuty.assignment.id !== a.id) {
+                                          e.preventDefault();
+                                          e.stopPropagation();
+                                          e.dataTransfer.dropEffect = 'move';
+                                        }
+                                      }}
+                                      onDrop={(e) => {
+                                        if (draggedDuty && draggedDuty.assignment.id !== a.id && fac) {
+                                          e.preventDefault();
+                                          e.stopPropagation();
+                                          const srcAssignment = draggedDuty.assignment;
+                                          const srcFaculty = draggedDuty.faculty;
+                                          const tgtFaculty = fac;
+                                          setDraggedDuty(null);
+                                          setDragOverSession(null);
+                                          setTimeout(() => {
+                                            initiateDutyTransfer(srcAssignment, srcFaculty, tgtFaculty, d.date, session);
+                                          }, 20);
+                                        }
+                                      }}
                                       onClick={() => setSelectedAssignmentForInspect(a)}
-                                      className="btn-spring px-2.5 py-1 rounded-lg bg-amber-50/90 dark:bg-amber-950/70 hover:bg-amber-100 dark:hover:bg-amber-900/60 text-amber-900 dark:text-amber-200 border border-amber-300/80 dark:border-amber-700/60 font-medium cursor-pointer flex items-center space-x-1.5 shadow-2xs backdrop-blur-xs"
-                                      title="Designated Standby / Reserve Duty"
+                                      className={`btn-spring px-2.5 py-1 rounded-lg border font-medium flex items-center space-x-1.5 shadow-2xs backdrop-blur-xs select-none transition-all ${
+                                        !a.isLocked ? 'cursor-grab active:cursor-grabbing hover:scale-105' : 'cursor-pointer'
+                                      } ${
+                                        isCurrentDrag
+                                          ? 'opacity-40 ring-2 ring-amber-500 bg-amber-200 dark:bg-amber-900'
+                                          : 'bg-amber-50/90 dark:bg-amber-950/70 hover:bg-amber-100 dark:hover:bg-amber-900/60 text-amber-900 dark:text-amber-200 border-amber-300/80 dark:border-amber-700/60'
+                                      }`}
+                                      title={!a.isLocked ? 'Drag to reassign or swap' : 'Locked assignment'}
                                     >
                                       <Shield className="w-3 h-3 text-amber-600 dark:text-amber-400" />
                                       <span className="text-[10px] font-mono tabular-nums text-amber-600 dark:text-amber-400">
@@ -1141,6 +1380,11 @@ export const ScheduleViewer: React.FC = () => {
                                       <span className="text-[9px] font-bold px-1 rounded bg-amber-200/80 dark:bg-amber-900/80 text-amber-900 dark:text-amber-300">
                                         Reserve
                                       </span>
+                                      {a.roomName && (
+                                        <span className="text-[9px] font-medium px-1 rounded bg-amber-100/90 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300">
+                                          {a.roomName}
+                                        </span>
+                                      )}
                                       {fac?.isHod && (
                                         <span className="text-[9px] font-bold text-indigo-600 dark:text-indigo-400">HOD</span>
                                       )}
