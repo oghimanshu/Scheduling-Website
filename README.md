@@ -98,7 +98,20 @@ Designed and Developed by Himanshu Gaur.
 
 ---
 
-### 6. Institutional Letterhead, Signatures, and Print Customizer
+### 6. Interactive Conflicts and Rule Violations Inspector
+- **Header Conflict Locator**:
+  - Clicking on the conflict badge in the navigation header opens the dedicated Conflicts &amp; Violations Inspector.
+- **Deep Mathematical Rule Inspection**:
+  - Filter by Hard Constraints (double bookings, daily caps, arrival violations, excluded holiday scheduling), Warnings (rest period breaches), and Unfilled Staffing Slots.
+  - Search issues in real time by faculty name, Sr. No., date, or rule type.
+- **1-Click Locate & Highlight on Schedule Grid**:
+  - Instantly centers the viewport on the conflicting cell, switches to the faculty view, and applies an animated pulse ring.
+- **Orphan Excluded Duty Cleanup**:
+  - Automatically identifies and purges duties accidentally assigned to excluded holiday or non-examination dates.
+
+---
+
+### 7. Institutional Letterhead, Signatures, and Print Customizer
 - **Institutional Branding**:
   - Upload college logo, header text, subtitle, and accreditation details.
 - **Multi-Tier Signing Authorities**:
@@ -109,13 +122,13 @@ Designed and Developed by Himanshu Gaur.
 
 ---
 
-### 7. Google Drive Sync and Zero-Setup Cloud Backup
+### 8. Google Drive Sync and Zero-Setup Cloud Backup
 - Backup and restore scheduling projects directly to Google Drive folders.
 - Local browser auto-save ensures zero data loss between sessions.
 
 ---
 
-### 8. Visual Polish and Accessibility
+### 9. Visual Polish and Accessibility
 - **Apple VisionOS Glassmorphic Aesthetic**:
   - Modern translucent cards, specular lighting rims, and smooth spring physics.
 - **Dark Mode with Ambient Animations**:

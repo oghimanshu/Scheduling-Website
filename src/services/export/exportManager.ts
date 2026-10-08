@@ -1,6 +1,6 @@
 import * as XLSX from 'xlsx';
 import Papa from 'papaparse';
-import { ProjectState, SessionType } from '../../types';
+import { ProjectState, SessionType, ExamDateConfig, SessionTiming } from '../../types';
 
 export function exportProjectToJson(state: ProjectState): void {
   const jsonStr = JSON.stringify(state, null, 2);
@@ -37,7 +37,17 @@ export function importProjectFromJson(
 
 export function buildExcelWorkbook(state: ProjectState): XLSX.WorkBook {
   const wb = XLSX.utils.book_new();
-  const activeDates = state.examPeriod.dates.filter((d) => !d.isExcluded);
+  const configuredActiveDates = (state.examPeriod?.dates || []).filter((d) => !d.isExcluded);
+  const activeDates: ExamDateConfig[] = configuredActiveDates.length > 0
+    ? configuredActiveDates
+    : (Array.from(new Set(state.assignments.map((a) => a.date))).sort().map((date) => ({
+        date,
+        dayOfWeek: '',
+        sessionRequirements: {} as Record<SessionType, number>,
+        sessionTimings: {} as Record<SessionType, SessionTiming>,
+        isExcluded: false,
+        displayDate: date,
+      })) as ExamDateConfig[]);
 
   // 1. Sheet 1: Faculty Master Schedule View
   const facultyRows: any[] = [];
@@ -64,7 +74,7 @@ export function buildExcelWorkbook(state: ProjectState): XLSX.WorkBook {
           : assigned.length;
         countedNew += countedToday;
         const sessionsStr = assigned
-          .map((a) => a.session + (a.isReserve ? ' (Reserve)' : ''))
+          .map((a) => a.session + (a.isReserve ? ' (Reserve)' : '') + (a.roomName ? ` [${a.roomName.split('(')[0].trim()}]` : ''))
           .join(' + ');
         row[d.displayDate] = sessionsStr;
       } else {
@@ -91,17 +101,21 @@ export function buildExcelWorkbook(state: ProjectState): XLSX.WorkBook {
   // 2. Sheet 2: Daily Session Duty Rosters
   const sessionRows: any[] = [];
   const facultyMap = new Map(state.faculty.map((f) => [Number(f.srNo), f]));
+  const sessionList = (state.sessions && state.sessions.length > 0
+    ? state.sessions.map((s) => s.id)
+    : ['JRS 1', 'JRS 2', 'JRS 3']) as SessionType[];
 
   activeDates.forEach((d) => {
-    (['JRS 1', 'JRS 2', 'JRS 3'] as SessionType[]).forEach((session) => {
+    sessionList.forEach((session) => {
       const assigned = state.assignments.filter(
         (a) => a.date === d.date && a.session === session
       );
-      const req = d.sessionRequirements[session] || 0;
+      const req = d.sessionRequirements?.[session] || 0;
+      const timingObj = d.sessionTimings?.[session] || { start: '09:00', end: '12:00' };
       const supervisorNames = assigned
         .map((a) => {
           const name = facultyMap.get(Number(a.facultySrNo))?.name || `Sr ${a.facultySrNo}`;
-          const roomTag = a.roomName ? ` [${a.roomName}]` : a.isReserve ? ' [Reserve]' : '';
+          const roomTag = a.roomName ? ` [${a.roomName.split('(')[0].trim()}]` : a.isReserve ? ' [Reserve]' : '';
           return `${name}${roomTag}`;
         })
         .join('; ');
@@ -110,7 +124,7 @@ export function buildExcelWorkbook(state: ProjectState): XLSX.WorkBook {
         'Date': d.displayDate,
         'Day': d.dayOfWeek,
         'Session': session,
-        'Timing': `${d.sessionTimings[session].start} - ${d.sessionTimings[session].end}`,
+        'Timing': `${timingObj.start} - ${timingObj.end}`,
         'Required': req,
         'Assigned': assigned.length,
         'Status': assigned.length >= req ? 'Filled' : `Deficit (${req - assigned.length})`,
@@ -123,9 +137,10 @@ export function buildExcelWorkbook(state: ProjectState): XLSX.WorkBook {
   XLSX.utils.book_append_sheet(wb, sessionWs, 'Session Rosters');
 
   // 3. Sheet 3: Workload Summary
+  const activeDatesSet = new Set(activeDates.map((d) => d.date));
   const workloadRows = state.faculty.map((fac) => {
     const facAssignments = state.assignments.filter(
-      (a) => Number(a.facultySrNo) === Number(fac.srNo)
+      (a) => Number(a.facultySrNo) === Number(fac.srNo) && activeDatesSet.has(a.date)
     );
     const primaryCount = facAssignments.filter((a) => !a.isReserve).length;
     const reserveCount = facAssignments.filter((a) => a.isReserve).length;
@@ -173,7 +188,17 @@ export function exportScheduleToExcel(state: ProjectState): void {
 }
 
 export function generateScheduleCsvString(state: ProjectState): string {
-  const activeDates = state.examPeriod.dates.filter((d) => !d.isExcluded);
+  const configuredActiveDates = (state.examPeriod?.dates || []).filter((d) => !d.isExcluded);
+  const activeDates: ExamDateConfig[] = configuredActiveDates.length > 0
+    ? configuredActiveDates
+    : (Array.from(new Set(state.assignments.map((a) => a.date))).sort().map((date) => ({
+        date,
+        dayOfWeek: '',
+        sessionRequirements: {} as Record<SessionType, number>,
+        sessionTimings: {} as Record<SessionType, SessionTiming>,
+        isExcluded: false,
+        displayDate: date,
+      })) as ExamDateConfig[]);
   const rows: any[] = [];
 
   state.faculty.forEach((fac) => {
@@ -190,6 +215,7 @@ export function generateScheduleCsvString(state: ProjectState): string {
       const assigned = state.assignments.filter(
         (a) => Number(a.facultySrNo) === Number(fac.srNo) && a.date === d.date
       );
+      const colKey = d.displayDate || d.date;
       if (assigned.length > 0) {
         const primaryDuties = assigned.filter((a) => !a.isReserve);
         const reserveDuties = assigned.filter((a) => a.isReserve);
@@ -198,11 +224,11 @@ export function generateScheduleCsvString(state: ProjectState): string {
           ? primaryDuties.length
           : assigned.length;
         countedNew += countedToday;
-        row[d.displayDate] = assigned
-          .map((a) => a.session + (a.isReserve ? ' (R)' : ''))
+        row[colKey] = assigned
+          .map((a) => a.session + (a.isReserve ? ' (R)' : '') + (a.roomName ? ` [${a.roomName.split('(')[0].trim()}]` : ''))
           .join(' + ');
       } else {
-        row[d.displayDate] = '';
+        row[colKey] = '';
       }
     });
 

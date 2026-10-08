@@ -9,6 +9,7 @@ import { AvailabilityManager } from './components/AvailabilityManager';
 import { ScheduleViewer } from './components/ScheduleViewer';
 import { AlternativesModal } from './components/AlternativesModal';
 import { WhyValidModal } from './components/WhyValidModal';
+import { ConflictsInspectorModal } from './components/ConflictsInspectorModal';
 import { AssignmentInspectorModal } from './components/AssignmentInspectorModal';
 import { ManualEditModal } from './components/ManualEditModal';
 import { InfeasibilityModal } from './components/InfeasibilityModal';
@@ -121,6 +122,7 @@ const AppContent: React.FC = () => {
       {/* Interactive Modals */}
       <AlternativesModal />
       <WhyValidModal />
+      <ConflictsInspectorModal />
       <AssignmentInspectorModal />
       <ManualEditModal />
       <InfeasibilityModal />

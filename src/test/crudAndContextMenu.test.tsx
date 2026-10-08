@@ -12,7 +12,9 @@ import {
   ContextMenuDivider,
   ContextMenuHeader,
 } from '../components/ContextMenuPopup';
-import { ExamRoom } from '../types';
+import { ExamRoom, ProjectState } from '../types';
+import { INITIAL_PROJECT_STATE, DEFAULT_DATES_CONFIG } from '../data/defaultData';
+import { ConflictsInspectorModal } from '../components/ConflictsInspectorModal';
 
 describe('Universal Add New and Right-Click UI Components', () => {
   it('renders FacultyManager with Add Faculty button and context menu integration', () => {
@@ -137,4 +139,70 @@ describe('Universal Add New and Right-Click UI Components', () => {
 
     expect(functionsDefined).toBe(true);
   });
+
+  it('renders ConflictsInspectorModal with filter tabs and conflict inspector details', () => {
+    const htmlWithModal = renderToString(
+      <SchedulerProvider>
+        <ConflictsInspectorModal forceOpen={true} />
+      </SchedulerProvider>
+    );
+
+    expect(htmlWithModal).toContain('Schedule Conflicts &amp; Rule Violations');
+    expect(htmlWithModal).toContain('All (');
+    expect(htmlWithModal).toContain('Hard Conflicts');
+    expect(htmlWithModal).toContain('Close Inspector');
+    expect(htmlWithModal.length).toBeGreaterThan(100);
+  });
+
+  it('provides cleanExcludedDateAssignments and prevents scheduling on excluded non-exam dates', () => {
+    let cleanFnDefined = false;
+    let assignmentPrevented = false;
+
+    const mockProjectState: ProjectState = {
+      ...INITIAL_PROJECT_STATE,
+      faculty: [
+        {
+          srNo: 16,
+          name: 'Faculty 16',
+          arrival: 'Morning',
+          isHod: false,
+          targetSupervisions: 4,
+          maxSupervisions: 4,
+          previousSupervisions: 0,
+        },
+      ],
+      examPeriod: {
+        name: 'Test Period',
+        startDate: '2026-10-05',
+        endDate: '2026-10-12',
+        dates: DEFAULT_DATES_CONFIG,
+      },
+    };
+
+    const ExcludedDateTest = () => {
+      const { cleanExcludedDateAssignments, addOrUpdateAssignment } = useScheduler();
+      if (typeof cleanExcludedDateAssignments === 'function') {
+        cleanFnDefined = true;
+      }
+
+      // 2026-10-05 is an excluded date in DEFAULT_DATES_CONFIG
+      const res = addOrUpdateAssignment(16, '2026-10-05', 'JRS 2');
+
+      if (!res.success && res.error?.includes('non-examination / holiday date')) {
+        assignmentPrevented = true;
+      }
+
+      return <div>Clean Excluded Date Test</div>;
+    };
+
+    renderToString(
+      <SchedulerProvider initialProjectState={mockProjectState}>
+        <ExcludedDateTest />
+      </SchedulerProvider>
+    );
+
+    expect(cleanFnDefined).toBe(true);
+    expect(assignmentPrevented).toBe(true);
+  });
 });
+

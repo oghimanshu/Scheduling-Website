@@ -110,6 +110,11 @@ interface SchedulerContextType {
   setIsSubstituteModalOpen: (open: boolean) => void;
   isRoomChartModalOpen: boolean;
   setIsRoomChartModalOpen: (open: boolean) => void;
+  isConflictsModalOpen: boolean;
+  setIsConflictsModalOpen: (open: boolean) => void;
+  targetedConflictCell: { facultySrNo: number; date: string; session?: SessionType } | null;
+  setTargetedConflictCell: (cell: { facultySrNo: number; date: string; session?: SessionType } | null) => void;
+  cleanExcludedDateAssignments: () => { cleanedCount: number };
   setIsPrintViewActive: (active: boolean) => void;
   setInfeasibilityReport: (report: InfeasibilityReport | null) => void;
 
@@ -212,8 +217,14 @@ interface SchedulerContextType {
 
 const SchedulerContext = createContext<SchedulerContextType | undefined>(undefined);
 
-export const SchedulerProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const SchedulerProvider: React.FC<{ children: React.ReactNode; initialProjectState?: ProjectState }> = ({
+  children,
+  initialProjectState,
+}) => {
   const [project, setProject] = useState<ProjectState>(() => {
+    if (initialProjectState) {
+      return initialProjectState;
+    }
     const loaded = loadProjectFromStorage();
     const st = loaded.state;
     if (!st.sessions || !Array.isArray(st.sessions)) {
@@ -249,6 +260,8 @@ export const SchedulerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [isLetterheadModalOpen, setIsLetterheadModalOpen] = useState(false);
   const [isPrintScheduleModalOpen, setIsPrintScheduleModalOpen] = useState(false);
   const [isRoomChartModalOpen, setIsRoomChartModalOpen] = useState(false);
+  const [isConflictsModalOpen, setIsConflictsModalOpen] = useState(false);
+  const [targetedConflictCell, setTargetedConflictCell] = useState<{ facultySrNo: number; date: string; session?: SessionType } | null>(null);
   const [selectedForSubstitute, setSelectedForSubstitute] = useState<Assignment | null>(null);
   const [isSubstituteModalOpen, setIsSubstituteModalOpen] = useState(false);
   const [isPrintViewActive, setIsPrintViewActive] = useState(false);
@@ -681,6 +694,14 @@ export const SchedulerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     overrideReason?: string,
     isReserve = false
   ): { success: boolean; error?: string } => {
+    const dateConfig = project.examPeriod.dates.find((d) => d.date === date);
+    if (dateConfig?.isExcluded) {
+      return {
+        success: false,
+        error: `Cannot assign duties on ${dateConfig.displayDate} because it is marked as a non-examination / holiday date.`,
+      };
+    }
+
     const existing = project.assignments.find(
       (a) => a.facultySrNo === facultySrNo && a.date === date && a.session === session
     );
@@ -737,7 +758,35 @@ export const SchedulerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     });
 
     return { success: true };
-  }, [project.assignments, project.faculty, project.overrides]);
+  }, [project.assignments, project.faculty, project.overrides, project.examPeriod.dates]);
+
+  // Clean orphan assignments on excluded examination dates
+  const cleanExcludedDateAssignments = useCallback((): { cleanedCount: number } => {
+    const excludedDatesSet = new Set(
+      project.examPeriod.dates.filter((d) => d.isExcluded).map((d) => d.date)
+    );
+    const validAssignments = project.assignments.filter(
+      (a) => !excludedDatesSet.has(a.date)
+    );
+    const cleanedCount = project.assignments.length - validAssignments.length;
+    if (cleanedCount > 0) {
+      setProject((prev) => {
+        const activeId = prev.activeScheduleId || (prev.alternatives && prev.alternatives[0]?.id);
+        const updatedAlternatives = prev.alternatives?.map((alt) =>
+          alt.id === activeId ? { ...alt, assignments: validAssignments } : alt
+        );
+        const updatedState = {
+          ...prev,
+          assignments: validAssignments,
+          alternatives: updatedAlternatives || prev.alternatives,
+          lastSavedTimestamp: new Date().toLocaleTimeString('en-GB'),
+        };
+        saveProjectToStorage(updatedState);
+        return updatedState;
+      });
+    }
+    return { cleanedCount };
+  }, [project.assignments, project.examPeriod.dates]);
 
   // Remove assignment
   const removeAssignment = useCallback((assignmentId: string) => {
@@ -1882,9 +1931,14 @@ export const SchedulerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         return a;
       });
 
+      const activeId = prev.activeScheduleId || (prev.alternatives && prev.alternatives[0]?.id);
+      const updatedAlternatives = prev.alternatives?.map((alt) =>
+        alt.id === activeId ? { ...alt, assignments: newAssignments } : alt
+      );
       const updated = {
         ...prev,
         assignments: newAssignments,
+        alternatives: updatedAlternatives || prev.alternatives,
         lastSavedTimestamp: new Date().toLocaleTimeString('en-GB'),
       };
       saveProjectToStorage(updated);
@@ -1921,6 +1975,11 @@ export const SchedulerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         setIsPrintScheduleModalOpen,
         isRoomChartModalOpen,
         setIsRoomChartModalOpen,
+        isConflictsModalOpen,
+        setIsConflictsModalOpen,
+        targetedConflictCell,
+        setTargetedConflictCell,
+        cleanExcludedDateAssignments,
         selectedForSubstitute,
         setSelectedForSubstitute,
         isSubstituteModalOpen,

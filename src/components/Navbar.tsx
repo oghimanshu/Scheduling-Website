@@ -35,6 +35,7 @@ export const Navbar: React.FC = () => {
     rebalanceCurrentSchedule,
     setIsAlternativesModalOpen,
     setIsWhyValidModalOpen,
+    setIsConflictsModalOpen,
     setIsExportModalOpen,
     setIsSettingsModalOpen,
     setIsResetConfirmModalOpen,
@@ -105,14 +106,22 @@ export const Navbar: React.FC = () => {
                 <span className="underline ml-0.5 font-bold text-emerald-800 dark:text-emerald-200">Why valid?</span>
               </button>
             ) : (
-              <div className="glass-pill bg-rose-500/10 dark:bg-rose-500/20 text-rose-700 dark:text-rose-300 border-rose-500/30 shadow-xs">
+              <button
+                type="button"
+                onClick={() => setIsConflictsModalOpen(true)}
+                className="btn-spring glass-pill bg-rose-500/10 dark:bg-rose-500/20 text-rose-700 dark:text-rose-300 border-rose-500/30 hover:bg-rose-500/25 shadow-xs cursor-pointer"
+                title="Click to see where conflicts are and resolve them"
+              >
                 <AlertTriangle className="w-3.5 h-3.5 text-rose-500" />
-                <span className="tabular-nums">
+                <span className="tabular-nums font-bold">
                   {validation.hardConflictsCount > 0
                     ? `${validation.hardConflictsCount} Conflicts`
                     : `${validation.unfilledPositions} Unfilled`}
                 </span>
-              </div>
+                <span className="underline ml-0.5 font-bold text-rose-800 dark:text-rose-200">
+                  Where are conflicts?
+                </span>
+              </button>
             )}
           </div>
 

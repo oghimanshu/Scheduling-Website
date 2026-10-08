@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import {
   X,
@@ -48,9 +48,23 @@ export const DutySlipsModal: React.FC<{ forceOpen?: boolean }> = ({ forceOpen })
 
   if (!forceOpen && !isDutySlipsModalOpen) return null;
 
-  // Active faculty who have at least 1 assigned duty
+  const activeDatesSet = useMemo(() => {
+    if (!project.examPeriod?.dates || project.examPeriod.dates.length === 0) {
+      return null;
+    }
+    return new Set(project.examPeriod.dates.filter((d) => !d.isExcluded).map((d) => d.date));
+  }, [project.examPeriod?.dates]);
+
+  const isDateActive = (date: string) => {
+    if (!activeDatesSet) return true;
+    return activeDatesSet.has(date);
+  };
+
+  // Active faculty who have at least 1 assigned duty on active exam dates
   const facultyWithDuties = project.faculty.filter((f) => {
-    const dutiesCount = project.assignments.filter((a) => a.facultySrNo === f.srNo).length;
+    const dutiesCount = project.assignments.filter(
+      (a) => a.facultySrNo === f.srNo && isDateActive(a.date)
+    ).length;
     return dutiesCount > 0;
   });
 
@@ -62,10 +76,14 @@ export const DutySlipsModal: React.FC<{ forceOpen?: boolean }> = ({ forceOpen })
   });
 
   const activeFaculty: Faculty | undefined =
-    project.faculty.find((f) => f.srNo === selectedFacultySrNo) || filteredFaculty[0];
+    project.faculty.find((f) => f.srNo === selectedFacultySrNo) ||
+    filteredFaculty[0] ||
+    project.faculty[0];
 
   const getFacultyDuties = (srNo: number) => {
-    const list = project.assignments.filter((a) => a.facultySrNo === srNo);
+    const list = project.assignments.filter(
+      (a) => a.facultySrNo === srNo && isDateActive(a.date)
+    );
     return list.sort((a, b) => a.date.localeCompare(b.date) || a.session.localeCompare(b.session));
   };
 

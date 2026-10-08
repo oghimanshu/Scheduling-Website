@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   X,
   AlertCircle,
@@ -22,6 +22,8 @@ export const ManualEditModal: React.FC = () => {
     swapFacultyAssignments,
   } = useScheduler();
 
+  const activeDates = project.examPeriod.dates.filter((d) => !d.isExcluded);
+
   const [mode, setMode] = useState<'add' | 'swap'>('add');
   const [selectedFacultySrNo, setSelectedFacultySrNo] = useState<number>(
     manualEditSlot?.facultySrNo || project.faculty[0]?.srNo || 0
@@ -30,8 +32,34 @@ export const ManualEditModal: React.FC = () => {
     manualEditSlot?.session || 'JRS 2'
   );
   const [selectedDate, setSelectedDate] = useState<string>(
-    manualEditSlot?.date || project.examPeriod.dates[0]?.date || ''
+    manualEditSlot?.date || activeDates[0]?.date || ''
   );
+
+  // Sync state dynamically when manualEditSlot changes
+  useEffect(() => {
+    if (manualEditSlot) {
+      if (manualEditSlot.facultySrNo) {
+        setSelectedFacultySrNo(manualEditSlot.facultySrNo);
+      } else if (project.faculty.length > 0) {
+        setSelectedFacultySrNo(project.faculty[0].srNo);
+      }
+
+      const isDateActive = activeDates.some((d) => d.date === manualEditSlot.date);
+      if (isDateActive) {
+        setSelectedDate(manualEditSlot.date);
+      } else if (activeDates.length > 0) {
+        setSelectedDate(activeDates[0].date);
+      }
+
+      if (manualEditSlot.session) {
+        setSelectedSession(manualEditSlot.session);
+      }
+
+      setIsOverrideAuthorized(false);
+      setOverrideReason('');
+      setErrorMessage('');
+    }
+  }, [manualEditSlot, project.examPeriod.dates]);
 
   // Swap targets
   const [swapTargetSrNo, setSwapTargetSrNo] = useState<number>(project.faculty[1]?.srNo || 0);
@@ -182,13 +210,11 @@ export const ManualEditModal: React.FC = () => {
                   onChange={(e) => setSelectedDate(e.target.value)}
                   className="w-full px-3 py-1.5 bg-white/80 dark:bg-slate-800/80 border border-slate-300 dark:border-white/10 rounded-lg text-slate-900 dark:text-white"
                 >
-                  {project.examPeriod.dates
-                    .filter((d) => !d.isExcluded)
-                    .map((d) => (
-                      <option key={d.date} value={d.date}>
-                        {d.displayDate}
-                      </option>
-                    ))}
+                  {activeDates.map((d) => (
+                    <option key={d.date} value={d.date}>
+                      {d.displayDate} ({d.dayOfWeek})
+                    </option>
+                  ))}
                 </select>
               </div>
 
@@ -199,9 +225,18 @@ export const ManualEditModal: React.FC = () => {
                   onChange={(e) => setSelectedSession(e.target.value as SessionType)}
                   className="w-full px-3 py-1.5 bg-white/80 dark:bg-slate-800/80 border border-slate-300 dark:border-white/10 rounded-lg text-slate-900 dark:text-white"
                 >
-                  <option value="JRS 1">JRS 1 (8:00 - 10:00 AM)</option>
-                  <option value="JRS 2">JRS 2 (10:30 - 12:30 PM)</option>
-                  <option value="JRS 3">JRS 3 (2:00 - 4:00 PM)</option>
+                  {(project.sessions && project.sessions.length > 0
+                    ? project.sessions
+                    : [
+                        { id: 'JRS 1', name: 'JRS 1', defaultTiming: { start: '08:00', end: '10:00' } },
+                        { id: 'JRS 2', name: 'JRS 2', defaultTiming: { start: '10:30', end: '12:30' } },
+                        { id: 'JRS 3', name: 'JRS 3', defaultTiming: { start: '14:00', end: '16:00' } },
+                      ]
+                  ).map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name} ({s.defaultTiming.start} - {s.defaultTiming.end})
+                    </option>
+                  ))}
                 </select>
               </div>
             </div>

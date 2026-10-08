@@ -334,7 +334,11 @@ export const PrintScheduleModal: React.FC<{ forceOpen?: boolean }> = ({ forceOpe
           <tbody>
             {printableFaculty.map((f, idx) => {
               const fDateMap = assignmentsByFacultyDate.get(f.srNo);
-              const assignedCount = project.assignments.filter((a) => a.facultySrNo === f.srNo).length;
+              const activeDuties = project.assignments.filter(
+                (a) => a.facultySrNo === f.srNo && activeDates.some((d) => d.date === a.date)
+              );
+              const assignedCount = activeDuties.length;
+              const grandTotal = f.previousSupervisions + assignedCount;
               const isEven = idx % 2 === 0;
 
               return (
@@ -387,11 +391,18 @@ export const PrintScheduleModal: React.FC<{ forceOpen?: boolean }> = ({ forceOpe
                                   key={duty.id}
                                   className="font-bold text-black border border-gray-300 rounded px-1 py-0.2 bg-white"
                                 >
-                                  <span>{duty.session}</span>
-                                  {duty.isReserve && showStandbyTag && (
-                                    <span className="ml-0.5 text-[7.5px] font-semibold text-gray-600 block sm:inline">
-                                      (Standby)
-                                    </span>
+                                  <div>
+                                    <span>{duty.session}</span>
+                                    {duty.isReserve && showStandbyTag && (
+                                      <span className="ml-0.5 text-[7.5px] font-semibold text-gray-600 block sm:inline">
+                                        (Standby)
+                                      </span>
+                                    )}
+                                  </div>
+                                  {duty.roomName && (
+                                    <div className="text-[7.5px] font-semibold text-gray-700 leading-tight">
+                                      {duty.roomName.split('(')[0].trim()}
+                                    </div>
                                   )}
                                   {cellDisplayMode === 'with_timings' && timing && (
                                     <div className="text-[7px] font-mono text-gray-600">
@@ -416,7 +427,7 @@ export const PrintScheduleModal: React.FC<{ forceOpen?: boolean }> = ({ forceOpe
                   )}
                   {showTotal && (
                     <td className={`border border-gray-400 ${densityStyles.tdPadding} text-center font-mono font-bold text-black`}>
-                      {assignedCount}
+                      {grandTotal}
                     </td>
                   )}
                 </tr>

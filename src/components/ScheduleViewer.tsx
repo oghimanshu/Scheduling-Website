@@ -60,6 +60,9 @@ export const ScheduleViewer: React.FC<{ viewModeOverride?: 'faculty' | 'session'
     setIsPrintScheduleModalOpen,
     setIsRoomChartModalOpen,
     assignRoomsSeparately,
+    targetedConflictCell,
+    setTargetedConflictCell,
+    cleanExcludedDateAssignments,
   } = useScheduler();
 
   const scheduleViewMode = viewModeOverride || contextScheduleViewMode;
@@ -110,6 +113,11 @@ export const ScheduleViewer: React.FC<{ viewModeOverride?: 'faculty' | 'session'
   const activeDates = useMemo(
     () => project.examPeriod.dates.filter((d) => !d.isExcluded),
     [project.examPeriod.dates]
+  );
+
+  const activeDatesSet = useMemo(
+    () => new Set(activeDates.map((d) => d.date)),
+    [activeDates]
   );
 
   const facultyMap = useMemo(
@@ -397,6 +405,31 @@ export const ScheduleViewer: React.FC<{ viewModeOverride?: 'faculty' | 'session'
     window.addEventListener('keydown', handlePrintShortcut);
     return () => window.removeEventListener('keydown', handlePrintShortcut);
   }, [setIsPrintScheduleModalOpen]);
+
+  // Scroll to and pulse highlight targeted conflict cell
+  useEffect(() => {
+    if (!targetedConflictCell) return;
+    if (scheduleViewMode !== 'faculty') {
+      setScheduleViewMode('faculty');
+    }
+
+    const timer = setTimeout(() => {
+      const cellId = `cell-${targetedConflictCell.facultySrNo}-${targetedConflictCell.date}`;
+      const el = document.getElementById(cellId);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+      }
+    }, 120);
+
+    const clearTimer = setTimeout(() => {
+      setTargetedConflictCell(null);
+    }, 6000);
+
+    return () => {
+      clearTimeout(timer);
+      clearTimeout(clearTimer);
+    };
+  }, [targetedConflictCell, scheduleViewMode, setScheduleViewMode, setTargetedConflictCell]);
 
   // Scroll isolation for main schedule table (pointer-aware Lenis bypass)
   const scheduleTableRef = useRef<HTMLDivElement>(null);
@@ -754,10 +787,16 @@ export const ScheduleViewer: React.FC<{ viewModeOverride?: 'faculty' | 'session'
               <tbody className="divide-y divide-slate-100 dark:divide-white/5">
                 {filteredFaculty.map((f) => {
                   const fDateMap = assignmentsByFacultyDate.get(f.srNo);
-                  const totalAssigned = project.assignments.filter(
+                  const facultyAssignments = project.assignments.filter(
                     (a) => a.facultySrNo === f.srNo
+                  );
+                  const activeAssigned = facultyAssignments.filter((a) =>
+                    activeDatesSet.has(a.date)
                   ).length;
-                  const grandTotal = f.previousSupervisions + totalAssigned;
+                  const orphanExcludedDuties = facultyAssignments.filter(
+                    (a) => !activeDatesSet.has(a.date)
+                  );
+                  const grandTotal = f.previousSupervisions + activeAssigned;
                   const isAtTarget = grandTotal === f.targetSupervisions;
 
                   return (
@@ -797,10 +836,12 @@ export const ScheduleViewer: React.FC<{ viewModeOverride?: 'faculty' | 'session'
                         const isDouble = dayAssignments.length >= 2;
                         const isDragOver = dragOverCell?.facultySrNo === f.srNo && dragOverCell?.date === d.date;
                         const isMobileTarget = mobileSelectedDuty && !(mobileSelectedDuty.assignment.date === d.date && mobileSelectedDuty.faculty.srNo === f.srNo);
+                        const isConflictTarget = targetedConflictCell?.facultySrNo === f.srNo && targetedConflictCell?.date === d.date;
 
                         return (
                           <td
                             key={d.date}
+                            id={`cell-${f.srNo}-${d.date}`}
                             onContextMenu={(e) => {
                               if (dayAssignments.length === 0) {
                                 e.preventDefault();
@@ -857,7 +898,11 @@ export const ScheduleViewer: React.FC<{ viewModeOverride?: 'faculty' | 'session'
                               }
                             }}
                             className={`py-1.5 px-2 text-center border-l border-slate-100 dark:border-white/5 transition-all duration-150 ${
-                              isDouble ? 'bg-amber-50/40 dark:bg-amber-950/20' : ''
+                              isConflictTarget
+                                ? 'ring-4 ring-rose-500 dark:ring-rose-400 bg-rose-100/70 dark:bg-rose-950/70 z-20 animate-pulse'
+                                : isDouble
+                                ? 'bg-amber-50/40 dark:bg-amber-950/20'
+                                : ''
                             } ${
                               isDragOver
                                 ? 'ring-2 ring-sky-500 bg-sky-100/70 dark:bg-sky-950/70 scale-[1.02] shadow-md z-10'
@@ -1022,17 +1067,29 @@ export const ScheduleViewer: React.FC<{ viewModeOverride?: 'faculty' | 'session'
 
                       {/* Total */}
                       <td className="py-2 px-3 text-center border-l border-slate-200/60 dark:border-white/5 font-mono tabular-nums font-bold">
-                        <span
-                          className={
-                            grandTotal > f.maxSupervisions
-                              ? 'text-rose-600 dark:text-rose-400 font-extrabold'
-                              : isAtTarget
-                              ? 'text-emerald-600 dark:text-emerald-400'
-                              : 'text-amber-600 dark:text-amber-400'
-                          }
-                        >
-                          {grandTotal} / {f.targetSupervisions}
-                        </span>
+                        <div className="flex flex-col items-center justify-center">
+                          <span
+                            className={
+                              grandTotal > f.maxSupervisions
+                                ? 'text-rose-600 dark:text-rose-400 font-extrabold'
+                                : isAtTarget
+                                ? 'text-emerald-600 dark:text-emerald-400'
+                                : 'text-amber-600 dark:text-amber-400'
+                            }
+                          >
+                            {grandTotal} / {f.targetSupervisions}
+                          </span>
+                          {orphanExcludedDuties.length > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => cleanExcludedDateAssignments()}
+                              className="mt-0.5 inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-rose-500/15 text-rose-700 dark:text-rose-300 border border-rose-400/40 hover:bg-rose-500/25 transition cursor-pointer"
+                              title={`${orphanExcludedDuties.length} duty assigned to excluded holiday/non-exam date. Click to clean up.`}
+                            >
+                              +{orphanExcludedDuties.length} excluded
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );
@@ -1431,7 +1488,7 @@ export const ScheduleViewer: React.FC<{ viewModeOverride?: 'faculty' | 'session'
               <tbody className="divide-y divide-slate-100 dark:divide-white/5">
                 {filteredFaculty.map((f) => {
                   const facAssignments = project.assignments.filter(
-                    (a) => a.facultySrNo === f.srNo
+                    (a) => a.facultySrNo === f.srNo && activeDatesSet.has(a.date)
                   );
                   const primaryCount = facAssignments.filter((a) => !a.isReserve).length;
                   const reserveCount = facAssignments.filter((a) => a.isReserve).length;
