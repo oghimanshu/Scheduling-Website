@@ -18,6 +18,7 @@ import {
   InstitutionalHeaderConfig,
   SigningAuthority,
   ExamRoom,
+  DEFAULT_CUSTOM_ROLES,
 } from '../types';
 import {
   INITIAL_PROJECT_STATE,
@@ -159,6 +160,9 @@ interface SchedulerContextType {
     session2: SessionType
   ) => void;
   updateFacultyList: (faculty: Faculty[]) => void;
+  addFaculty: (faculty: Faculty) => void;
+  updateFaculty: (srNo: number, updates: Partial<Faculty>) => void;
+  deleteFaculty: (srNo: number) => void;
   toggleFacultyHod: (srNo: number) => void;
   bulkReassignHods: (hodSrNos: number[], defaultHodTarget?: number) => void;
   toggleFacultyExclusion: (srNo: number, reason?: string) => void;
@@ -166,6 +170,9 @@ interface SchedulerContextType {
   updateFacultyAllowedSessions: (srNo: number, allowedSessions?: SessionType[]) => void;
   updateRoleWorkloadCap: (role: 'hod' | 'regular', newCap: number, newTarget?: number) => void;
   updateExamDates: (dates: ExamDateConfig[]) => void;
+  addExamDate: (dateConfig: ExamDateConfig) => void;
+  updateExamDate: (dateIso: string, updates: Partial<ExamDateConfig>) => void;
+  deleteExamDate: (dateIso: string) => void;
   updateExamPeriodInfo: (name: string, startDate: string, endDate: string) => void;
   setAvailability: (facultySrNo: number, date: string, isAvailable: boolean) => void;
   setSlotAvailability: (facultySrNo: number, date: string, session?: SessionType, isAvailable?: boolean) => void;
@@ -183,6 +190,9 @@ interface SchedulerContextType {
   updateFacultyRole: (srNo: number, role: string, concession?: number, target?: number, max?: number) => void;
   bulkSegregateRoles: (srNos: number[], role: string, concession?: number, target?: number, max?: number) => void;
   updateCustomRoles: (roles: CustomRoleDefinition[]) => void;
+  addCustomRole: (role: CustomRoleDefinition) => void;
+  updateCustomRole: (roleId: string, updates: Partial<CustomRoleDefinition>) => void;
+  deleteCustomRole: (roleId: string) => void;
   updateHodAssignmentPriority: (priority: HodAssignmentPriority) => void;
   updateInstitutionConfig: (updater: Partial<InstitutionalHeaderConfig>) => void;
   addSigningAuthority: (authority?: Partial<SigningAuthority>) => void;
@@ -955,6 +965,58 @@ export const SchedulerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     });
   }, []);
 
+  // Add single faculty member
+  const addFaculty = useCallback((newMember: Faculty) => {
+    setProject((prev) => {
+      const exists = prev.faculty.some((f) => f.srNo === newMember.srNo);
+      const finalSrNo = exists
+        ? Math.max(0, ...prev.faculty.map((f) => f.srNo)) + 1
+        : newMember.srNo;
+      const memberToAdd = { ...newMember, srNo: finalSrNo };
+      const updatedFaculty = [...prev.faculty, memberToAdd].sort((a, b) => a.srNo - b.srNo);
+      const updatedState = {
+        ...prev,
+        faculty: updatedFaculty,
+        lastSavedTimestamp: new Date().toLocaleTimeString('en-GB'),
+      };
+      saveProjectToStorage(updatedState);
+      return updatedState;
+    });
+  }, []);
+
+  // Update existing faculty member
+  const updateFaculty = useCallback((srNo: number, updates: Partial<Faculty>) => {
+    setProject((prev) => {
+      const updatedFaculty = prev.faculty.map((f) => {
+        if (f.srNo !== srNo) return f;
+        return { ...f, ...updates };
+      });
+      const updatedState = {
+        ...prev,
+        faculty: updatedFaculty,
+        lastSavedTimestamp: new Date().toLocaleTimeString('en-GB'),
+      };
+      saveProjectToStorage(updatedState);
+      return updatedState;
+    });
+  }, []);
+
+  // Delete faculty member
+  const deleteFaculty = useCallback((srNo: number) => {
+    setProject((prev) => {
+      const updatedFaculty = prev.faculty.filter((f) => f.srNo !== srNo);
+      const updatedAssignments = prev.assignments.filter((a) => a.facultySrNo !== srNo);
+      const updatedState = {
+        ...prev,
+        faculty: updatedFaculty,
+        assignments: updatedAssignments,
+        lastSavedTimestamp: new Date().toLocaleTimeString('en-GB'),
+      };
+      saveProjectToStorage(updatedState);
+      return updatedState;
+    });
+  }, []);
+
   // 1-Click Toggle Faculty HOD Status
   const toggleFacultyHod = useCallback((srNo: number) => {
     setProject((prev) => ({
@@ -1089,6 +1151,80 @@ export const SchedulerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         dates,
       },
     }));
+  }, []);
+
+  // Add single exam date
+  const addExamDate = useCallback((dateConfig: ExamDateConfig) => {
+    setProject((prev) => {
+      const existingIndex = prev.examPeriod.dates.findIndex((d) => d.date === dateConfig.date);
+      let newDates: ExamDateConfig[];
+      if (existingIndex >= 0) {
+        newDates = prev.examPeriod.dates.map((d, i) => (i === existingIndex ? dateConfig : d));
+      } else {
+        newDates = [...prev.examPeriod.dates, dateConfig].sort((a, b) => a.date.localeCompare(b.date));
+      }
+      const sortedDates = newDates.map((d) => d.date).sort();
+      const startDate = sortedDates[0] || prev.examPeriod.startDate;
+      const endDate = sortedDates[sortedDates.length - 1] || prev.examPeriod.endDate;
+
+      const updatedState = {
+        ...prev,
+        examPeriod: {
+          ...prev.examPeriod,
+          startDate,
+          endDate,
+          dates: newDates,
+        },
+        lastSavedTimestamp: new Date().toLocaleTimeString('en-GB'),
+      };
+      saveProjectToStorage(updatedState);
+      return updatedState;
+    });
+  }, []);
+
+  // Update existing exam date
+  const updateExamDate = useCallback((dateIso: string, updates: Partial<ExamDateConfig>) => {
+    setProject((prev) => {
+      const newDates = prev.examPeriod.dates.map((d) => {
+        if (d.date !== dateIso) return d;
+        return { ...d, ...updates };
+      });
+      const updatedState = {
+        ...prev,
+        examPeriod: {
+          ...prev.examPeriod,
+          dates: newDates,
+        },
+        lastSavedTimestamp: new Date().toLocaleTimeString('en-GB'),
+      };
+      saveProjectToStorage(updatedState);
+      return updatedState;
+    });
+  }, []);
+
+  // Delete single exam date
+  const deleteExamDate = useCallback((dateIso: string) => {
+    setProject((prev) => {
+      const newDates = prev.examPeriod.dates.filter((d) => d.date !== dateIso);
+      const newAssignments = prev.assignments.filter((a) => a.date !== dateIso);
+      const sortedDates = newDates.map((d) => d.date).sort();
+      const startDate = sortedDates[0] || '';
+      const endDate = sortedDates[sortedDates.length - 1] || '';
+
+      const updatedState = {
+        ...prev,
+        assignments: newAssignments,
+        examPeriod: {
+          ...prev.examPeriod,
+          startDate,
+          endDate,
+          dates: newDates,
+        },
+        lastSavedTimestamp: new Date().toLocaleTimeString('en-GB'),
+      };
+      saveProjectToStorage(updatedState);
+      return updatedState;
+    });
   }, []);
 
   // Update exam period metadata
@@ -1391,6 +1527,68 @@ export const SchedulerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         customRoles: roles,
       },
     }));
+  }, []);
+
+  // Add single custom role definition
+  const addCustomRole = useCallback((newRole: CustomRoleDefinition) => {
+    setProject((prev) => {
+      const currentRoles: CustomRoleDefinition[] = prev.settings.customRoles && prev.settings.customRoles.length > 0
+        ? prev.settings.customRoles
+        : DEFAULT_CUSTOM_ROLES;
+      const exists = currentRoles.some((r: CustomRoleDefinition) => r.id === newRole.id);
+      const finalRole = exists ? { ...newRole, id: `${newRole.id}-${Date.now()}` } : newRole;
+      const updatedRoles = [...currentRoles, finalRole];
+      const updatedState = {
+        ...prev,
+        settings: {
+          ...prev.settings,
+          customRoles: updatedRoles,
+        },
+        lastSavedTimestamp: new Date().toLocaleTimeString('en-GB'),
+      };
+      saveProjectToStorage(updatedState);
+      return updatedState;
+    });
+  }, []);
+
+  // Update existing custom role
+  const updateCustomRole = useCallback((roleId: string, updates: Partial<CustomRoleDefinition>) => {
+    setProject((prev) => {
+      const currentRoles: CustomRoleDefinition[] = prev.settings.customRoles && prev.settings.customRoles.length > 0
+        ? prev.settings.customRoles
+        : DEFAULT_CUSTOM_ROLES;
+      const updatedRoles = currentRoles.map((r: CustomRoleDefinition) => (r.id === roleId ? { ...r, ...updates } : r));
+      const updatedState = {
+        ...prev,
+        settings: {
+          ...prev.settings,
+          customRoles: updatedRoles,
+        },
+        lastSavedTimestamp: new Date().toLocaleTimeString('en-GB'),
+      };
+      saveProjectToStorage(updatedState);
+      return updatedState;
+    });
+  }, []);
+
+  // Delete custom role
+  const deleteCustomRole = useCallback((roleId: string) => {
+    setProject((prev) => {
+      const currentRoles: CustomRoleDefinition[] = prev.settings.customRoles && prev.settings.customRoles.length > 0
+        ? prev.settings.customRoles
+        : DEFAULT_CUSTOM_ROLES;
+      const updatedRoles = currentRoles.filter((r: CustomRoleDefinition) => r.id !== roleId);
+      const updatedState = {
+        ...prev,
+        settings: {
+          ...prev.settings,
+          customRoles: updatedRoles,
+        },
+        lastSavedTimestamp: new Date().toLocaleTimeString('en-GB'),
+      };
+      saveProjectToStorage(updatedState);
+      return updatedState;
+    });
   }, []);
 
   // Update HOD assignment priority
@@ -1780,6 +1978,9 @@ export const SchedulerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         atomicTransferOrSwapDuty,
         swapFacultyAssignments,
         updateFacultyList,
+        addFaculty,
+        updateFaculty,
+        deleteFaculty,
         toggleFacultyHod,
         bulkReassignHods,
         toggleFacultyExclusion,
@@ -1787,6 +1988,9 @@ export const SchedulerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         updateFacultyAllowedSessions,
         updateRoleWorkloadCap,
         updateExamDates,
+        addExamDate,
+        updateExamDate,
+        deleteExamDate,
         updateExamPeriodInfo,
         setAvailability,
         setSlotAvailability,
@@ -1804,6 +2008,9 @@ export const SchedulerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         updateFacultyRole,
         bulkSegregateRoles,
         updateCustomRoles,
+        addCustomRole,
+        updateCustomRole,
+        deleteCustomRole,
         updateHodAssignmentPriority,
         updateInstitutionConfig,
         addSigningAuthority,

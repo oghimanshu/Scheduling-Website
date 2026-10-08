@@ -202,6 +202,18 @@ export const ScheduleContextMenu: React.FC<ScheduleContextMenuProps> = ({
           <button
             type="button"
             onClick={() => {
+              onEditFaculty?.(target.faculty);
+              onClose();
+            }}
+            className="w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg hover:bg-sky-50 dark:hover:bg-sky-950/50 text-slate-700 dark:text-slate-200 hover:text-sky-700 dark:hover:text-sky-300 transition text-left cursor-pointer"
+          >
+            <Edit3 className="w-4 h-4 text-sky-500" />
+            <span>Edit Faculty Profile &amp; Rules</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
               onRemoveDuty?.(target.assignment!);
               onClose();
             }}
@@ -265,6 +277,18 @@ export const ScheduleContextMenu: React.FC<ScheduleContextMenuProps> = ({
           >
             <CalendarOff className="w-4 h-4" />
             <span>Mark Entire Day Unavailable</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              onEditFaculty?.(target.faculty);
+              onClose();
+            }}
+            className="w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg hover:bg-sky-50 dark:hover:bg-sky-950/50 text-slate-700 dark:text-slate-200 hover:text-sky-700 dark:hover:text-sky-300 transition text-left cursor-pointer"
+          >
+            <Edit3 className="w-4 h-4 text-sky-500" />
+            <span>Edit Faculty Profile &amp; Rules</span>
           </button>
         </div>
       )}

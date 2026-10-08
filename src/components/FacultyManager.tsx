@@ -29,14 +29,24 @@ import {
   InitialSupervisionOption,
 } from '../services/csvParser';
 import { FileDropZone } from './FileDropZone';
+import { useContextMenu } from '../hooks/useContextMenu';
+import {
+  ContextMenuPopup,
+  ContextMenuItem,
+  ContextMenuDivider,
+  ContextMenuHeader,
+} from './ContextMenuPopup';
 
 export const FacultyManager: React.FC = () => {
   const {
     project,
     updateFacultyList,
+    addFaculty,
+    deleteFaculty,
     setActiveTab,
     setIsReassignHodsModalOpen,
     setIsRoleSegregationModalOpen,
+    setIsDutySlipsModalOpen,
     toggleFacultyHod,
     toggleFacultyExclusion,
     updateFacultyExcludedDates,
@@ -50,6 +60,39 @@ export const FacultyManager: React.FC = () => {
   const [arrivalFilter, setArrivalFilter] = useState<'All' | ArrivalCategory>('All');
   const [inclusionFilter, setInclusionFilter] = useState<'All' | 'Active' | 'Excluded'>('All');
   const [editingFaculty, setEditingFaculty] = useState<Faculty | null>(null);
+
+  // Add Faculty Modal State
+  const [isAddFacultyModalOpen, setIsAddFacultyModalOpen] = useState(false);
+  const [newFacultyData, setNewFacultyData] = useState<Partial<Faculty>>({
+    name: '',
+    srNo: 1,
+    isHod: false,
+    arrival: 'Morning',
+    previousSupervisions: 0,
+    targetSupervisions: 6,
+    maxSupervisions: 6,
+    concessionOrAdditionalDuties: 0,
+  });
+
+  const handleOpenAddFacultyModal = () => {
+    const nextSrNo =
+      project.faculty.length > 0 ? Math.max(...project.faculty.map((f) => f.srNo)) + 1 : 1;
+    setNewFacultyData({
+      name: '',
+      srNo: nextSrNo,
+      isHod: false,
+      role: 'Regular Faculty',
+      arrival: 'Morning',
+      previousSupervisions: 0,
+      targetSupervisions: 6,
+      maxSupervisions: 6,
+      concessionOrAdditionalDuties: 0,
+    });
+    setIsAddFacultyModalOpen(true);
+  };
+
+  // Context menu for faculty rows
+  const facultyContextMenu = useContextMenu<Faculty>();
 
   // Date-Specific Faculty Exclusion Modal State
   const [dateExclusionFaculty, setDateExclusionFaculty] = useState<Faculty | null>(null);
@@ -402,6 +445,18 @@ export const FacultyManager: React.FC = () => {
         </div>
 
         <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2 sm:gap-2.5">
+          {/* Add Faculty Member Button */}
+          <button
+            type="button"
+            onClick={handleOpenAddFacultyModal}
+            className="btn-spring inline-flex items-center justify-center space-x-1.5 px-3.5 py-2 text-xs font-bold text-white bg-sky-600 hover:bg-sky-500 rounded-xl shadow-md transition cursor-pointer"
+            title="Add a new faculty member directly without CSV"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span className="sm:inline hidden">ADD FACULTY</span>
+            <span className="sm:hidden">ADD</span>
+          </button>
+
           {/* Segregate Faculty Roles */}
           <button
             onClick={() => setActiveTab('roles')}
@@ -635,6 +690,8 @@ export const FacultyManager: React.FC = () => {
                 return (
                   <tr
                     key={f.srNo}
+                    {...facultyContextMenu.bindItem(f)}
+                    onDoubleClick={() => setEditingFaculty({ ...f })}
                     className={`group transition ${
                       f.isExcluded
                         ? 'bg-amber-50/30 dark:bg-amber-950/20 text-slate-400 dark:text-slate-500'
@@ -1623,6 +1680,290 @@ export const FacultyManager: React.FC = () => {
           </div>
         </div>
       , document.body)}
+
+      {/* Add New Faculty Modal */}
+      {isAddFacultyModalOpen && createPortal(
+        <div
+          className="fixed inset-0 z-[9999] bg-slate-900/60 dark:bg-black/80 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-y-auto"
+          data-lenis-prevent
+          onClick={() => setIsAddFacultyModalOpen(false)}
+        >
+          <div
+            className="apple-glass-card bg-white dark:bg-slate-900 rounded-t-3xl sm:rounded-2xl max-w-lg w-full p-5 sm:p-6 shadow-2xl border border-slate-200 dark:border-white/10 space-y-4 animate-sheet-up sm:animate-modal-spring my-0 sm:my-auto max-h-[92dvh] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="sm:hidden w-12 h-1.5 bg-slate-300 dark:bg-slate-600 rounded-full mx-auto mb-1 shrink-0" />
+            <div className="flex justify-between items-center border-b border-slate-200/80 dark:border-white/10 pb-3">
+              <div className="flex items-center space-x-2.5">
+                <div className="w-9 h-9 rounded-xl bg-sky-500/15 text-sky-600 dark:text-sky-400 flex items-center justify-center shadow-xs">
+                  <Plus className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                    Add New Faculty Member
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Add an individual instructor directly to the academic roster
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsAddFacultyModalOpen(false)}
+                className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-white/10 transition cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (!newFacultyData.name?.trim()) return;
+                const facultyToAdd: Faculty = {
+                  srNo: newFacultyData.srNo || (Math.max(0, ...project.faculty.map((f) => f.srNo)) + 1),
+                  name: newFacultyData.name.trim(),
+                  isHod: !!newFacultyData.isHod,
+                  role: newFacultyData.role || (newFacultyData.isHod ? 'Head of Department' : 'Regular Faculty'),
+                  arrival: newFacultyData.arrival || 'Morning',
+                  previousSupervisions: newFacultyData.previousSupervisions || 0,
+                  targetSupervisions: newFacultyData.targetSupervisions || (newFacultyData.isHod ? 4 : 6),
+                  maxSupervisions: newFacultyData.maxSupervisions || (newFacultyData.isHod ? 4 : 6),
+                  concessionOrAdditionalDuties: newFacultyData.concessionOrAdditionalDuties || 0,
+                };
+                addFaculty(facultyToAdd);
+                setIsAddFacultyModalOpen(false);
+              }}
+              className="space-y-4 text-xs flex-1 overflow-y-auto pr-1"
+            >
+              <div className="grid grid-cols-3 gap-3">
+                <div className="col-span-1">
+                  <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                    Sr. No.
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={newFacultyData.srNo || 1}
+                    onChange={(e) =>
+                      setNewFacultyData({ ...newFacultyData, srNo: parseInt(e.target.value, 10) || 1 })
+                    }
+                    required
+                    className="w-full px-3 py-1.5 bg-white/80 dark:bg-slate-800 border border-slate-300 dark:border-white/10 rounded-xl font-mono font-bold text-center"
+                  />
+                </div>
+                <div className="col-span-2">
+                  <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                    Faculty Full Name *
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Dr. Jane Smith"
+                    value={newFacultyData.name || ''}
+                    onChange={(e) => setNewFacultyData({ ...newFacultyData, name: e.target.value })}
+                    required
+                    autoFocus
+                    className="w-full px-3 py-1.5 bg-white/80 dark:bg-slate-800 border border-slate-300 dark:border-white/10 rounded-xl text-slate-900 dark:text-white font-medium"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                    Role / Designation
+                  </label>
+                  <select
+                    value={newFacultyData.role || 'Regular Faculty'}
+                    onChange={(e) => {
+                      const selectedRoleName = e.target.value;
+                      const matchedRole = (project.settings.customRoles || DEFAULT_CUSTOM_ROLES).find(
+                        (r) => r.name === selectedRoleName
+                      );
+                      const isHod = matchedRole
+                        ? matchedRole.id === 'hod' || matchedRole.name.toLowerCase().includes('hod')
+                        : selectedRoleName.toLowerCase().includes('hod');
+                      const concession = matchedRole ? matchedRole.concessionDelta : (isHod ? -2 : 0);
+                      const maxCap = matchedRole ? matchedRole.defaultMax : (isHod ? 4 : 6);
+                      const targetCap = matchedRole ? matchedRole.defaultTarget : (isHod ? 4 : 6);
+
+                      setNewFacultyData({
+                        ...newFacultyData,
+                        role: selectedRoleName,
+                        isHod,
+                        concessionOrAdditionalDuties: concession,
+                        maxSupervisions: maxCap,
+                        targetSupervisions: targetCap,
+                      });
+                    }}
+                    className="w-full px-3 py-1.5 bg-white/80 dark:bg-slate-800 border border-slate-300 dark:border-white/10 rounded-xl text-slate-900 dark:text-white font-medium"
+                  >
+                    {(project.settings.customRoles || DEFAULT_CUSTOM_ROLES).map((role) => (
+                      <option key={role.id} value={role.name}>
+                        {role.name} {role.id === 'hod' ? '(HOD)' : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                    Arrival Window
+                  </label>
+                  <select
+                    value={newFacultyData.arrival || 'Morning'}
+                    onChange={(e) =>
+                      setNewFacultyData({ ...newFacultyData, arrival: e.target.value as ArrivalCategory })
+                    }
+                    className="w-full px-3 py-1.5 bg-white/80 dark:bg-slate-800 border border-slate-300 dark:border-white/10 rounded-xl text-slate-900 dark:text-white font-medium"
+                  >
+                    <option value="Morning">Morning (Eligible: JRS 1, JRS 2)</option>
+                    <option value="Mid">Mid (Eligible: JRS 1, JRS 2, JRS 3)</option>
+                    <option value="Afternoon">Afternoon (Eligible: JRS 2, JRS 3)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                    Previous Duties
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={newFacultyData.previousSupervisions ?? 0}
+                    onChange={(e) =>
+                      setNewFacultyData({
+                        ...newFacultyData,
+                        previousSupervisions: parseInt(e.target.value, 10) || 0,
+                      })
+                    }
+                    className="w-full px-3 py-1.5 bg-white/80 dark:bg-slate-800 border border-slate-300 dark:border-white/10 rounded-xl font-mono font-bold text-center"
+                  />
+                </div>
+                <div>
+                  <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                    Target Quota
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="15"
+                    value={newFacultyData.targetSupervisions ?? 6}
+                    onChange={(e) =>
+                      setNewFacultyData({
+                        ...newFacultyData,
+                        targetSupervisions: parseInt(e.target.value, 10) || 1,
+                      })
+                    }
+                    className="w-full px-3 py-1.5 bg-white/80 dark:bg-slate-800 border border-slate-300 dark:border-white/10 rounded-xl font-mono font-bold text-center"
+                  />
+                </div>
+                <div>
+                  <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                    Maximum Cap
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="15"
+                    value={newFacultyData.maxSupervisions ?? 6}
+                    onChange={(e) =>
+                      setNewFacultyData({
+                        ...newFacultyData,
+                        maxSupervisions: parseInt(e.target.value, 10) || 1,
+                      })
+                    }
+                    className="w-full px-3 py-1.5 bg-white/80 dark:bg-slate-800 border border-slate-300 dark:border-white/10 rounded-xl font-mono font-bold text-center"
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end space-x-2.5 pt-3 border-t border-slate-200/80 dark:border-white/10">
+                <button
+                  type="button"
+                  onClick={() => setIsAddFacultyModalOpen(false)}
+                  className="px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn-spring px-5 py-2 text-xs font-bold text-white bg-sky-600 hover:bg-sky-500 rounded-xl shadow-md transition cursor-pointer"
+                >
+                  Add Faculty Member
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      , document.body)}
+
+      {/* Universal Right-Click & Touch Long-Press Context Menu on Faculty */}
+      {facultyContextMenu.isOpen && facultyContextMenu.data && (
+        <ContextMenuPopup
+          isOpen={facultyContextMenu.isOpen}
+          position={facultyContextMenu.position}
+          onClose={facultyContextMenu.closeMenu}
+        >
+          <ContextMenuHeader
+            title={facultyContextMenu.data.name}
+            subtitle={`Sr. #${facultyContextMenu.data.srNo} • ${facultyContextMenu.data.role || (facultyContextMenu.data.isHod ? 'HOD' : 'Regular Faculty')}`}
+          />
+          <ContextMenuItem
+            icon={<Edit2 className="w-3.5 h-3.5 text-sky-600" />}
+            label="Edit Faculty Details"
+            onClick={() => {
+              setEditingFaculty({ ...facultyContextMenu.data! });
+              facultyContextMenu.closeMenu();
+            }}
+          />
+          <ContextMenuItem
+            icon={<Award className="w-3.5 h-3.5 text-indigo-600" />}
+            label={facultyContextMenu.data.isHod ? 'Change to Regular Faculty' : 'Promote to HOD (Concession)'}
+            onClick={() => {
+              toggleFacultyHod(facultyContextMenu.data!.srNo);
+              facultyContextMenu.closeMenu();
+            }}
+          />
+          <ContextMenuItem
+            icon={<Calendar className="w-3.5 h-3.5 text-orange-600" />}
+            label="Manage Date Exclusions"
+            onClick={() => {
+              setDateExclusionFaculty(facultyContextMenu.data!);
+              setSelectedExcludedDates(facultyContextMenu.data!.excludedDates || []);
+              facultyContextMenu.closeMenu();
+            }}
+          />
+          <ContextMenuItem
+            icon={facultyContextMenu.data.isExcluded ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> : <AlertCircle className="w-3.5 h-3.5 text-amber-600" />}
+            label={facultyContextMenu.data.isExcluded ? 'Include in Scheduling (Active)' : 'Exclude from Entire Period'}
+            onClick={() => {
+              toggleFacultyExclusion(facultyContextMenu.data!.srNo);
+              facultyContextMenu.closeMenu();
+            }}
+          />
+          <ContextMenuDivider />
+          <ContextMenuItem
+            icon={<FileText className="w-3.5 h-3.5 text-slate-500" />}
+            label="Print Individual Duty Slip"
+            onClick={() => {
+              setIsDutySlipsModalOpen(true);
+              facultyContextMenu.closeMenu();
+            }}
+          />
+          <ContextMenuItem
+            icon={<Trash2 className="w-3.5 h-3.5 text-rose-600" />}
+            label="Delete Faculty Member"
+            variant="danger"
+            onClick={() => {
+              handleDeleteFaculty(facultyContextMenu.data!.srNo);
+              facultyContextMenu.closeMenu();
+            }}
+          />
+        </ContextMenuPopup>
+      )}
     </div>
   );
 };

@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Calendar,
   Clock,
@@ -15,16 +16,27 @@ import {
   AlertTriangle,
   Check,
   Users,
+  X,
 } from 'lucide-react';
 import { useScheduler } from '../context/SchedulerContext';
 import { ExamDateConfig, ExclusionReason, SessionType, ArrivalCategory, SessionTiming } from '../types';
 import { DateSessionModal } from './DateSessionModal';
 import { checkSessionTimingsOverlap } from '../services/validation/validator';
+import { useContextMenu } from '../hooks/useContextMenu';
+import {
+  ContextMenuPopup,
+  ContextMenuItem,
+  ContextMenuDivider,
+  ContextMenuHeader,
+} from './ContextMenuPopup';
 
 export const ExamPeriodManager: React.FC = () => {
   const {
     project,
     updateExamDates,
+    addExamDate,
+    updateExamDate,
+    deleteExamDate,
     updateExamPeriodInfo,
     updateSettings,
     setIsSessionManagerModalOpen,
@@ -37,6 +49,20 @@ export const ExamPeriodManager: React.FC = () => {
   const [expandedDate, setExpandedDate] = useState<string | null>(null);
   const [customizingDate, setCustomizingDate] = useState<ExamDateConfig | null>(null);
   const [isDateSessionModalOpen, setIsDateSessionModalOpen] = useState(false);
+
+  // Add single date modal state
+  const [isAddDateModalOpen, setIsAddDateModalOpen] = useState(false);
+  const [newDateInput, setNewDateInput] = useState('');
+  const [newDateIsExcluded, setNewDateIsExcluded] = useState(false);
+  const [newDateSessionReqs, setNewDateSessionReqs] = useState<Record<string, number>>(() => {
+    const initial: Record<string, number> = { 'JRS 1': 17, 'JRS 2': 25, 'JRS 3': 15 };
+    (project.sessions || []).forEach((s) => {
+      initial[s.id] = s.defaultRequirement;
+    });
+    return initial;
+  });
+
+  const dateContextMenu = useContextMenu<ExamDateConfig>();
 
   // Template session requirements for "Apply to all dates"
   const [templateReqs, setTemplateReqs] = useState<Record<string, number>>(() => {
@@ -58,6 +84,68 @@ export const ExamPeriodManager: React.FC = () => {
       ...prev,
       [sessionId]: Math.max(0, val),
     }));
+  };
+
+  // Add single date manually
+  const handleAddNewDate = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newDateInput) return;
+    const parts = newDateInput.split('-');
+    if (parts.length !== 3) return;
+    const d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+    if (isNaN(d.getTime())) return;
+
+    if (project.examPeriod.dates.some((dt) => dt.date === newDateInput)) {
+      alert(`Date ${newDateInput} already exists in the exam schedule.`);
+      return;
+    }
+
+    const dayOfWeek = d.toLocaleDateString('en-US', { weekday: 'long' });
+    const displayDate = d.toLocaleDateString('en-GB', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    });
+
+    const newDateObj: ExamDateConfig = {
+      date: newDateInput,
+      displayDate,
+      dayOfWeek,
+      isExcluded: newDateIsExcluded,
+      exclusionReason: newDateIsExcluded ? 'Holiday' : undefined,
+      sessionRequirements: { ...newDateSessionReqs },
+      sessionTimings: project.settings.defaultSessionTimings,
+    };
+
+    addExamDate(newDateObj);
+    setIsAddDateModalOpen(false);
+  };
+
+  // Duplicate an existing exam date
+  const handleDuplicateDate = (dateToDup: ExamDateConfig) => {
+    const d = new Date(dateToDup.date);
+    d.setDate(d.getDate() + 1);
+    let nextIso = d.toISOString().slice(0, 10);
+    let count = 1;
+    while (project.examPeriod.dates.some((x) => x.date === nextIso) && count < 365) {
+      d.setDate(d.getDate() + 1);
+      nextIso = d.toISOString().slice(0, 10);
+      count++;
+    }
+    const dayOfWeek = d.toLocaleDateString('en-US', { weekday: 'long' });
+    const displayDate = d.toLocaleDateString('en-GB', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    });
+
+    const duplicated: ExamDateConfig = {
+      ...dateToDup,
+      date: nextIso,
+      displayDate,
+      dayOfWeek,
+    };
+    addExamDate(duplicated);
   };
 
   // Generate date range
@@ -305,12 +393,32 @@ export const ExamPeriodManager: React.FC = () => {
             Current configuration: <strong className="text-slate-800 dark:text-slate-200 tabular-nums">{activeDates.length}</strong> active exam dates,{' '}
             <strong className="text-slate-800 dark:text-slate-200 tabular-nums">{totalPeriodPositions}</strong> total positions required.
           </div>
-          <button
-            onClick={handleGenerateDates}
-            className="btn-spring px-4 py-2 text-xs font-semibold text-white bg-sky-600 hover:bg-sky-500 rounded-lg shadow-sm hover:shadow cursor-pointer"
-          >
-            GENERATE DATES
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                const lastDate = project.examPeriod.dates[project.examPeriod.dates.length - 1];
+                if (lastDate) {
+                  const parts = lastDate.date.split('-');
+                  const next = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10) + 1);
+                  setNewDateInput(next.toISOString().slice(0, 10));
+                } else {
+                  setNewDateInput(new Date().toISOString().slice(0, 10));
+                }
+                setIsAddDateModalOpen(true);
+              }}
+              className="btn-spring px-3.5 py-2 text-xs font-semibold text-sky-700 dark:text-sky-300 bg-sky-50 dark:bg-sky-950/60 hover:bg-sky-100 dark:hover:bg-sky-900/60 border border-sky-300 dark:border-sky-700/50 rounded-lg shadow-sm hover:shadow cursor-pointer flex items-center gap-1.5"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              ADD SINGLE DATE
+            </button>
+            <button
+              onClick={handleGenerateDates}
+              className="btn-spring px-4 py-2 text-xs font-semibold text-white bg-sky-600 hover:bg-sky-500 rounded-lg shadow-sm hover:shadow cursor-pointer"
+            >
+              GENERATE DATES
+            </button>
+          </div>
         </div>
       </div>
 
@@ -425,11 +533,16 @@ export const ExamPeriodManager: React.FC = () => {
                 return (
                   <React.Fragment key={d.date}>
                     <tr
-                      className={`transition ${
+                      className={`transition cursor-pointer ${
                         d.isExcluded
                           ? 'bg-slate-50/40 dark:bg-slate-900/30 text-slate-400 dark:text-slate-500'
                           : 'hover:bg-sky-50/30 dark:hover:bg-white/5 text-slate-800 dark:text-slate-200'
                       }`}
+                      {...dateContextMenu.bindItem(d)}
+                      onDoubleClick={() => {
+                        setCustomizingDate(d);
+                        setIsDateSessionModalOpen(true);
+                      }}
                     >
                       {/* Expand / Collapse Accordion Chevron */}
                       <td className="py-3 px-2 text-center">
@@ -743,6 +856,169 @@ export const ExamPeriodManager: React.FC = () => {
         isOpen={isDateSessionModalOpen}
         onClose={() => setIsDateSessionModalOpen(false)}
       />
+
+      {/* Add Single Date Modal */}
+      {isAddDateModalOpen && typeof document !== 'undefined' && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-fade-in">
+          <div className="apple-glass-card w-full max-w-lg p-6 bg-white/95 dark:bg-slate-900/95 border border-slate-200/80 dark:border-white/10 rounded-2xl shadow-2xl relative">
+            <div className="flex items-center justify-between pb-4 border-b border-slate-200/80 dark:border-white/10">
+              <div className="flex items-center gap-2">
+                <Calendar className="w-5 h-5 text-sky-600 dark:text-sky-400" />
+                <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                  Add Single Examination Date
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsAddDateModalOpen(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleAddNewDate} className="mt-4 space-y-4">
+              <div>
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                  EXAMINATION DATE
+                </label>
+                <input
+                  type="date"
+                  required
+                  value={newDateInput}
+                  onChange={(e) => setNewDateInput(e.target.value)}
+                  className="w-full px-3 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-white/10 rounded-xl text-slate-900 dark:text-white focus:ring-2 focus:ring-sky-500 font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={newDateIsExcluded}
+                    onChange={(e) => setNewDateIsExcluded(e.target.checked)}
+                    className="rounded text-sky-600 focus:ring-sky-500 h-4 w-4"
+                  />
+                  <span className="text-xs font-medium text-slate-700 dark:text-slate-300">
+                    Mark as Non-Examination / Holiday Date
+                  </span>
+                </label>
+              </div>
+
+              {!newDateIsExcluded && (
+                <div className="space-y-2 pt-2 border-t border-slate-200/80 dark:border-white/10">
+                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block">
+                    SESSION STAFFING REQUIREMENTS
+                  </label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {(project.sessions || []).map((s) => (
+                      <div key={s.id} className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-white/10">
+                        <div className="text-[11px] font-bold text-slate-800 dark:text-slate-200 mb-1">
+                          {s.name}
+                        </div>
+                        <input
+                          type="number"
+                          min="0"
+                          value={newDateSessionReqs[s.id] ?? s.defaultRequirement}
+                          onChange={(e) => {
+                            const val = parseInt(e.target.value, 10) || 0;
+                            setNewDateSessionReqs((prev) => ({ ...prev, [s.id]: val }));
+                          }}
+                          className="w-full px-2 py-1 text-xs font-mono font-bold bg-white dark:bg-slate-900 border border-slate-300 dark:border-white/10 rounded-lg text-slate-900 dark:text-white"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="flex justify-end gap-2 pt-4 border-t border-slate-200/80 dark:border-white/10">
+                <button
+                  type="button"
+                  onClick={() => setIsAddDateModalOpen(false)}
+                  className="px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn-spring px-4 py-2 text-xs font-semibold text-white bg-sky-600 hover:bg-sky-500 rounded-xl shadow-sm hover:shadow cursor-pointer flex items-center gap-1.5"
+                >
+                  <Plus className="w-4 h-4" />
+                  Add Date
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Date Row Context Menu */}
+      <ContextMenuPopup
+        isOpen={dateContextMenu.isOpen}
+        position={dateContextMenu.position}
+        onClose={dateContextMenu.closeMenu}
+      >
+        {dateContextMenu.data && (
+          <>
+            <ContextMenuHeader
+              title={dateContextMenu.data.displayDate}
+              subtitle={`${dateContextMenu.data.dayOfWeek} • ${dateContextMenu.data.isExcluded ? 'Excluded' : 'Active'}`}
+            />
+            <ContextMenuItem
+              icon={<Sliders className="w-3.5 h-3.5 text-sky-500" />}
+              label="Customize Timings & Requirements"
+              shortcut="Double-click"
+              onClick={() => {
+                setCustomizingDate(dateContextMenu.data);
+                setIsDateSessionModalOpen(true);
+              }}
+            />
+            <ContextMenuItem
+              icon={
+                dateContextMenu.data.isExcluded ? (
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                ) : (
+                  <AlertCircle className="w-3.5 h-3.5 text-amber-500" />
+                )
+              }
+              label={
+                dateContextMenu.data.isExcluded
+                  ? 'Mark as Active Examination Day'
+                  : 'Mark as Non-Examination / Excluded'
+              }
+              onClick={() => {
+                if (dateContextMenu.data) {
+                  handleToggleExclusion(dateContextMenu.data.date);
+                }
+              }}
+            />
+            <ContextMenuItem
+              icon={<Copy className="w-3.5 h-3.5 text-purple-500" />}
+              label="Duplicate Date"
+              onClick={() => {
+                if (dateContextMenu.data) {
+                  handleDuplicateDate(dateContextMenu.data);
+                }
+              }}
+            />
+            <ContextMenuDivider />
+            <ContextMenuItem
+              icon={<Trash2 className="w-3.5 h-3.5 text-rose-500" />}
+              label="Delete Date"
+              variant="danger"
+              onClick={() => {
+                if (dateContextMenu.data) {
+                  if (confirm(`Are you sure you want to delete exam date ${dateContextMenu.data.displayDate}?`)) {
+                    deleteExamDate(dateContextMenu.data.date);
+                  }
+                }
+              }}
+            />
+          </>
+        )}
+      </ContextMenuPopup>
     </div>
   );
 };

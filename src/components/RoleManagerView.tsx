@@ -21,15 +21,35 @@ import {
   GripVertical,
 } from 'lucide-react';
 import { useScheduler } from '../context/SchedulerContext';
-import { CustomRoleDefinition, DEFAULT_CUSTOM_ROLES } from '../types';
+import { Faculty, CustomRoleDefinition, DEFAULT_CUSTOM_ROLES } from '../types';
 import { useScrollIsolation } from '../hooks/useScrollIsolation';
+import { useContextMenu } from '../hooks/useContextMenu';
+import {
+  ContextMenuPopup,
+  ContextMenuItem,
+  ContextMenuDivider,
+  ContextMenuHeader,
+} from './ContextMenuPopup';
 
 export const RoleManagerView: React.FC = () => {
-  const { project, bulkSegregateRoles, updateCustomRoles, updateFacultyList } = useScheduler();
+  const {
+    project,
+    bulkSegregateRoles,
+    updateCustomRoles,
+    updateFacultyList,
+    addCustomRole,
+    deleteCustomRole,
+    updateFaculty,
+    deleteFaculty,
+    toggleFacultyHod,
+  } = useScheduler();
 
   // Scroll isolation for the faculty table (pointer-aware Lenis bypass)
   const tableScrollRef = useRef<HTMLDivElement>(null);
   useScrollIsolation(tableScrollRef);
+
+  const roleContextMenu = useContextMenu<CustomRoleDefinition>();
+  const facultyContextMenu = useContextMenu<Faculty>();
 
   const [activeSubTab, setActiveSubTab] = useState<'assign' | 'manage_roles'>('assign');
   const [searchTerm, setSearchTerm] = useState('');
@@ -37,6 +57,9 @@ export const RoleManagerView: React.FC = () => {
   const [selectedSrNos, setSelectedSrNos] = useState<number[]>([]);
   const [targetRoleToApply, setTargetRoleToApply] = useState<string>('assistant_prof');
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  // Add role modal state
+  const [isAddRoleModalOpen, setIsAddRoleModalOpen] = useState(false);
 
   // Drag-and-drop state for Role assignment
   const [draggedFacultySrNos, setDraggedFacultySrNos] = useState<number[] | null>(null);
@@ -309,29 +332,40 @@ export const RoleManagerView: React.FC = () => {
       )}
 
       {/* Main Tab Controls */}
-      <div className="flex items-center space-x-2 border-b border-slate-200 dark:border-white/10 pb-2">
-        <button
-          onClick={() => setActiveSubTab('assign')}
-          className={`btn-spring flex items-center space-x-2 px-4 py-2 rounded-xl text-xs font-bold cursor-pointer ${
-            activeSubTab === 'assign'
-              ? 'bg-sky-600 text-white shadow-sm'
-              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white bg-slate-100 dark:bg-white/5'
-          }`}
-        >
-          <Users className="w-4 h-4" />
-          <span>Batch Faculty Role Assignment ({project.faculty.length})</span>
-        </button>
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 dark:border-white/10 pb-2">
+        <div className="flex items-center space-x-2">
+          <button
+            onClick={() => setActiveSubTab('assign')}
+            className={`btn-spring flex items-center space-x-2 px-4 py-2 rounded-xl text-xs font-bold cursor-pointer ${
+              activeSubTab === 'assign'
+                ? 'bg-sky-600 text-white shadow-sm'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white bg-slate-100 dark:bg-white/5'
+            }`}
+          >
+            <Users className="w-4 h-4" />
+            <span>Batch Faculty Role Assignment ({project.faculty.length})</span>
+          </button>
+
+          <button
+            onClick={() => setActiveSubTab('manage_roles')}
+            className={`btn-spring flex items-center space-x-2 px-4 py-2 rounded-xl text-xs font-bold cursor-pointer ${
+              activeSubTab === 'manage_roles'
+                ? 'bg-sky-600 text-white shadow-sm'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white bg-slate-100 dark:bg-white/5'
+            }`}
+          >
+            <Sliders className="w-4 h-4" />
+            <span>Role Tiers &amp; Quota Definitions ({rolesList.length})</span>
+          </button>
+        </div>
 
         <button
-          onClick={() => setActiveSubTab('manage_roles')}
-          className={`btn-spring flex items-center space-x-2 px-4 py-2 rounded-xl text-xs font-bold cursor-pointer ${
-            activeSubTab === 'manage_roles'
-              ? 'bg-sky-600 text-white shadow-sm'
-              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white bg-slate-100 dark:bg-white/5'
-          }`}
+          type="button"
+          onClick={() => setIsAddRoleModalOpen(true)}
+          className="btn-spring flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-sky-600 hover:bg-sky-500 text-white shadow-sm hover:shadow cursor-pointer transition"
         >
-          <Sliders className="w-4 h-4" />
-          <span>Role Tiers &amp; Quota Definitions ({rolesList.length})</span>
+          <Plus className="w-3.5 h-3.5" />
+          <span>ADD ROLE TIER</span>
         </button>
       </div>
 
@@ -516,6 +550,7 @@ export const RoleManagerView: React.FC = () => {
                           setDragOverRoleId(null);
                         }}
                         onClick={() => handleToggleSelectOne(f.srNo)}
+                        {...facultyContextMenu.bindItem(f)}
                         className={`transition cursor-grab active:cursor-grabbing select-none ${
                           isSelected
                             ? 'bg-sky-500/10 dark:bg-sky-500/15'
@@ -523,7 +558,7 @@ export const RoleManagerView: React.FC = () => {
                         } ${
                           draggedFacultySrNos?.includes(f.srNo) ? 'opacity-40' : ''
                         }`}
-                        title="Drag this faculty member to any role card above to assign"
+                        title="Drag to role card to assign, or right-click for quick actions"
                       >
                         <td className="py-2.5 px-3 text-center" onClick={(e) => e.stopPropagation()}>
                           <div className="flex items-center justify-center space-x-1">
@@ -626,11 +661,13 @@ export const RoleManagerView: React.FC = () => {
                       e.preventDefault();
                       handleDropOnRole(role.id, role.name);
                     }}
-                    className={`apple-glass-card p-4 rounded-2xl border transition-all ${
+                    className={`apple-glass-card p-4 rounded-2xl border transition-all cursor-pointer ${
                       dragOverRoleId === role.id
                         ? 'border-purple-500 ring-4 ring-purple-500/30 bg-purple-500/20 scale-[1.02] shadow-lg'
                         : 'border-slate-200/80 dark:border-white/10'
                     } space-y-3 relative overflow-hidden`}
+                    {...roleContextMenu.bindItem(role)}
+                    onDoubleClick={() => handleStartEditRole(role)}
                   >
                     <div className="flex items-start justify-between">
                       <div>
@@ -964,6 +1001,265 @@ export const RoleManagerView: React.FC = () => {
           </div>
         </div>
       , document.body)}
+
+      {/* Add Role Tier Modal */}
+      {isAddRoleModalOpen && typeof document !== 'undefined' && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-fade-in">
+          <div className="apple-glass-card w-full max-w-lg p-6 bg-white/95 dark:bg-slate-900/95 border border-slate-200/80 dark:border-white/10 rounded-2xl shadow-2xl relative">
+            <div className="flex items-center justify-between pb-4 border-b border-slate-200/80 dark:border-white/10">
+              <div className="flex items-center gap-2">
+                <Award className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                  Add New Role Tier
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsAddRoleModalOpen(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleCreateRole();
+                setIsAddRoleModalOpen(false);
+              }}
+              className="mt-4 space-y-4 text-xs"
+            >
+              <div>
+                <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                  ROLE / DESIGNATION NAME
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Associate Professor, Dean, Visiting Faculty"
+                  value={newRoleName}
+                  onChange={(e) => setNewRoleName(e.target.value)}
+                  className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-white/10 rounded-xl text-slate-900 dark:text-white font-medium focus:ring-2 focus:ring-sky-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                    TARGET SUPERVISIONS
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="50"
+                    value={newRoleTarget}
+                    onChange={(e) => {
+                      const val = Math.max(1, parseInt(e.target.value, 10) || 1);
+                      setNewRoleTarget(val);
+                      if (val > newRoleMax) setNewRoleMax(val);
+                    }}
+                    className="w-full px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-white/10 rounded-xl font-mono font-bold text-slate-900 dark:text-white"
+                  />
+                </div>
+                <div>
+                  <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                    MAXIMUM WORKLOAD CAP
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="50"
+                    value={newRoleMax}
+                    onChange={(e) => {
+                      const val = Math.max(1, parseInt(e.target.value, 10) || 1);
+                      setNewRoleMax(val);
+                    }}
+                    className="w-full px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-white/10 rounded-xl font-mono font-bold text-slate-900 dark:text-white"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                  CONCESSION OR ADDITIONAL LOAD (-DUTIES / +DUTIES)
+                </label>
+                <input
+                  type="number"
+                  min="-20"
+                  max="20"
+                  value={newRoleConcession}
+                  onChange={(e) => setNewRoleConcession(parseInt(e.target.value, 10) || 0)}
+                  className="w-full px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-white/10 rounded-xl font-mono font-bold text-slate-900 dark:text-white"
+                />
+              </div>
+
+              <div>
+                <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                  SOLVER ASSIGNMENT PRIORITY
+                </label>
+                <select
+                  value={newRolePriority}
+                  onChange={(e) => setNewRolePriority(e.target.value as any)}
+                  className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-white/10 rounded-xl font-medium text-slate-900 dark:text-white"
+                >
+                  <option value="concession_last">Assigned Last (HOD / Senior Concession)</option>
+                  <option value="standard">Standard Priority (Proportional Balance)</option>
+                  <option value="priority_first">Assigned First (Visiting / High Load)</option>
+                </select>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-4 border-t border-slate-200/80 dark:border-white/10">
+                <button
+                  type="button"
+                  onClick={() => setIsAddRoleModalOpen(false)}
+                  className="px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn-spring px-4 py-2 text-xs font-semibold text-white bg-sky-600 hover:bg-sky-500 rounded-xl shadow-sm hover:shadow cursor-pointer flex items-center gap-1.5"
+                >
+                  <Plus className="w-4 h-4" />
+                  Create Role Tier
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Role Card Context Menu */}
+      <ContextMenuPopup
+        isOpen={roleContextMenu.isOpen}
+        position={roleContextMenu.position}
+        onClose={roleContextMenu.closeMenu}
+      >
+        {roleContextMenu.data && (
+          <>
+            <ContextMenuHeader
+              title={roleContextMenu.data.name}
+              subtitle={`${stats.roleCounts[roleContextMenu.data.name] || 0} Faculty Assigned`}
+            />
+            <ContextMenuItem
+              icon={<Pencil className="w-3.5 h-3.5 text-sky-500" />}
+              label="Edit Role Tier & Quotas"
+              shortcut="Double-click"
+              onClick={() => {
+                if (roleContextMenu.data) {
+                  handleStartEditRole(roleContextMenu.data);
+                }
+              }}
+            />
+            <ContextMenuItem
+              icon={<Check className="w-3.5 h-3.5 text-emerald-500" />}
+              label={`Assign to Selected (${selectedSrNos.length})`}
+              disabled={selectedSrNos.length === 0}
+              onClick={() => {
+                if (roleContextMenu.data && selectedSrNos.length > 0) {
+                  bulkSegregateRoles(
+                    selectedSrNos,
+                    roleContextMenu.data.name,
+                    roleContextMenu.data.concessionDelta,
+                    roleContextMenu.data.defaultTarget,
+                    roleContextMenu.data.defaultMax
+                  );
+                  const count = selectedSrNos.length;
+                  setSelectedSrNos([]);
+                  setSuccessMessage(`Successfully updated ${count} faculty member(s) to "${roleContextMenu.data.name}"!`);
+                  setTimeout(() => setSuccessMessage(null), 4000);
+                }
+              }}
+            />
+            <ContextMenuItem
+              icon={<Filter className="w-3.5 h-3.5 text-purple-500" />}
+              label="Filter Faculty by This Tier"
+              onClick={() => {
+                if (roleContextMenu.data) {
+                  setSelectedRoleFilter(roleContextMenu.data.name);
+                  setActiveSubTab('assign');
+                }
+              }}
+            />
+            {roleContextMenu.data.id !== 'hod' && roleContextMenu.data.id !== 'regular' && (
+              <>
+                <ContextMenuDivider />
+                <ContextMenuItem
+                  icon={<Trash2 className="w-3.5 h-3.5 text-rose-500" />}
+                  label="Delete Role Tier"
+                  variant="danger"
+                  onClick={() => {
+                    if (roleContextMenu.data) {
+                      handleDeleteRole(roleContextMenu.data.id);
+                    }
+                  }}
+                />
+              </>
+            )}
+          </>
+        )}
+      </ContextMenuPopup>
+
+      {/* Faculty Row Context Menu */}
+      <ContextMenuPopup
+        isOpen={facultyContextMenu.isOpen}
+        position={facultyContextMenu.position}
+        onClose={facultyContextMenu.closeMenu}
+      >
+        {facultyContextMenu.data && (
+          <>
+            <ContextMenuHeader
+              title={facultyContextMenu.data.name}
+              subtitle={`Sr. No. #${facultyContextMenu.data.srNo} • ${facultyContextMenu.data.role || (facultyContextMenu.data.isHod ? 'HOD' : 'Regular Faculty')}`}
+            />
+            <ContextMenuItem
+              icon={<ShieldCheck className="w-3.5 h-3.5 text-indigo-500" />}
+              label={facultyContextMenu.data.isHod ? 'Remove HOD Status' : 'Make Head of Dept (HOD)'}
+              onClick={() => {
+                if (facultyContextMenu.data) {
+                  toggleFacultyHod(facultyContextMenu.data.srNo);
+                }
+              }}
+            />
+            <ContextMenuDivider />
+            <ContextMenuHeader title="Assign Role Tier" />
+            {rolesList.slice(0, 6).map((r) => (
+              <ContextMenuItem
+                key={r.id}
+                icon={<Award className="w-3.5 h-3.5 text-purple-500" />}
+                label={r.name}
+                onClick={() => {
+                  if (facultyContextMenu.data) {
+                    updateFaculty(facultyContextMenu.data.srNo, {
+                      role: r.name,
+                      targetSupervisions: r.defaultTarget,
+                      maxSupervisions: r.defaultMax,
+                      concessionOrAdditionalDuties: r.concessionDelta,
+                    });
+                    setSuccessMessage(`Updated ${facultyContextMenu.data.name} to "${r.name}"!`);
+                    setTimeout(() => setSuccessMessage(null), 4000);
+                  }
+                }}
+              />
+            ))}
+            <ContextMenuDivider />
+            <ContextMenuItem
+              icon={<Trash2 className="w-3.5 h-3.5 text-rose-500" />}
+              label="Delete Faculty Member"
+              variant="danger"
+              onClick={() => {
+                if (facultyContextMenu.data) {
+                  if (confirm(`Are you sure you want to delete ${facultyContextMenu.data.name}?`)) {
+                    deleteFaculty(facultyContextMenu.data.srNo);
+                  }
+                }
+              }}
+            />
+          </>
+        )}
+      </ContextMenuPopup>
     </div>
   );
 };

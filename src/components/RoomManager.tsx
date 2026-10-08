@@ -16,11 +16,19 @@ import {
   Printer,
   ChevronRight,
   Filter,
+  Copy,
 } from 'lucide-react';
 import { useScheduler } from '../context/SchedulerContext';
 import { ExamRoom } from '../types';
 import { parseRoomsCSV, downloadRoomsTemplateCSV } from '../services/roomParser';
 import { FileDropZone } from './FileDropZone';
+import { useContextMenu } from '../hooks/useContextMenu';
+import {
+  ContextMenuPopup,
+  ContextMenuItem,
+  ContextMenuDivider,
+  ContextMenuHeader,
+} from './ContextMenuPopup';
 
 export const RoomManager: React.FC = () => {
   const {
@@ -33,6 +41,8 @@ export const RoomManager: React.FC = () => {
     assignRoomsSeparately,
     setIsRoomChartModalOpen,
   } = useScheduler();
+
+  const roomContextMenu = useContextMenu<ExamRoom>();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [blockFilter, setBlockFilter] = useState('All');
@@ -143,6 +153,17 @@ export const RoomManager: React.FC = () => {
 
     setIsAddModalOpen(false);
     setEditingRoom(null);
+  };
+
+  // Duplicate an existing room
+  const handleDuplicateRoom = (sourceRoom: ExamRoom) => {
+    const newRoom: ExamRoom = {
+      ...sourceRoom,
+      id: `room-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+      name: `${sourceRoom.name} (Copy)`,
+    };
+    addRoom(newRoom);
+    setNotification({ message: `Duplicated hall "${newRoom.name}".`, type: 'success' });
   };
 
   // Handle CSV text upload
@@ -401,9 +422,12 @@ export const RoomManager: React.FC = () => {
                   return (
                     <tr
                       key={room.id}
-                      className={`hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition-colors ${
+                      {...roomContextMenu.bindItem(room)}
+                      onDoubleClick={() => handleOpenEditModal(room)}
+                      className={`hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition-colors cursor-pointer ${
                         !isActive ? 'opacity-60 bg-slate-50/30 dark:bg-slate-900/30' : ''
                       }`}
+                      title="Double-click to edit, or right-click for options"
                     >
                       <td className="py-3.5 px-4">
                         <div className="flex items-center gap-2.5">
@@ -601,6 +625,74 @@ export const RoomManager: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Room Context Menu */}
+      <ContextMenuPopup
+        isOpen={roomContextMenu.isOpen}
+        position={roomContextMenu.position}
+        onClose={roomContextMenu.closeMenu}
+      >
+        {roomContextMenu.data && (
+          <>
+            <ContextMenuHeader
+              title={roomContextMenu.data.name}
+              subtitle={`${roomContextMenu.data.block} • ${roomContextMenu.data.capacity} seats`}
+            />
+            <ContextMenuItem
+              icon={<Edit2 className="w-3.5 h-3.5 text-sky-500" />}
+              label="Edit Hall Details"
+              shortcut="Double-click"
+              onClick={() => {
+                if (roomContextMenu.data) {
+                  handleOpenEditModal(roomContextMenu.data);
+                }
+              }}
+            />
+            <ContextMenuItem
+              icon={
+                roomContextMenu.data.isActive !== false ? (
+                  <AlertCircle className="w-3.5 h-3.5 text-amber-500" />
+                ) : (
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                )
+              }
+              label={
+                roomContextMenu.data.isActive !== false
+                  ? 'Mark as Inactive'
+                  : 'Mark as Active Hall'
+              }
+              onClick={() => {
+                if (roomContextMenu.data) {
+                  toggleRoomActive(roomContextMenu.data.id);
+                }
+              }}
+            />
+            <ContextMenuItem
+              icon={<Copy className="w-3.5 h-3.5 text-purple-500" />}
+              label="Duplicate Hall"
+              onClick={() => {
+                if (roomContextMenu.data) {
+                  handleDuplicateRoom(roomContextMenu.data);
+                }
+              }}
+            />
+            <ContextMenuDivider />
+            <ContextMenuItem
+              icon={<Trash2 className="w-3.5 h-3.5 text-rose-500" />}
+              label="Delete Exam Hall"
+              variant="danger"
+              onClick={() => {
+                if (roomContextMenu.data) {
+                  if (confirm(`Are you sure you want to delete room "${roomContextMenu.data.name}"?`)) {
+                    deleteRoom(roomContextMenu.data.id);
+                    setNotification({ message: `Deleted hall "${roomContextMenu.data.name}".`, type: 'info' });
+                  }
+                }
+              }}
+            />
+          </>
+        )}
+      </ContextMenuPopup>
     </div>
   );
 };
