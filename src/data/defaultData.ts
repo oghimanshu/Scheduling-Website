@@ -134,6 +134,8 @@ export const DEFAULT_SETTINGS: SchedulerSettings = {
   randomSeed: 42,
   reserveSupervisorsPerSession: 0,
   reserveCanExceedCap: false,
+  enableRoomAllocation: false,
+  autoRebalanceOnManualEdit: true,
 };
 
 export const DEFAULT_SESSIONS: SessionDefinition[] = [

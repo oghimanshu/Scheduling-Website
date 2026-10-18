@@ -19,6 +19,7 @@ import {
   SigningAuthority,
   ExamRoom,
   DEFAULT_CUSTOM_ROLES,
+  AttendanceStatus,
 } from '../types';
 import {
   INITIAL_PROJECT_STATE,
@@ -28,7 +29,7 @@ import {
   DEFAULT_ROOMS_CONFIG,
 } from '../data/defaultData';
 import { allocateRoomsToAssignmentList } from '../services/roomParser';
-import { validateSchedule } from '../services/validation/validator';
+import { validateSchedule, isFacultyAvailableForSlot, isFacultyEligibleForSession } from '../services/validation/validator';
 import { analyzeInfeasibility, InfeasibilityReport } from '../services/validation/infeasibility';
 import { generateFiveAlternatives, generateSingleAlternative } from '../services/scheduler/alternatives';
 import { rebalanceSchedule } from '../services/scheduler/rebalance';
@@ -126,7 +127,9 @@ interface SchedulerContextType {
   ) => void;
   generateAnotherAlternative: (customSeed?: number) => void;
   selectAlternative: (alternativeId: string) => void;
-  rebalanceCurrentSchedule: () => void;
+  rebalanceCurrentSchedule: (customAssignments?: any, isSilent?: boolean) => Promise<boolean>;
+  undoSnapshot: Assignment[] | null;
+  undoLastAutoRebalance: () => void;
   loadProjectFromCloudSession: (cloudState: ProjectState) => void;
 
   // Conflict Mitigation Wizard Actions
@@ -155,7 +158,7 @@ interface SchedulerContextType {
     lockAfterTransfer?: boolean,
     targetDate?: string,
     targetSession?: SessionType
-  ) => { success: boolean; error?: string };
+  ) => { success: boolean; error?: string; updatedAssignments?: Assignment[] };
   swapFacultyAssignments: (
     srNo1: number,
     date1: string,
@@ -212,7 +215,11 @@ interface SchedulerContextType {
   updateRoomsList: (rooms: ExamRoom[]) => void;
   allocateRoomsToAssignments: (assignmentsToProcess?: Assignment[]) => Assignment[];
   assignRoomsSeparately: () => void;
+  clearRoomAllocations: () => void;
   assignRoomToDuty: (assignmentId: string, roomId?: string) => void;
+  markAttendance: (assignmentId: string, status: AttendanceStatus) => void;
+  deployReserveToRoom: (reserveAssignmentId: string, targetDutyAssignmentId: string) => { success: boolean; message: string };
+  autoFillVacantSlot: (date: string, session: SessionType) => Faculty | null;
 }
 
 const SchedulerContext = createContext<SchedulerContextType | undefined>(undefined);
@@ -443,14 +450,19 @@ export const SchedulerProvider: React.FC<{ children: React.ReactNode; initialPro
           return;
         }
 
-        // Apply first alternative as default active with automatic room distribution
+        // Apply first alternative as default active with optional room distribution
         const bestAlt = alternatives[0];
+        const shouldAllocateRooms = !!effectiveSettings.enableRoomAllocation;
         const roomsToUse = project.rooms || DEFAULT_ROOMS_CONFIG;
-        const allocatedBestAssignments = allocateRoomsToAssignmentList(bestAlt.assignments, roomsToUse);
-        const allocatedAlternatives = alternatives.map((alt) => ({
-          ...alt,
-          assignments: allocateRoomsToAssignmentList(alt.assignments, roomsToUse),
-        }));
+        const allocatedBestAssignments = shouldAllocateRooms
+          ? allocateRoomsToAssignmentList(bestAlt.assignments, roomsToUse)
+          : bestAlt.assignments;
+        const allocatedAlternatives = shouldAllocateRooms
+          ? alternatives.map((alt) => ({
+              ...alt,
+              assignments: allocateRoomsToAssignmentList(alt.assignments, roomsToUse),
+            }))
+          : alternatives;
 
         setProject((prev) => ({
           ...prev,
@@ -619,10 +631,13 @@ export const SchedulerProvider: React.FC<{ children: React.ReactNode; initialPro
       project.sessions
     );
     if (alt) {
+      const shouldAllocateRooms = !!project.settings.enableRoomAllocation;
       const roomsToUse = project.rooms || DEFAULT_ROOMS_CONFIG;
       const allocatedAlt = {
         ...alt,
-        assignments: allocateRoomsToAssignmentList(alt.assignments, roomsToUse),
+        assignments: shouldAllocateRooms
+          ? allocateRoomsToAssignmentList(alt.assignments, roomsToUse)
+          : alt.assignments,
       };
       setProject((prev) => ({
         ...prev,
@@ -637,8 +652,11 @@ export const SchedulerProvider: React.FC<{ children: React.ReactNode; initialPro
   const selectAlternative = useCallback((alternativeId: string) => {
     const found = project.alternatives.find((a) => a.id === alternativeId);
     if (found) {
+      const shouldAllocateRooms = !!project.settings.enableRoomAllocation;
       const roomsToUse = project.rooms || DEFAULT_ROOMS_CONFIG;
-      const allocated = allocateRoomsToAssignmentList(found.assignments, roomsToUse);
+      const allocated = shouldAllocateRooms
+        ? allocateRoomsToAssignmentList(found.assignments, roomsToUse)
+        : found.assignments;
       setProject((prev) => ({
         ...prev,
         activeScheduleId: found.id,
@@ -646,33 +664,85 @@ export const SchedulerProvider: React.FC<{ children: React.ReactNode; initialPro
       }));
       setIsAlternativesModalOpen(false);
     }
-  }, [project.alternatives, project.rooms]);
+  }, [project.alternatives, project.rooms, project.settings.enableRoomAllocation]);
 
-  // Rebalance current schedule
-  const rebalanceCurrentSchedule = useCallback(() => {
-    setIsGenerating(true);
-    setTimeout(() => {
-      try {
-        const result = rebalanceSchedule(
-          project.faculty,
-          project.examPeriod.dates,
-          project.assignments,
-          project.availability,
-          project.settings,
-          project.sessions
-        );
-        if (result.success) {
-          setProject((prev) => ({
-            ...prev,
-            assignments: result.assignments,
-          }));
-        } else if (result.infeasibilityReport) {
-          setInfeasibilityReport(result.infeasibilityReport);
-        }
-      } finally {
-        setIsGenerating(false);
+  // Snapshot for undoing automatic or manual rebalance
+  const [undoSnapshot, setUndoSnapshot] = useState<Assignment[] | null>(null);
+
+  // Undo last automatic rebalance (restoring pre-rebalance schedule)
+  const undoLastAutoRebalance = useCallback(() => {
+    if (!undoSnapshot) return;
+    setProject((prev) => {
+      const activeId = prev.activeScheduleId || (prev.alternatives && prev.alternatives[0]?.id);
+      const updatedAlternatives = prev.alternatives?.map((alt) =>
+        alt.id === activeId ? { ...alt, assignments: undoSnapshot } : alt
+      );
+      const updated = {
+        ...prev,
+        assignments: undoSnapshot,
+        alternatives: updatedAlternatives || prev.alternatives,
+        lastSavedTimestamp: new Date().toLocaleTimeString('en-GB'),
+      };
+      saveProjectToStorage(updated);
+      return updated;
+    });
+    setUndoSnapshot(null);
+  }, [undoSnapshot]);
+
+  // Rebalance current schedule (supports custom assignment snapshots and silent auto-rebalance)
+  const rebalanceCurrentSchedule = useCallback((
+    customAssignments?: any,
+    isSilent = false
+  ): Promise<boolean> => {
+    return new Promise((resolve) => {
+      const baseAssignments = Array.isArray(customAssignments) ? customAssignments : project.assignments;
+      setUndoSnapshot(baseAssignments);
+
+      if (!isSilent) {
+        setIsGenerating(true);
       }
-    }, 50);
+
+      setTimeout(() => {
+        try {
+          const result = rebalanceSchedule(
+            project.faculty,
+            project.examPeriod.dates,
+            baseAssignments,
+            project.availability,
+            project.settings,
+            project.sessions
+          );
+          if (result.success || (result.assignments && result.assignments.length > 0)) {
+            setProject((prev) => {
+              const activeId = prev.activeScheduleId || (prev.alternatives && prev.alternatives[0]?.id);
+              const updatedAlternatives = prev.alternatives?.map((alt) =>
+                alt.id === activeId ? { ...alt, assignments: result.assignments } : alt
+              );
+              const updated = {
+                ...prev,
+                assignments: result.assignments,
+                alternatives: updatedAlternatives || prev.alternatives,
+                lastSavedTimestamp: new Date().toLocaleTimeString('en-GB'),
+              };
+              saveProjectToStorage(updated);
+              return updated;
+            });
+            resolve(true);
+          } else {
+            if (result.infeasibilityReport) {
+              setInfeasibilityReport(result.infeasibilityReport);
+            }
+            resolve(false);
+          }
+        } catch {
+          resolve(false);
+        } finally {
+          if (!isSilent) {
+            setIsGenerating(false);
+          }
+        }
+      }, 50);
+    });
   }, [project.faculty, project.examPeriod.dates, project.assignments, project.availability, project.settings, project.sessions]);
 
   // Lock / Unlock assignment
@@ -807,6 +877,111 @@ export const SchedulerProvider: React.FC<{ children: React.ReactNode; initialPro
     });
   }, []);
 
+  // Auto-fill a vacant or vacated slot with the optimal eligible faculty
+  const autoFillVacantSlot = useCallback((date: string, session: SessionType): Faculty | null => {
+    const dateConfig = project.examPeriod.dates.find((d) => d.date === date);
+    if (!dateConfig || dateConfig.isExcluded) return null;
+
+    // Check currently assigned faculty for this slot
+    const assignedInSlot = new Set(
+      project.assignments
+        .filter((a) => a.date === date && a.session === session)
+        .map((a) => a.facultySrNo)
+    );
+
+    const eligibleCandidates = project.faculty.filter((f) => {
+      if (f.isExcluded) return false;
+      if (assignedInSlot.has(f.srNo)) return false;
+      if (!isFacultyAvailableForSlot(f, date, session, project.availability)) return false;
+      if (!isFacultyEligibleForSession(f.arrival, session, project.sessions, dateConfig)) return false;
+
+      // Check daily duties limit
+      const dutiesOnDate = project.assignments.filter((a) => a.facultySrNo === f.srNo && a.date === date);
+      if (dutiesOnDate.length >= 2) return false;
+
+      // Check double duty combination rule
+      if (dutiesOnDate.length === 1) {
+        const existingSession = dutiesOnDate[0].session;
+        if (
+          ((existingSession === 'JRS 1' && session === 'JRS 3') ||
+            (existingSession === 'JRS 3' && session === 'JRS 1')) &&
+          !project.settings.allowJrs1Jrs3Double
+        ) {
+          return false;
+        }
+      }
+
+      // Check max workload cap
+      const currentDutyCount = project.assignments.filter((a) => a.facultySrNo === f.srNo).length;
+      const totalWorkload = currentDutyCount + (f.previousSupervisions || 0);
+      if (totalWorkload >= f.maxSupervisions) return false;
+
+      return true;
+    });
+
+    if (eligibleCandidates.length === 0) return null;
+
+    // Sort candidates by optimization score:
+    // 1. Deficit to target workload
+    // 2. HOD assignment priority
+    // 3. Spreading across days
+    const sorted = [...eligibleCandidates].sort((a, b) => {
+      const aDuties = project.assignments.filter((x) => x.facultySrNo === a.srNo).length + (a.previousSupervisions || 0);
+      const bDuties = project.assignments.filter((x) => x.facultySrNo === b.srNo).length + (b.previousSupervisions || 0);
+
+      const aDeficit = a.targetSupervisions - aDuties;
+      const bDeficit = b.targetSupervisions - bDuties;
+
+      let scoreA = aDeficit * 5000;
+      let scoreB = bDeficit * 5000;
+
+      const hodPriority = project.settings.hodAssignmentPriority || 'regular_first_hod_last';
+      if (hodPriority === 'hod_first') {
+        if (a.isHod) scoreA += 50000;
+        if (b.isHod) scoreB += 50000;
+      } else if (hodPriority === 'regular_first_hod_last') {
+        if (a.isHod) scoreA -= 50000;
+        if (b.isHod) scoreB -= 50000;
+      }
+
+      const aDutiesToday = project.assignments.filter((x) => x.facultySrNo === a.srNo && x.date === date).length;
+      const bDutiesToday = project.assignments.filter((x) => x.facultySrNo === b.srNo && x.date === date).length;
+      if (aDutiesToday === 0) scoreA += 10000;
+      if (bDutiesToday === 0) scoreB += 10000;
+
+      return scoreB - scoreA;
+    });
+
+    const chosenFaculty = sorted[0];
+
+    const newAssignment: Assignment = {
+      id: `${chosenFaculty.srNo}-${date}-${session}`,
+      facultySrNo: chosenFaculty.srNo,
+      date,
+      session,
+      isLocked: false,
+      isOverride: false,
+    };
+
+    setProject((prev) => {
+      const newAssignments = [...prev.assignments, newAssignment];
+      const activeId = prev.activeScheduleId || (prev.alternatives && prev.alternatives[0]?.id);
+      const updatedAlternatives = prev.alternatives?.map((alt) =>
+        alt.id === activeId ? { ...alt, assignments: newAssignments } : alt
+      );
+      const updatedState = {
+        ...prev,
+        assignments: newAssignments,
+        alternatives: updatedAlternatives || prev.alternatives,
+        lastSavedTimestamp: new Date().toLocaleTimeString('en-GB'),
+      };
+      saveProjectToStorage(updatedState);
+      return updatedState;
+    });
+
+    return chosenFaculty;
+  }, [project.examPeriod.dates, project.assignments, project.faculty, project.availability, project.sessions, project.settings]);
+
   // Swap two faculty assignments
   const swapFacultyAssignments = useCallback((
     srNo1: number,
@@ -859,8 +1034,9 @@ export const SchedulerProvider: React.FC<{ children: React.ReactNode; initialPro
     lockAfterTransfer = false,
     customTargetDate?: string,
     customTargetSession?: SessionType
-  ): { success: boolean; error?: string } => {
+  ): { success: boolean; error?: string; updatedAssignments?: Assignment[] } => {
     let resultError: string | undefined;
+    let resultingAssignments: Assignment[] | undefined;
 
     setProject((prev) => {
       const sourceAssignment = prev.assignments.find((a) => a.id === sourceAssignmentId);
@@ -889,6 +1065,7 @@ export const SchedulerProvider: React.FC<{ children: React.ReactNode; initialPro
           a.id !== sourceAssignment.id
       );
 
+      const shouldLock = lockAfterTransfer || prev.settings.autoRebalanceOnManualEdit !== false;
       let newAssignments: Assignment[];
       let newOverrides = prev.overrides || [];
 
@@ -902,7 +1079,7 @@ export const SchedulerProvider: React.FC<{ children: React.ReactNode; initialPro
               facultySrNo: targetFacultySrNo,
               date: tgtDate,
               session: tgtSession,
-              isLocked: lockAfterTransfer ? true : a.isLocked,
+              isLocked: shouldLock ? true : a.isLocked,
               isOverride: isOverride || a.isOverride,
               overrideReason: isOverride ? overrideReason : a.overrideReason,
             };
@@ -914,6 +1091,7 @@ export const SchedulerProvider: React.FC<{ children: React.ReactNode; initialPro
               facultySrNo: sourceAssignment.facultySrNo,
               date: srcDate,
               session: srcSession,
+              isLocked: shouldLock ? true : a.isLocked,
             };
           }
           return a;
@@ -934,7 +1112,7 @@ export const SchedulerProvider: React.FC<{ children: React.ReactNode; initialPro
                 facultySrNo: targetFacultySrNo,
                 date: tgtDate,
                 session: tgtSession,
-                isLocked: lockAfterTransfer ? true : a.isLocked,
+                isLocked: shouldLock ? true : a.isLocked,
                 isOverride: isOverride || a.isOverride,
                 overrideReason: isOverride ? overrideReason : a.overrideReason,
               };
@@ -942,6 +1120,8 @@ export const SchedulerProvider: React.FC<{ children: React.ReactNode; initialPro
             return a;
           });
       }
+
+      resultingAssignments = newAssignments;
 
       // Record override log if applicable
       if (isOverride && overrideReason) {
@@ -980,7 +1160,7 @@ export const SchedulerProvider: React.FC<{ children: React.ReactNode; initialPro
     if (resultError) {
       return { success: false, error: resultError };
     }
-    return { success: true };
+    return { success: true, updatedAssignments: resultingAssignments };
   }, []);
 
   // Bulk update assignments directly (e.g. from Substitute modal)
@@ -1134,17 +1314,52 @@ export const SchedulerProvider: React.FC<{ children: React.ReactNode; initialPro
         }
       });
 
-      return {
+      const updatedFaculty = prev.faculty.map((f) => {
+        if (f.srNo !== srNo) return f;
+        return {
+          ...f,
+          excludedDates: dates,
+        };
+      });
+
+      let assignments = prev.assignments;
+      assignments = assignments.filter((a) => !(a.facultySrNo === srNo && newExcludedSet.has(a.date)));
+
+      const shouldAutoRebalance = prev.settings?.autoRebalanceOnManualEdit !== false && prev.assignments.length > 0;
+      if (shouldAutoRebalance) {
+        setUndoSnapshot([...prev.assignments]);
+        try {
+          const rebalanceRes = rebalanceSchedule(
+            updatedFaculty,
+            prev.examPeriod.dates,
+            assignments,
+            newAvail,
+            prev.settings,
+            prev.sessions
+          );
+          if (rebalanceRes.success && rebalanceRes.assignments && rebalanceRes.assignments.length > 0) {
+            assignments = rebalanceRes.assignments;
+          }
+        } catch (err) {
+          console.error('Auto-rebalance after date exclusions update failed:', err);
+        }
+      }
+
+      const activeId = prev.activeScheduleId || (prev.alternatives && prev.alternatives[0]?.id);
+      const updatedAlternatives = prev.alternatives?.map((alt) =>
+        alt.id === activeId ? { ...alt, assignments } : alt
+      );
+
+      const updated = {
         ...prev,
         availability: newAvail,
-        faculty: prev.faculty.map((f) => {
-          if (f.srNo !== srNo) return f;
-          return {
-            ...f,
-            excludedDates: dates,
-          };
-        }),
+        faculty: updatedFaculty,
+        assignments,
+        alternatives: updatedAlternatives || prev.alternatives,
+        lastSavedTimestamp: new Date().toLocaleTimeString('en-GB'),
       };
+      saveProjectToStorage(updated);
+      return updated;
     });
   }, []);
 
@@ -1291,13 +1506,78 @@ export const SchedulerProvider: React.FC<{ children: React.ReactNode; initialPro
 
   // Set availability for one faculty on one date
   const setAvailability = useCallback((facultySrNo: number, date: string, isAvailable: boolean) => {
-    setProject((prev) => ({
-      ...prev,
-      availability: {
+    setProject((prev) => {
+      // 1. Synchronize faculty.excludedDates
+      const updatedFaculty = prev.faculty.map((f) => {
+        if (f.srNo !== facultySrNo) return f;
+        const currentExcluded = f.excludedDates || [];
+        const updatedExcluded = isAvailable
+          ? currentExcluded.filter((dt) => dt !== date)
+          : currentExcluded.includes(date)
+          ? currentExcluded
+          : [...currentExcluded, date];
+        return { ...f, excludedDates: updatedExcluded };
+      });
+
+      // 2. Synchronize availability map (whole day and individual slots)
+      const newAvail = {
         ...prev.availability,
         [`${facultySrNo}_${date}`]: isAvailable,
-      },
-    }));
+      };
+      if (isAvailable) {
+        (['JRS 1', 'JRS 2', 'JRS 3'] as SessionType[]).forEach((sess) => {
+          delete newAvail[`${facultySrNo}_${date}_${sess}`];
+        });
+      } else {
+        (['JRS 1', 'JRS 2', 'JRS 3'] as SessionType[]).forEach((sess) => {
+          newAvail[`${facultySrNo}_${date}_${sess}`] = false;
+        });
+      }
+
+      // 3. Evict conflicting assignments if unavailable
+      let assignments = prev.assignments;
+      if (!isAvailable) {
+        assignments = assignments.filter(
+          (a) => !(a.facultySrNo === facultySrNo && a.date === date)
+        );
+      }
+
+      // 4. Auto-rebalance if enabled and schedule exists
+      const shouldAutoRebalance = prev.settings?.autoRebalanceOnManualEdit !== false && prev.assignments.length > 0;
+      if (shouldAutoRebalance) {
+        setUndoSnapshot([...prev.assignments]);
+        try {
+          const rebalanceRes = rebalanceSchedule(
+            updatedFaculty,
+            prev.examPeriod.dates,
+            assignments,
+            newAvail,
+            prev.settings,
+            prev.sessions
+          );
+          if (rebalanceRes.success && rebalanceRes.assignments && rebalanceRes.assignments.length > 0) {
+            assignments = rebalanceRes.assignments;
+          }
+        } catch (err) {
+          console.error('Auto-rebalance after availability change failed:', err);
+        }
+      }
+
+      const activeId = prev.activeScheduleId || (prev.alternatives && prev.alternatives[0]?.id);
+      const updatedAlternatives = prev.alternatives?.map((alt) =>
+        alt.id === activeId ? { ...alt, assignments } : alt
+      );
+      const updated = {
+        ...prev,
+        faculty: updatedFaculty,
+        assignments,
+        alternatives: updatedAlternatives || prev.alternatives,
+        availability: newAvail,
+        lastSavedTimestamp: new Date().toLocaleTimeString('en-GB'),
+      };
+      saveProjectToStorage(updated);
+      return updated;
+    });
   }, []);
 
   // Set slot-specific or whole-day availability
@@ -1306,12 +1586,67 @@ export const SchedulerProvider: React.FC<{ children: React.ReactNode; initialPro
       const key = session ? `${facultySrNo}_${date}_${session}` : `${facultySrNo}_${date}`;
       const currentVal = prev.availability[key] !== false;
       const targetVal = isAvailable !== undefined ? isAvailable : !currentVal;
+
+      const newAvail = {
+        ...prev.availability,
+        [key]: targetVal,
+      };
+
+      // If whole day availability is toggled, also sync excludedDates
+      let updatedFaculty = prev.faculty;
+      if (!session) {
+        updatedFaculty = prev.faculty.map((f) => {
+          if (f.srNo !== facultySrNo) return f;
+          const currentExcluded = f.excludedDates || [];
+          const updatedExcluded = targetVal
+            ? currentExcluded.filter((dt) => dt !== date)
+            : currentExcluded.includes(date)
+            ? currentExcluded
+            : [...currentExcluded, date];
+          return { ...f, excludedDates: updatedExcluded };
+        });
+      }
+
+      let assignments = prev.assignments;
+      if (!targetVal) {
+        assignments = assignments.filter((a) => {
+          if (a.facultySrNo !== facultySrNo || a.date !== date) return true;
+          if (session && a.session !== session) return true;
+          return false;
+        });
+      }
+
+      const shouldAutoRebalance = prev.settings?.autoRebalanceOnManualEdit !== false && prev.assignments.length > 0;
+      if (shouldAutoRebalance) {
+        setUndoSnapshot([...prev.assignments]);
+        try {
+          const rebalanceRes = rebalanceSchedule(
+            updatedFaculty,
+            prev.examPeriod.dates,
+            assignments,
+            newAvail,
+            prev.settings,
+            prev.sessions
+          );
+          if (rebalanceRes.success && rebalanceRes.assignments && rebalanceRes.assignments.length > 0) {
+            assignments = rebalanceRes.assignments;
+          }
+        } catch (err) {
+          console.error('Auto-rebalance after slot availability change failed:', err);
+        }
+      }
+
+      const activeId = prev.activeScheduleId || (prev.alternatives && prev.alternatives[0]?.id);
+      const updatedAlternatives = prev.alternatives?.map((alt) =>
+        alt.id === activeId ? { ...alt, assignments } : alt
+      );
       const updated = {
         ...prev,
-        availability: {
-          ...prev.availability,
-          [key]: targetVal,
-        },
+        faculty: updatedFaculty,
+        assignments,
+        alternatives: updatedAlternatives || prev.alternatives,
+        availability: newAvail,
+        lastSavedTimestamp: new Date().toLocaleTimeString('en-GB'),
       };
       saveProjectToStorage(updated);
       return updated;
@@ -1322,12 +1657,63 @@ export const SchedulerProvider: React.FC<{ children: React.ReactNode; initialPro
   const bulkSetAvailability = useCallback((facultySrNos: number[], dates: string[], isAvailable: boolean) => {
     setProject((prev) => {
       const newAvail = { ...prev.availability };
+      const dateSet = new Set(dates);
+      const srNoSet = new Set(facultySrNos);
       facultySrNos.forEach((srNo) => {
         dates.forEach((date) => {
           newAvail[`${srNo}_${date}`] = isAvailable;
         });
       });
-      return { ...prev, availability: newAvail };
+
+      const updatedFaculty = prev.faculty.map((f) => {
+        if (!srNoSet.has(f.srNo)) return f;
+        const currentExcluded = new Set(f.excludedDates || []);
+        dates.forEach((d) => {
+          if (isAvailable) currentExcluded.delete(d);
+          else currentExcluded.add(d);
+        });
+        return { ...f, excludedDates: Array.from(currentExcluded) };
+      });
+
+      let assignments = prev.assignments;
+      if (!isAvailable) {
+        assignments = assignments.filter((a) => !(srNoSet.has(a.facultySrNo) && dateSet.has(a.date)));
+      }
+
+      const shouldAutoRebalance = prev.settings?.autoRebalanceOnManualEdit !== false && prev.assignments.length > 0;
+      if (shouldAutoRebalance) {
+        setUndoSnapshot([...prev.assignments]);
+        try {
+          const rebalanceRes = rebalanceSchedule(
+            updatedFaculty,
+            prev.examPeriod.dates,
+            assignments,
+            newAvail,
+            prev.settings,
+            prev.sessions
+          );
+          if (rebalanceRes.success && rebalanceRes.assignments && rebalanceRes.assignments.length > 0) {
+            assignments = rebalanceRes.assignments;
+          }
+        } catch (err) {
+          console.error('Auto-rebalance after bulk availability change failed:', err);
+        }
+      }
+
+      const activeId = prev.activeScheduleId || (prev.alternatives && prev.alternatives[0]?.id);
+      const updatedAlternatives = prev.alternatives?.map((alt) =>
+        alt.id === activeId ? { ...alt, assignments } : alt
+      );
+      const updated = {
+        ...prev,
+        faculty: updatedFaculty,
+        assignments,
+        alternatives: updatedAlternatives || prev.alternatives,
+        availability: newAvail,
+        lastSavedTimestamp: new Date().toLocaleTimeString('en-GB'),
+      };
+      saveProjectToStorage(updated);
+      return updated;
     });
   }, []);
 
@@ -1893,9 +2279,46 @@ export const SchedulerProvider: React.FC<{ children: React.ReactNode; initialPro
   const assignRoomsSeparately = useCallback(() => {
     setProject((prev) => {
       const allocated = allocateRoomsToAssignmentList(prev.assignments, prev.rooms || DEFAULT_ROOMS_CONFIG);
+      const activeId = prev.activeScheduleId || (prev.alternatives && prev.alternatives[0]?.id);
+      const updatedAlternatives = prev.alternatives?.map((alt) =>
+        alt.id === activeId ? { ...alt, assignments: allocated } : alt
+      );
       const updated = {
         ...prev,
         assignments: allocated,
+        alternatives: updatedAlternatives || prev.alternatives,
+        settings: {
+          ...prev.settings,
+          enableRoomAllocation: true,
+        },
+        lastSavedTimestamp: new Date().toLocaleTimeString('en-GB'),
+      };
+      saveProjectToStorage(updated);
+      return updated;
+    });
+  }, []);
+
+  const clearRoomAllocations = useCallback(() => {
+    setProject((prev) => {
+      const strippedAssignments = prev.assignments.map((a) => {
+        const { roomId: _rid, roomName: _rname, ...rest } = a;
+        return rest as Assignment;
+      });
+      const strippedAlternatives = prev.alternatives?.map((alt) => ({
+        ...alt,
+        assignments: alt.assignments.map((a) => {
+          const { roomId: _rid, roomName: _rname, ...rest } = a;
+          return rest as Assignment;
+        }),
+      })) || [];
+      const updated = {
+        ...prev,
+        assignments: strippedAssignments,
+        alternatives: strippedAlternatives,
+        settings: {
+          ...prev.settings,
+          enableRoomAllocation: false,
+        },
         lastSavedTimestamp: new Date().toLocaleTimeString('en-GB'),
       };
       saveProjectToStorage(updated);
@@ -1945,6 +2368,93 @@ export const SchedulerProvider: React.FC<{ children: React.ReactNode; initialPro
       return updated;
     });
   }, []);
+
+  const markAttendance = useCallback((assignmentId: string, status: AttendanceStatus) => {
+    setProject((prev) => {
+      const now = new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+      const newAssignments = prev.assignments.map((a) => {
+        if (a.id !== assignmentId) return a;
+        return {
+          ...a,
+          attendanceStatus: status,
+          attendanceTimestamp: now,
+        };
+      });
+
+      const activeId = prev.activeScheduleId || (prev.alternatives && prev.alternatives[0]?.id);
+      const updatedAlternatives = prev.alternatives?.map((alt) =>
+        alt.id === activeId ? { ...alt, assignments: newAssignments } : alt
+      );
+      const updated = {
+        ...prev,
+        assignments: newAssignments,
+        alternatives: updatedAlternatives || prev.alternatives,
+        lastSavedTimestamp: new Date().toLocaleTimeString('en-GB'),
+      };
+      saveProjectToStorage(updated);
+      return updated;
+    });
+  }, []);
+
+  const deployReserveToRoom = useCallback((reserveAssignmentId: string, targetDutyAssignmentId: string) => {
+    const reserveAsg = project.assignments.find((a) => a.id === reserveAssignmentId);
+    const targetAsg = project.assignments.find((a) => a.id === targetDutyAssignmentId);
+
+    if (!reserveAsg || !targetAsg) {
+      return { success: false, message: 'Assignment records not found.' };
+    }
+
+    const reserveFaculty = project.faculty.find((f) => f.srNo === reserveAsg.facultySrNo);
+    const targetFaculty = project.faculty.find((f) => f.srNo === targetAsg.facultySrNo);
+    const now = new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+
+    setProject((prev) => {
+      // Target duty is now replaced by reserve:
+      // The reserve supervisor gets promoted to primary invigilator for that room.
+      // The original absent faculty's duty is marked as absent and unfulfilled.
+      const newAssignments = prev.assignments.map((a) => {
+        if (a.id === reserveAssignmentId) {
+          return {
+            ...a,
+            isReserve: false,
+            roomId: targetAsg.roomId,
+            roomName: targetAsg.roomName,
+            attendanceStatus: 'deployed' as AttendanceStatus,
+            attendanceTimestamp: now,
+            deployedToRoom: targetAsg.roomName || 'Assigned Room',
+            deployedForFacultySrNo: targetAsg.facultySrNo,
+          };
+        }
+        if (a.id === targetDutyAssignmentId) {
+          return {
+            ...a,
+            attendanceStatus: 'absent' as AttendanceStatus,
+            attendanceTimestamp: now,
+            replacedByFacultySrNo: reserveAsg.facultySrNo,
+          };
+        }
+        return a;
+      });
+
+      const activeId = prev.activeScheduleId || (prev.alternatives && prev.alternatives[0]?.id);
+      const updatedAlternatives = prev.alternatives?.map((alt) =>
+        alt.id === activeId ? { ...alt, assignments: newAssignments } : alt
+      );
+      const updated = {
+        ...prev,
+        assignments: newAssignments,
+        alternatives: updatedAlternatives || prev.alternatives,
+        lastSavedTimestamp: new Date().toLocaleTimeString('en-GB'),
+      };
+      saveProjectToStorage(updated);
+      return updated;
+    });
+
+    return {
+      success: true,
+      message: `Successfully deployed ${reserveFaculty?.name || 'Reserve'} to ${targetAsg.roomName || 'room'} to replace ${targetFaculty?.name || 'absent invigilator'}!`,
+    };
+  }, [project.assignments, project.faculty]);
 
   return (
     <SchedulerContext.Provider
@@ -2084,7 +2594,13 @@ export const SchedulerProvider: React.FC<{ children: React.ReactNode; initialPro
         updateRoomsList,
         allocateRoomsToAssignments,
         assignRoomsSeparately,
+        clearRoomAllocations,
         assignRoomToDuty,
+        markAttendance,
+        deployReserveToRoom,
+        autoFillVacantSlot,
+        undoSnapshot,
+        undoLastAutoRebalance,
       }}
     >
       {children}

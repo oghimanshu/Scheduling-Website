@@ -112,7 +112,7 @@ export const ConflictsInspectorModal: React.FC<{ forceOpen?: boolean }> = ({
       onClick={() => setIsConflictsModalOpen(false)}
     >
       <div
-        className="apple-glass-card w-full max-w-3xl max-h-[90vh] flex flex-col bg-white/95 dark:bg-slate-900/95 border border-slate-200/90 dark:border-white/10 rounded-3xl shadow-2xl overflow-hidden relative"
+        className="liquid-glass-modal w-full max-w-3xl max-h-[90vh] flex flex-col rounded-3xl shadow-2xl overflow-hidden relative"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="apple-specular-rim" />

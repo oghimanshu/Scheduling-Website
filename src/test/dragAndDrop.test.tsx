@@ -8,6 +8,7 @@ import { RoleManagerView } from '../components/RoleManagerView';
 import { ScheduleViewer } from '../components/ScheduleViewer';
 import { Dashboard } from '../components/Dashboard';
 import { QuickstartWizardModal } from '../components/QuickstartWizardModal';
+import { MoveDutyModal } from '../components/MoveDutyModal';
 
 function CrossDateTransferTester() {
   const { project, atomicTransferOrSwapDuty, addOrUpdateAssignment, updateFacultyList } = useScheduler();
@@ -82,13 +83,14 @@ describe('Drag and Drop Functionality & Components', () => {
     expect(html).toContain('Drop Faculty CSV Here');
   });
 
-  it('renders FileDropZone in Dashboard when starting with empty faculty', () => {
+  it('renders clean onboarding CTAs in Dashboard when starting with empty faculty', () => {
     const html = renderToString(
       <SchedulerProvider>
         <Dashboard />
       </SchedulerProvider>
     );
-    expect(html).toContain('Plug &amp; Play: Drop Faculty CSV or Project JSON Here');
+    expect(html).toContain('START GUIDED SETUP');
+    expect(html).toContain('Import Roster / Backup');
   });
 
   it('renders ScheduleViewer cleanly in session view mode', () => {
@@ -99,5 +101,43 @@ describe('Drag and Drop Functionality & Components', () => {
     );
     expect(html).toBeDefined();
     expect(html.length).toBeGreaterThan(50);
+  });
+
+  it('renders MoveDutyModal cleanly when active', () => {
+    const testAssignment = {
+      id: '1-2026-10-06-JRS 1',
+      facultySrNo: 1,
+      date: '2026-10-06',
+      session: 'JRS 1' as const,
+      isLocked: false,
+      isOverride: false,
+    };
+    const testFaculty = {
+      srNo: 1,
+      name: 'Dr. Test Professor',
+      isHod: false,
+      arrival: 'Morning' as const,
+      targetSupervisions: 4,
+      maxSupervisions: 6,
+      previousSupervisions: 0,
+    };
+
+    const html = renderToString(
+      <SchedulerProvider>
+        <MoveDutyModal
+          isOpen={true}
+          onClose={() => {}}
+          assignment={testAssignment}
+          faculty={testFaculty}
+          onExecuteMove={() => {}}
+        />
+      </SchedulerProvider>
+    );
+
+    expect(html).toContain('Move Duty Across Dates');
+    expect(html).toContain('Dr. Test Professor');
+    expect(html).toContain('Transfer Destination');
+    expect(html).toContain('Lock duty after transfer');
+    expect(html).toContain('Automatic Source Backfill');
   });
 });

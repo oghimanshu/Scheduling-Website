@@ -5,7 +5,14 @@ import { SchedulerProvider, useScheduler } from '../context/SchedulerContext';
 import { PrintScheduleModal } from '../components/PrintScheduleModal';
 import { DutySlipsModal } from '../components/DutySlipsModal';
 import { RoomChartModal } from '../components/RoomChartModal';
-import { buildExcelWorkbook, generateScheduleCsvString } from '../services/export/exportManager';
+import {
+  buildExcelWorkbook,
+  generateScheduleCsvString,
+  buildSingleFacultyWorkbook,
+  generateSingleFacultyCsvString,
+  generateConsolidatedDutiesRows,
+  generateConsolidatedDutiesCsvString,
+} from '../services/export/exportManager';
 import { ProjectState, Faculty, ExamDateConfig, ExamRoom, Assignment } from '../types';
 import { INITIAL_PROJECT_STATE, DEFAULT_DATES_CONFIG, DEFAULT_ROOMS_CONFIG } from '../data/defaultData';
 import * as XLSX from 'xlsx';
@@ -213,5 +220,41 @@ describe('Export and Print Sync After Manual Swapping and Changes', () => {
 
     expect(roomChartHtml).toContain('Noticeboard Room-wise Invigilation Chart');
     expect(roomChartHtml).toContain('Harry Potter');
+
+    // 7. VERIFY INDIVIDUAL FACULTY SCHEDULE EXPORTS
+    // Harry Potter (Sr 1) has 2 duties: 06 Oct JRS 2 [Hall 101] and 07 Oct JRS 1
+    const harryWb = buildSingleFacultyWorkbook(facultyAlpha, latestProjectState, { includeRooms: true });
+    expect(harryWb.SheetNames).toContain('Duty Schedule');
+    expect(harryWb.SheetNames).toContain('Faculty Profile');
+    const harryDuties = XLSX.utils.sheet_to_json<any>(harryWb.Sheets['Duty Schedule']);
+    expect(harryDuties.length).toBe(2);
+    expect(harryDuties[0]['Session']).toBe('JRS 2');
+    expect(harryDuties[0]['Assigned Hall / Room']).toBe('Hall 101');
+    expect(harryDuties[1]['Session']).toBe('JRS 1');
+
+    const harryCsv = generateSingleFacultyCsvString(facultyAlpha, latestProjectState, { includeRooms: true });
+    expect(harryCsv).toContain('Harry Potter');
+    expect(harryCsv).toContain('06 Oct 2026');
+    expect(harryCsv).toContain('JRS 2');
+    expect(harryCsv).toContain('Hall 101');
+    expect(harryCsv).toContain('07 Oct 2026');
+    expect(harryCsv).toContain('JRS 1');
+
+    // 8. VERIFY CONSOLIDATED INDIVIDUAL DUTIES EXPORT (FLAT ROW-PER-DUTY)
+    const consolidatedRows = generateConsolidatedDutiesRows(latestProjectState, { includeRooms: true });
+    expect(consolidatedRows.length).toBe(3); // 2 for Harry + 1 for Hermione
+    const consolidatedCsv = generateConsolidatedDutiesCsvString(latestProjectState, { includeRooms: true });
+    expect(consolidatedCsv).toContain('Harry Potter');
+    expect(consolidatedCsv).toContain('Hermione Granger');
+    expect(consolidatedCsv).toContain('Hall 101');
+
+    // 9. VERIFY OPTION TO NOT ALLOCATE / NOT INCLUDE ROOMS
+    const cleanCsvWithoutRooms = generateScheduleCsvString(latestProjectState, { includeRooms: false });
+    expect(cleanCsvWithoutRooms).toContain('JRS 2');
+    expect(cleanCsvWithoutRooms).not.toContain('[Hall 101]');
+
+    const cleanHarryCsvWithoutRooms = generateSingleFacultyCsvString(facultyAlpha, latestProjectState, { includeRooms: false });
+    expect(cleanHarryCsvWithoutRooms).toContain('Standard Hall');
+    expect(cleanHarryCsvWithoutRooms).not.toContain('Hall 101');
   });
 });

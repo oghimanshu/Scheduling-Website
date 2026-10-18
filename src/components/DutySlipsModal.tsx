@@ -15,11 +15,13 @@ import {
   Plus,
   Check,
   Calendar,
+  FileSpreadsheet,
 } from 'lucide-react';
 import { useScheduler } from '../context/SchedulerContext';
 import { Faculty, Assignment } from '../types';
 import { setPrintOrientation, clearPrintOrientation } from '../utils/printHelper';
 import { downloadFacultyCalendarIcs } from '../services/calendarService';
+import { exportSingleFacultyToExcel, exportSingleFacultyToCsv } from '../services/export/exportManager';
 
 export const DutySlipsModal: React.FC<{ forceOpen?: boolean }> = ({ forceOpen }) => {
   const { project, isDutySlipsModalOpen, setIsDutySlipsModalOpen, setIsLetterheadModalOpen } = useScheduler();
@@ -46,14 +48,14 @@ export const DutySlipsModal: React.FC<{ forceOpen?: boolean }> = ({ forceOpen })
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isDutySlipsModalOpen, forceOpen, setIsDutySlipsModalOpen]);
 
-  if (!forceOpen && !isDutySlipsModalOpen) return null;
-
   const activeDatesSet = useMemo(() => {
     if (!project.examPeriod?.dates || project.examPeriod.dates.length === 0) {
       return null;
     }
     return new Set(project.examPeriod.dates.filter((d) => !d.isExcluded).map((d) => d.date));
   }, [project.examPeriod?.dates]);
+
+  if (!forceOpen && !isDutySlipsModalOpen) return null;
 
   const isDateActive = (date: string) => {
     if (!activeDatesSet) return true;
@@ -693,7 +695,27 @@ export const DutySlipsModal: React.FC<{ forceOpen?: boolean }> = ({ forceOpen })
                         </span>
                       )}
                     </div>
-                    <div className="flex items-center space-x-2">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => exportSingleFacultyToExcel(activeFaculty, project)}
+                        className="px-2.5 py-1.5 text-xs font-semibold text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 rounded-xl shadow-xs transition cursor-pointer flex items-center space-x-1"
+                        title="Download personalized Excel timetable for this faculty"
+                      >
+                        <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                        <span>Excel</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => exportSingleFacultyToCsv(activeFaculty, project)}
+                        className="px-2.5 py-1.5 text-xs font-semibold text-sky-800 dark:text-sky-300 bg-sky-50 dark:bg-sky-950/60 border border-sky-200 dark:border-sky-800 hover:bg-sky-100 rounded-xl shadow-xs transition cursor-pointer flex items-center space-x-1"
+                        title="Download personalized CSV timetable for this faculty"
+                      >
+                        <FileText className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
+                        <span>CSV</span>
+                      </button>
+
                       <button
                         type="button"
                         onClick={() => {
@@ -703,11 +725,11 @@ export const DutySlipsModal: React.FC<{ forceOpen?: boolean }> = ({ forceOpen })
                             project.examPeriod.dates
                           );
                         }}
-                        className="px-3 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 border border-slate-300 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-xl shadow-xs transition cursor-pointer flex items-center space-x-1.5"
+                        className="px-2.5 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 border border-slate-300 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-xl shadow-xs transition cursor-pointer flex items-center space-x-1"
                         title="Export iCalendar (.ics) for Google Calendar, Apple Calendar, and Outlook"
                       >
                         <Calendar className="w-3.5 h-3.5 text-indigo-500" />
-                        <span>Sync Calendar (.ics)</span>
+                        <span>Calendar</span>
                       </button>
 
                       <button
@@ -717,7 +739,7 @@ export const DutySlipsModal: React.FC<{ forceOpen?: boolean }> = ({ forceOpen })
                         title={`Print or Save PDF for ${activeFaculty.name}`}
                       >
                         <Download className="w-3.5 h-3.5" />
-                        <span>Download PDF / Print This Slip</span>
+                        <span>Print / PDF</span>
                       </button>
                     </div>
                   </div>

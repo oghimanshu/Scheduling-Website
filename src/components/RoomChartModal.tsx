@@ -50,16 +50,17 @@ export const RoomChartModal: React.FC<{ forceOpen?: boolean }> = ({ forceOpen })
     };
   }, [isRoomChartModalOpen, forceOpen, orientation]);
 
-  if (!forceOpen && !isRoomChartModalOpen) return null;
-
   const dates = project.examPeriod.dates.filter((d) => !d.isExcluded);
-  const activeRooms = (project.rooms || []).filter((r) => r.isActive !== false);
 
   // Filter dates & sessions
   const targetDates = useMemo(() => {
     if (selectedDate === 'All') return dates;
     return dates.filter((d) => d.date === selectedDate);
   }, [dates, selectedDate]);
+
+  if (!forceOpen && !isRoomChartModalOpen) return null;
+
+  const activeRooms = (project.rooms || []).filter((r) => r.isActive !== false);
 
   // Helper to get faculty info
   const getFaculty = (srNo: number): Faculty | undefined => {

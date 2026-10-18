@@ -497,9 +497,9 @@ export const ExamPeriodManager: React.FC = () => {
           </button>
         </div>
 
-        <div className="overflow-x-auto touch-scroll">
+        <div className="overflow-x-auto overflow-y-auto touch-scroll max-h-[70vh]">
           <table className="w-full text-left text-xs">
-            <thead className="bg-slate-50/60 dark:bg-slate-800/60 text-slate-600 dark:text-slate-300 font-semibold uppercase tracking-wider border-b border-slate-200/60 dark:border-white/5 text-[11px]">
+            <thead className="bg-slate-100/95 dark:bg-slate-800/95 text-slate-700 dark:text-slate-300 font-semibold uppercase tracking-wider border-b border-slate-200/80 dark:border-white/10 text-[11px] sticky top-0 z-20 backdrop-blur-md shadow-xs">
               <tr>
                 <th className="py-3 px-2 w-8 text-center"></th>
                 <th className="py-3 px-3">Status</th>

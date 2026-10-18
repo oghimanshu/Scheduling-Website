@@ -14,7 +14,7 @@ import {
   generateScheduleCsvString,
 } from '../services/export/exportManager';
 import * as XLSX from 'xlsx';
-import { Assignment, ProjectState, Faculty, ExamDateConfig } from '../types';
+import { Assignment, ProjectState, Faculty, ExamDateConfig, SchedulerSettings } from '../types';
 
 describe('Examination Supervision Scheduler Engine', () => {
   it('should generate empty sample CSV template with only headers', () => {
@@ -854,7 +854,205 @@ describe('Examination Supervision Scheduler Engine', () => {
     expect(restrictedDuties.length).toBe(1);
     expect(restrictedDuties[0].session).toBe('JRS 1');
   });
+
+  it('should not allocate any reserve duties to deselected sessions where requirement is 0', () => {
+    const testDate = '2026-10-06';
+    const dates: ExamDateConfig[] = [
+      {
+        date: testDate,
+        displayDate: '06 Oct 2026',
+        dayOfWeek: 'Tuesday',
+        isExcluded: false,
+        // JRS 1 and JRS 2 have duties; JRS 3 is deselected (0 required)
+        sessionRequirements: { 'JRS 1': 2, 'JRS 2': 2, 'JRS 3': 0 },
+        sessionTimings: DEFAULT_SESSION_TIMINGS,
+      },
+    ];
+
+    const settingsWithReserves: SchedulerSettings = {
+      ...DEFAULT_SETTINGS,
+      reserveSupervisorsPerSession: 2, // Request 2 reserves per session
+    };
+
+    const result = solveExaminationSchedule(
+      DEFAULT_FACULTY_LIST,
+      dates,
+      {},
+      settingsWithReserves,
+      { seed: 101 }
+    );
+
+    expect(result.success).toBe(true);
+
+    // Primary duties: 2 in JRS 1, 2 in JRS 2, 0 in JRS 3
+    const jrs1Primary = result.assignments.filter((a) => a.session === 'JRS 1' && !a.isReserve);
+    const jrs2Primary = result.assignments.filter((a) => a.session === 'JRS 2' && !a.isReserve);
+    const jrs3Primary = result.assignments.filter((a) => a.session === 'JRS 3' && !a.isReserve);
+    expect(jrs1Primary.length).toBe(2);
+    expect(jrs2Primary.length).toBe(2);
+    expect(jrs3Primary.length).toBe(0);
+
+    // Reserve duties: 2 in JRS 1, 2 in JRS 2, STRICTLY 0 in JRS 3 (deselected)
+    const jrs1Reserves = result.assignments.filter((a) => a.session === 'JRS 1' && a.isReserve);
+    const jrs2Reserves = result.assignments.filter((a) => a.session === 'JRS 2' && a.isReserve);
+    const jrs3Reserves = result.assignments.filter((a) => a.session === 'JRS 3' && a.isReserve);
+
+    expect(jrs1Reserves.length).toBe(2);
+    expect(jrs2Reserves.length).toBe(2);
+    expect(jrs3Reserves.length).toBe(0); // Must be strictly 0, no phantom reserves!
+  });
+
+  it('rebalanceSchedule evicts duties for faculty marked unavailable even if previously locked', () => {
+    const testDate = '2026-10-06';
+    const dates: ExamDateConfig[] = [
+      {
+        date: testDate,
+        displayDate: '06 Oct 2026',
+        dayOfWeek: 'Tuesday',
+        isExcluded: false,
+        sessionRequirements: { 'JRS 1': 2, 'JRS 2': 0, 'JRS 3': 0 },
+        sessionTimings: DEFAULT_SESSION_TIMINGS,
+      },
+    ];
+
+    // Faculty 1 was previously assigned and locked
+    const lockedAssignment: Assignment = {
+      id: `1-${testDate}-JRS 1`,
+      facultySrNo: 1,
+      date: testDate,
+      session: 'JRS 1',
+      isLocked: true,
+      isOverride: false,
+    };
+
+    // But Faculty 1 is now marked UNAVAILABLE on that date
+    const availability: Record<string, boolean> = {
+      [`1_${testDate}`]: false,
+    };
+
+    const rebalanced = rebalanceSchedule(
+      DEFAULT_FACULTY_LIST,
+      dates,
+      [lockedAssignment],
+      availability,
+      DEFAULT_SETTINGS
+    );
+
+    // Faculty 1 should NOT be assigned because unavailability overrules locks
+    const fac1Duties = rebalanced.assignments.filter((a) => a.facultySrNo === 1);
+    expect(fac1Duties.length).toBe(0);
+
+    // And other eligible available faculty should take the 2 slots
+    expect(rebalanced.assignments.length).toBe(2);
+    expect(rebalanced.assignments.every((a) => a.facultySrNo !== 1)).toBe(true);
+  });
+
+  it('hod_first assignment priority gives HODs duties and protects them from yielding', () => {
+    const dates: ExamDateConfig[] = [
+      {
+        date: '2026-10-06',
+        displayDate: '06 Oct 2026',
+        dayOfWeek: 'Tuesday',
+        isExcluded: false,
+        sessionRequirements: { 'JRS 1': 4, 'JRS 2': 4, 'JRS 3': 0 },
+        sessionTimings: DEFAULT_SESSION_TIMINGS,
+      },
+    ];
+
+    const hodSettings: SchedulerSettings = {
+      ...DEFAULT_SETTINGS,
+      hodAssignmentPriority: 'hod_first',
+    };
+
+    const result = solveExaminationSchedule(
+      DEFAULT_FACULTY_LIST,
+      dates,
+      {},
+      hodSettings,
+      { seed: 42 }
+    );
+
+    expect(result.success).toBe(true);
+    const hodSrNos = new Set(DEFAULT_FACULTY_LIST.filter((f) => f.isHod).map((f) => f.srNo));
+    const hodAssignments = result.assignments.filter((a) => hodSrNos.has(a.facultySrNo));
+    // Under hod_first, HODs should receive assignments up to their quota
+    expect(hodAssignments.length).toBeGreaterThan(0);
+  });
+
+  it('rebalanceSchedule compensates faculty marked unavailable on one date by allocating duties on other available dates', () => {
+    const dates: ExamDateConfig[] = [
+      {
+        date: '2026-10-06',
+        displayDate: '06 Oct 2026',
+        dayOfWeek: 'Tuesday',
+        isExcluded: false,
+        sessionRequirements: { 'JRS 1': 2, 'JRS 2': 0, 'JRS 3': 0 },
+        sessionTimings: DEFAULT_SESSION_TIMINGS,
+      },
+      {
+        date: '2026-10-07',
+        displayDate: '07 Oct 2026',
+        dayOfWeek: 'Wednesday',
+        isExcluded: false,
+        sessionRequirements: { 'JRS 1': 2, 'JRS 2': 0, 'JRS 3': 0 },
+        sessionTimings: DEFAULT_SESSION_TIMINGS,
+      },
+      {
+        date: '2026-10-08',
+        displayDate: '08 Oct 2026',
+        dayOfWeek: 'Thursday',
+        isExcluded: false,
+        sessionRequirements: { 'JRS 1': 2, 'JRS 2': 0, 'JRS 3': 0 },
+        sessionTimings: DEFAULT_SESSION_TIMINGS,
+      },
+    ];
+
+    const testFaculty = DEFAULT_FACULTY_LIST.filter((f) => [5, 7, 8, 9].includes(f.srNo));
+
+    // Initial schedule where Faculty 5 had a duty on 2026-10-06
+    const initialAssignment: Assignment = {
+      id: '5-2026-10-06-JRS 1',
+      facultySrNo: 5,
+      date: '2026-10-06',
+      session: 'JRS 1',
+      isLocked: false,
+      isOverride: false,
+    };
+
+    // Faculty 5 is marked UNAVAILABLE on 2026-10-06, but AVAILABLE on 2026-10-07 and 2026-10-08
+    const availability: Record<string, boolean> = {
+      '5_2026-10-06': false,
+      '5_2026-10-07': true,
+      '5_2026-10-08': true,
+    };
+
+    const rebalanced = rebalanceSchedule(
+      testFaculty,
+      dates,
+      [initialAssignment],
+      availability,
+      DEFAULT_SETTINGS
+    );
+
+    expect(rebalanced.success).toBe(true);
+
+    // 1. Faculty 5 must NOT be assigned on the unavailable date (2026-10-06)
+    const dutiesOnUnavailableDate = rebalanced.assignments.filter(
+      (a) => a.facultySrNo === 5 && a.date === '2026-10-06'
+    );
+    expect(dutiesOnUnavailableDate.length).toBe(0);
+
+    // 2. Faculty 5 MUST be compensated with duties on other available dates
+    const dutiesOnOtherDates = rebalanced.assignments.filter(
+      (a) => a.facultySrNo === 5 && a.date !== '2026-10-06'
+    );
+    expect(dutiesOnOtherDates.length).toBeGreaterThan(0);
+
+    // 3. All required slots across all 3 dates must be filled (2 + 2 + 2 = 6)
+    expect(rebalanced.assignments.length).toBe(6);
+  });
 });
+
 
 
 

@@ -20,6 +20,7 @@ import {
   Sliders,
   Check,
   ArrowUpRight,
+  X,
 } from 'lucide-react';
 import { useScheduler } from '../context/SchedulerContext';
 import { parseFacultyCSV, downloadFacultyTemplateCSV } from '../services/csvParser';
@@ -46,6 +47,7 @@ export const Dashboard: React.FC = () => {
   } = useScheduler();
 
   const [activeAnalyticsTab, setActiveAnalyticsTab] = useState<'equity' | 'rooms' | 'rules'>('equity');
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
   const activeDates = project.examPeriod.dates.filter((d) => !d.isExcluded);
   const isCleanSlate = project.faculty.length === 0 && activeDates.length === 0;
@@ -94,182 +96,140 @@ export const Dashboard: React.FC = () => {
 
   return (
     <div className="relative space-y-8 pb-12">
-      {/* SECTION 1: STUDIO HERO & WELCOME (ABOVE THE FOLD) */}
+      {/* SECTION 1: STUDIO HERO & WELCOME (CLEAN APPLE-STYLE, UNCLUTTERED) */}
       <section className="relative overflow-hidden bg-gradient-to-br from-sky-950 via-slate-900 to-indigo-950 border border-sky-400/25 rounded-3xl p-6 sm:p-8 md:p-10 text-white shadow-2xl backdrop-blur-2xl">
         <div className="apple-specular-rim" />
         <div className="absolute top-0 right-0 -mr-20 -mt-20 w-80 h-80 rounded-full bg-sky-500/10 blur-3xl pointer-events-none" />
         <div className="absolute bottom-0 left-1/3 -mb-16 w-64 h-64 rounded-full bg-indigo-500/10 blur-3xl pointer-events-none" />
 
         <div className="relative z-10 space-y-6">
-          {/* Header Row */}
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div className="space-y-1.5">
-              <div className="flex items-center space-x-2.5 flex-wrap gap-y-1">
-                <span className="px-3 py-1 rounded-full text-xs font-semibold bg-sky-500/20 text-sky-200 border border-sky-400/30 backdrop-blur-xs flex items-center space-x-1.5">
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                  <span>
-                    {isCleanSlate
-                      ? 'Clean Slate Session'
-                      : `Active Period: ${project.examPeriod.name || 'End Semester 2026'}`}
-                  </span>
-                </span>
-                <span className="text-xs text-sky-300 font-medium">
+          {/* Header Row: Status badge and title */}
+          <div className="space-y-3">
+            <div className="flex items-center space-x-2.5 flex-wrap gap-y-1">
+              <span className="px-3 py-1 rounded-full text-xs font-semibold bg-sky-500/20 text-sky-200 border border-sky-400/30 backdrop-blur-xs flex items-center space-x-1.5">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                <span>
                   {isCleanSlate
-                    ? 'Ready for Setup'
-                    : `${activeDates.length} Exam Dates • ${project.faculty.length} Faculty Loaded`}
+                    ? 'Clean Slate Session'
+                    : `Active Period: ${project.examPeriod.name || 'End Semester 2026'}`}
                 </span>
-              </div>
-
-              <h1 className="text-2xl sm:text-3xl md:text-4xl font-black tracking-tight text-white">
-                College Examination Supervision Control Center
-              </h1>
-              <p className="text-xs sm:text-sm text-sky-200/90 max-w-2xl leading-relaxed">
-                Automated mathematical constraint scheduling engine guaranteeing faculty eligibility,
-                arrival alignment, workload equity, and designated hall assignments.
-              </p>
+              </span>
+              <span className="text-xs text-sky-300 font-medium">
+                {isCleanSlate
+                  ? 'Ready for Setup'
+                  : `${activeDates.length} Exam Dates • ${project.faculty.length} Faculty Loaded • ${activeRooms.length} Rooms`}
+              </span>
             </div>
 
-            {/* Quick Actions Toolbar */}
-            <div className="flex flex-wrap items-center gap-2 shrink-0">
-              <button
-                type="button"
-                onClick={generateAlternatives}
-                disabled={isGenerating || project.faculty.length === 0 || activeDates.length === 0}
-                className="btn-spring inline-flex items-center space-x-2 px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm bg-white text-sky-950 hover:bg-sky-50 shadow-md transition disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
-                title={project.faculty.length === 0 ? 'Upload faculty and configure dates first' : 'Generate 5 optimal schedule alternatives'}
-              >
-                <Sparkles className={`w-4 h-4 text-sky-600 ${isGenerating ? 'animate-spin' : ''}`} />
-                <span>{isGenerating ? 'Optimizing Schedule...' : 'GENERATE 5 ALTERNATIVES'}</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={rebalanceCurrentSchedule}
-                disabled={isGenerating || project.assignments.length === 0}
-                className="btn-spring inline-flex items-center space-x-1.5 px-3 py-2.5 rounded-xl font-semibold text-xs bg-sky-800/80 hover:bg-sky-700 text-white border border-sky-600/60 shadow-xs disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
-                title="Preserves locked assignments while redistributing open slots"
-              >
-                <RotateCcw className="w-3.5 h-3.5" />
-                <span>REBALANCE</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setIsExportModalOpen(true)}
-                className="btn-spring inline-flex items-center space-x-1.5 px-3 py-2.5 rounded-xl font-semibold text-xs bg-sky-800/80 hover:bg-sky-700 text-white border border-sky-600/60 shadow-xs cursor-pointer"
-                title="Export schedule as Excel, CSV, or printable documents"
-              >
-                <Download className="w-3.5 h-3.5" />
-                <span>EXPORT</span>
-              </button>
-            </div>
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-black tracking-tight text-white">
+              Examination Supervision Scheduler
+            </h1>
+            <p className="text-xs sm:text-sm text-sky-200/90 max-w-2xl leading-relaxed">
+              Automated mathematical constraint scheduling engine ensuring workload equity, fatigue prevention,
+              arrival category alignment, and designated hall assignments.
+            </p>
           </div>
 
-          {/* TWO PRIMARY ACTION CARDS: CLEAN & PROMINENT */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
-            {/* Card 1: Guided Setup Wizard */}
-            <div className="apple-glass-card bg-white/10 dark:bg-slate-900/60 border border-sky-300/30 rounded-2xl p-5 sm:p-6 flex flex-col justify-between hover:border-sky-400/60 transition group relative overflow-hidden">
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-sky-500 via-indigo-600 to-purple-600 flex items-center justify-center text-white shadow-md group-hover:scale-105 transition-transform">
-                    <Sparkles className="w-6 h-6" />
-                  </div>
-                  <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-emerald-400/20 text-emerald-200 border border-emerald-400/30">
-                    4-Step Interactive Guide
-                  </span>
-                </div>
-
-                <div>
-                  <h3 className="text-base sm:text-lg font-bold text-white group-hover:text-sky-200 transition-colors">
-                    Launch Guided Setup Wizard
-                  </h3>
-                  <p className="text-xs text-sky-200/80 mt-1 leading-relaxed">
-                    Step-by-step assistant guiding you through faculty rosters, examination dates, daily JRS shifts, hall allocations, and mathematical fairness priority.
-                  </p>
-                </div>
-              </div>
-
-              <div className="pt-4 mt-2 border-t border-white/10 flex flex-wrap items-center justify-between gap-2">
+          {/* Clean Primary Action Buttons Group */}
+          <div className="flex flex-wrap items-center gap-2.5 pt-1">
+            {isCleanSlate ? (
+              <>
                 <button
                   type="button"
                   onClick={() => setIsQuickstartModalOpen(true)}
-                  className="btn-spring inline-flex items-center space-x-2 px-4 py-2.5 rounded-xl font-bold text-xs bg-sky-500 hover:bg-sky-400 text-white shadow-md transition cursor-pointer"
+                  className="liquid-glass-btn inline-flex items-center space-x-2 px-5 py-3 rounded-2xl font-bold text-xs sm:text-sm bg-gradient-to-r from-sky-500 via-blue-600 to-indigo-600 text-white shadow-lg shadow-sky-500/30 hover:from-sky-400 hover:to-indigo-500 transition cursor-pointer border border-white/20"
                 >
-                  <Sparkles className="w-3.5 h-3.5 text-amber-200" />
-                  <span>LET'S BEGIN SETUP</span>
-                  <ArrowRight className="w-3.5 h-3.5 ml-0.5" />
+                  <Sparkles className="w-4 h-4 text-amber-200" />
+                  <span>START GUIDED SETUP</span>
+                  <ArrowRight className="w-4 h-4 ml-1" />
                 </button>
 
-                <div className="flex items-center space-x-1.5 text-xs text-sky-300">
+                <button
+                  type="button"
+                  onClick={() => setIsImportModalOpen(true)}
+                  className="liquid-glass-btn inline-flex items-center space-x-2 px-4 py-3 rounded-2xl font-semibold text-xs sm:text-sm bg-white/10 hover:bg-white/20 text-white border border-white/20 shadow-xs transition cursor-pointer"
+                >
+                  <Upload className="w-4 h-4 text-sky-300" />
+                  <span>Import Roster / Backup</span>
+                </button>
+
+                <div className="flex items-center space-x-2 text-xs text-sky-300 pl-2">
                   <button
                     type="button"
                     onClick={() => downloadFacultyTemplateCSV(false)}
-                    className="hover:text-white underline text-[11px] cursor-pointer"
+                    className="hover:text-white underline text-xs cursor-pointer"
                   >
-                    Faculty CSV
+                    Faculty CSV Template
                   </button>
                   <span>•</span>
                   <button
                     type="button"
                     onClick={downloadRoomsTemplateCSV}
-                    className="hover:text-white underline text-[11px] cursor-pointer"
+                    className="hover:text-white underline text-xs cursor-pointer"
                   >
-                    Rooms CSV
+                    Rooms CSV Template
                   </button>
                 </div>
-              </div>
-            </div>
+              </>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={generateAlternatives}
+                  disabled={isGenerating || project.faculty.length === 0 || activeDates.length === 0}
+                  className="liquid-glass-btn inline-flex items-center space-x-2 px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm bg-white text-sky-950 hover:bg-sky-50 shadow-lg shadow-black/20 transition disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                  title="Generate 5 optimal schedule alternatives"
+                >
+                  <Sparkles className={`w-4 h-4 text-sky-600 ${isGenerating ? 'animate-spin' : ''}`} />
+                  <span>{isGenerating ? 'Optimizing Schedule...' : 'GENERATE 5 ALTERNATIVES'}</span>
+                </button>
 
-            {/* Card 2: Quick Auto-Import & Dropzone */}
-            <div className="apple-glass-card bg-white/10 dark:bg-slate-900/60 border border-sky-300/30 rounded-2xl p-5 sm:p-6 flex flex-col justify-between hover:border-sky-400/60 transition group relative overflow-hidden">
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-500 via-teal-600 to-sky-600 flex items-center justify-center text-white shadow-md group-hover:scale-105 transition-transform">
-                    <Upload className="w-6 h-6" />
-                  </div>
-                  <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-sky-400/20 text-sky-200 border border-sky-400/30">
-                    Instant Auto-Import
-                  </span>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsQuickstartModalOpen(true)}
+                  className="liquid-glass-btn inline-flex items-center space-x-1.5 px-3.5 py-2.5 rounded-xl font-semibold text-xs bg-sky-800/80 hover:bg-sky-700 text-white border border-sky-600/60 shadow-xs cursor-pointer"
+                  title="Reconfigure schedule parameters with the wizard"
+                >
+                  <Sliders className="w-3.5 h-3.5 text-sky-300" />
+                  <span>Guided Setup</span>
+                </button>
 
-                <div>
-                  <h3 className="text-base sm:text-lg font-bold text-white group-hover:text-teal-200 transition-colors">
-                    Drop File to Auto-Import
-                  </h3>
-                  <p className="text-xs text-sky-200/80 mt-1 leading-relaxed">
-                    Drag and drop your faculty CSV roster or previously saved project JSON backup here. The engine auto-detects columns and formats instantly.
-                  </p>
-                </div>
-              </div>
+                <button
+                  type="button"
+                  onClick={() => setIsImportModalOpen(true)}
+                  className="liquid-glass-btn inline-flex items-center space-x-1.5 px-3.5 py-2.5 rounded-xl font-semibold text-xs bg-sky-800/80 hover:bg-sky-700 text-white border border-sky-600/60 shadow-xs cursor-pointer"
+                  title="Import faculty CSV or restore project JSON backup"
+                >
+                  <Upload className="w-3.5 h-3.5 text-sky-300" />
+                  <span>Import / Backup</span>
+                </button>
 
-              <div className="pt-2">
-                <FileDropZone
-                  compact
-                  title="Plug & Play: Drop Faculty CSV or Project JSON Here"
-                  description="Auto-detects format and initializes session"
-                  supportedFormatsText="Accepts .csv (Sr. No., Faculty Name, HOD, Arrival) or .json backup files"
-                  accept=".csv,.json"
-                  onFileLoaded={(text, file) => {
-                    if (file.name.toLowerCase().endsWith('.json') || text.trim().startsWith('{')) {
-                      const res = importProjectFromJson(text);
-                      if (res.success && res.state) {
-                        importProjectData(res.state);
-                      }
-                    } else {
-                      const parseResult = parseFacultyCSV(text, { mode: 'from_csv' });
-                      if (parseResult.success && parseResult.faculty.length > 0) {
-                        updateFacultyList(parseResult.faculty);
-                        setActiveTab('faculty');
-                      }
-                    }
-                  }}
-                />
-              </div>
-            </div>
+                <button
+                  type="button"
+                  onClick={() => rebalanceCurrentSchedule()}
+                  disabled={isGenerating || project.assignments.length === 0}
+                  className="liquid-glass-btn inline-flex items-center space-x-1.5 px-3 py-2.5 rounded-xl font-semibold text-xs bg-sky-900/60 hover:bg-sky-800 text-sky-200 border border-sky-700/60 shadow-xs disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                  title="Preserves locked assignments while redistributing open slots"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  <span>Rebalance</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setIsExportModalOpen(true)}
+                  className="liquid-glass-btn inline-flex items-center space-x-1.5 px-3 py-2.5 rounded-xl font-semibold text-xs bg-sky-900/60 hover:bg-sky-800 text-sky-200 border border-sky-700/60 shadow-xs cursor-pointer"
+                  title="Export schedule as Excel, CSV, or printable documents"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Export</span>
+                </button>
+              </>
+            )}
           </div>
 
-          {/* Clean Capacity & Session Status Ribbon */}
-          <div className="pt-4 border-t border-sky-700/60 flex flex-wrap items-center justify-between text-xs text-sky-200 gap-3">
+          {/* Minimalist Capacity & Priority Status Strip */}
+          <div className="pt-4 border-t border-sky-700/50 flex flex-wrap items-center justify-between text-xs text-sky-200 gap-3">
             <div className="flex items-center space-x-2 flex-wrap gap-y-1">
               <Info className="w-4 h-4 text-sky-300 shrink-0" />
               <span className="font-semibold text-white">Capacity Balance:</span>
@@ -721,93 +681,82 @@ export const Dashboard: React.FC = () => {
         )}
       </section>
 
-      {/* SECTION 4: NAVIGATION QUICK CARDS */}
-      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-        <div
-          onClick={() => setActiveTab('faculty')}
-          className="apple-glass-card p-5 rounded-2xl border border-slate-200/80 dark:border-white/10 shadow-glass dark:shadow-glass-dark hover:border-sky-400 transition cursor-pointer group relative overflow-hidden"
-        >
-          <div className="apple-specular-rim" />
-          <div className="w-10 h-10 rounded-xl bg-sky-500/15 text-sky-600 dark:text-sky-400 flex items-center justify-center mb-3 group-hover:scale-105 transition">
-            <Users className="w-5 h-5" />
-          </div>
-          <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center justify-between">
-            <span>Faculty Management</span>
-            <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-sky-600 dark:group-hover:text-sky-400 group-hover:translate-x-1 transition" />
-          </h4>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            Import CSV, configure previous counts, manage individual HOD maximums and arrival categories.
-          </p>
-        </div>
+      {/* MODAL: IMPORT ROSTER OR RESTORE BACKUP */}
+      {isImportModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-fade-in">
+          <div className="liquid-glass-modal rounded-2xl max-w-xl w-full p-6 shadow-2xl relative space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-white/10">
+              <div className="flex items-center space-x-2.5">
+                <div className="w-9 h-9 rounded-xl bg-sky-500/15 text-sky-600 dark:text-sky-400 flex items-center justify-center">
+                  <Upload className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                    Import Roster or Backup
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Upload faculty CSV or restore a complete schedule JSON backup
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsImportModalOpen(false)}
+                className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/5 transition"
+                aria-label="Close dialog"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
 
-        <div
-          onClick={() => setActiveTab('period')}
-          className="apple-glass-card p-5 rounded-2xl border border-slate-200/80 dark:border-white/10 shadow-glass dark:shadow-glass-dark hover:border-indigo-400 transition cursor-pointer group relative overflow-hidden"
-        >
-          <div className="apple-specular-rim" />
-          <div className="w-10 h-10 rounded-xl bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 flex items-center justify-center mb-3 group-hover:scale-105 transition">
-            <Calendar className="w-5 h-5" />
-          </div>
-          <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center justify-between">
-            <span>Examination Period</span>
-            <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 group-hover:translate-x-1 transition" />
-          </h4>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            Generate exam dates, exclude holidays/no-exam dates, and configure JRS 1, 2, 3 timings and staffing.
-          </p>
-        </div>
+            <FileDropZone
+              title="Drag & Drop Faculty CSV or JSON Backup Here"
+              description="or click to browse from your device"
+              supportedFormatsText="Accepts .csv (Faculty Roster) or .json (Project State Backup)"
+              accept=".csv,.json"
+              onFileLoaded={(text, file) => {
+                if (file.name.toLowerCase().endsWith('.json') || text.trim().startsWith('{')) {
+                  const res = importProjectFromJson(text);
+                  if (res.success && res.state) {
+                    importProjectData(res.state);
+                    setIsImportModalOpen(false);
+                  }
+                } else {
+                  const parseResult = parseFacultyCSV(text, { mode: 'from_csv' });
+                  if (parseResult.success && parseResult.faculty.length > 0) {
+                    updateFacultyList(parseResult.faculty);
+                    setActiveTab('faculty');
+                    setIsImportModalOpen(false);
+                  }
+                }
+              }}
+            />
 
-        <div
-          onClick={() => setActiveTab('rooms')}
-          className="apple-glass-card p-5 rounded-2xl border border-slate-200/80 dark:border-white/10 shadow-glass dark:shadow-glass-dark hover:border-teal-400 transition cursor-pointer group relative overflow-hidden"
-        >
-          <div className="apple-specular-rim" />
-          <div className="w-10 h-10 rounded-xl bg-teal-500/15 text-teal-600 dark:text-teal-400 flex items-center justify-center mb-3 group-hover:scale-105 transition">
-            <Building className="w-5 h-5" />
+            <div className="pt-2 border-t border-slate-200 dark:border-white/10 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+              <span className="font-medium">Need a starting template?</span>
+              <div className="flex items-center space-x-2">
+                <button
+                  type="button"
+                  onClick={() => downloadFacultyTemplateCSV()}
+                  className="inline-flex items-center space-x-1 text-sky-600 dark:text-sky-400 hover:underline font-semibold"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Faculty CSV</span>
+                </button>
+                <span>&bull;</span>
+                <button
+                  type="button"
+                  onClick={() => downloadRoomsTemplateCSV()}
+                  className="inline-flex items-center space-x-1 text-sky-600 dark:text-sky-400 hover:underline font-semibold"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Rooms CSV</span>
+                </button>
+              </div>
+            </div>
           </div>
-          <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center justify-between">
-            <span>Rooms &amp; Halls</span>
-            <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-teal-600 dark:group-hover:text-teal-400 group-hover:translate-x-1 transition" />
-          </h4>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            Manage examination halls, seating capacity, invigilator quotas, and printable noticeboard charts.
-          </p>
         </div>
-
-        <div
-          onClick={() => setActiveTab('schedule')}
-          className="apple-glass-card p-5 rounded-2xl border border-slate-200/80 dark:border-white/10 shadow-glass dark:shadow-glass-dark hover:border-amber-400 transition cursor-pointer group relative overflow-hidden"
-        >
-          <div className="apple-specular-rim" />
-          <div className="w-10 h-10 rounded-xl bg-amber-500/15 text-amber-600 dark:text-amber-400 flex items-center justify-center mb-3 group-hover:scale-105 transition">
-            <FileSpreadsheet className="w-5 h-5" />
-          </div>
-          <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center justify-between">
-            <span>Schedule Views</span>
-            <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-amber-600 dark:group-hover:text-amber-400 group-hover:translate-x-1 transition" />
-          </h4>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            Faculty Schedule View, Date/Session Duty Rosters, and Workload Target Distribution.
-          </p>
-        </div>
-
-        <div
-          onClick={() => setActiveTab('instructions')}
-          className="apple-glass-card p-5 rounded-2xl border border-slate-200/80 dark:border-white/10 shadow-glass dark:shadow-glass-dark hover:border-purple-400 transition cursor-pointer group relative overflow-hidden"
-        >
-          <div className="apple-specular-rim" />
-          <div className="w-10 h-10 rounded-xl bg-purple-500/15 text-purple-600 dark:text-purple-400 flex items-center justify-center mb-3 group-hover:scale-105 transition">
-            <BookOpen className="w-5 h-5" />
-          </div>
-          <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center justify-between">
-            <span>Instructions &amp; Guide</span>
-            <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-purple-600 dark:group-hover:text-purple-400 group-hover:translate-x-1 transition" />
-          </h4>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            Full administration workflow, CSV templates, policy constraints, and user manual.
-          </p>
-        </div>
-      </section>
+      )}
     </div>
   );
 };

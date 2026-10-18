@@ -34,6 +34,8 @@ export const SettingsModal: React.FC = () => {
   const [randomSeed, setRandomSeed] = useState(project.settings.randomSeed || 42);
   const [reservePerSession, setReservePerSession] = useState(project.settings.reserveSupervisorsPerSession || 0);
   const [reserveCanExceed, setReserveCanExceed] = useState(project.settings.reserveCanExceedCap || false);
+  const [enableRoomAllocation, setEnableRoomAllocation] = useState(project.settings.enableRoomAllocation ?? false);
+  const [autoRebalanceOnManualEdit, setAutoRebalanceOnManualEdit] = useState(project.settings.autoRebalanceOnManualEdit ?? true);
 
   // Timings
   const [timings, setTimings] = useState(project.settings.defaultSessionTimings);
@@ -54,6 +56,8 @@ export const SettingsModal: React.FC = () => {
       randomSeed,
       reserveSupervisorsPerSession: reservePerSession,
       reserveCanExceedCap: reserveCanExceed,
+      enableRoomAllocation,
+      autoRebalanceOnManualEdit,
       defaultSessionTimings: timings,
     });
 
@@ -132,6 +136,42 @@ export const SettingsModal: React.FC = () => {
                 </span>
                 <span className="block text-slate-500 dark:text-slate-400 text-[11px] mt-0.5">
                   By default, JRS 1 + JRS 3 is prohibited to prevent large daytime duty gaps. Normal combinations are JRS 1+2 or JRS 2+3.
+                </span>
+              </div>
+            </label>
+
+            {/* Room Allocation Preference */}
+            <label className="flex items-start space-x-3 p-3 rounded-2xl border border-slate-200/80 dark:border-white/10 bg-slate-50/80 dark:bg-slate-800/60 cursor-pointer hover:bg-slate-100/60 dark:hover:bg-slate-800/90 transition">
+              <input
+                type="checkbox"
+                checked={enableRoomAllocation}
+                onChange={(e) => setEnableRoomAllocation(e.target.checked)}
+                className="w-4 h-4 rounded text-sky-600 focus:ring-sky-500 bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 mt-0.5 cursor-pointer"
+              />
+              <div>
+                <span className="font-bold text-slate-800 dark:text-slate-200">
+                  Auto-Allocate Exam Halls &amp; Rooms
+                </span>
+                <span className="block text-slate-500 dark:text-slate-400 text-[11px] mt-0.5">
+                  Automatically distribute rooms to generated duties. Leave unchecked to generate pure faculty duties without room labels.
+                </span>
+              </div>
+            </label>
+
+            {/* Auto-Rebalance on Manual Edits Preference */}
+            <label className="flex items-start space-x-3 p-3 rounded-2xl border border-slate-200/80 dark:border-white/10 bg-slate-50/80 dark:bg-slate-800/60 cursor-pointer hover:bg-slate-100/60 dark:hover:bg-slate-800/90 transition">
+              <input
+                type="checkbox"
+                checked={autoRebalanceOnManualEdit}
+                onChange={(e) => setAutoRebalanceOnManualEdit(e.target.checked)}
+                className="w-4 h-4 rounded text-sky-600 focus:ring-sky-500 bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 mt-0.5 cursor-pointer"
+              />
+              <div>
+                <span className="font-bold text-slate-800 dark:text-slate-200">
+                  Auto-Rebalance on Manual Moves &amp; Replacements
+                </span>
+                <span className="block text-slate-500 dark:text-slate-400 text-[11px] mt-0.5">
+                  Automatically rebalances the rest of the schedule when you drag, move, or replace duties, preserving your manual choice with a lock and offering an instant Undo.
                 </span>
               </div>
             </label>

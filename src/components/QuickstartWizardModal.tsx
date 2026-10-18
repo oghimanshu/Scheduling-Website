@@ -205,7 +205,7 @@ export const QuickstartWizardModal: React.FC<{ forceOpen?: boolean }> = ({ force
       onClick={() => setIsQuickstartModalOpen(false)}
     >
       <div
-        className="apple-glass-card bg-white dark:bg-slate-900 rounded-t-3xl sm:rounded-2xl max-w-2xl w-full p-5 sm:p-7 shadow-2xl border border-slate-200 dark:border-white/10 space-y-5 animate-sheet-up sm:animate-modal-spring sm:my-auto max-h-[92dvh] flex flex-col"
+        className="liquid-glass-modal rounded-t-3xl sm:rounded-2xl max-w-2xl w-full p-5 sm:p-7 shadow-2xl space-y-5 animate-sheet-up sm:animate-modal-spring sm:my-auto max-h-[92dvh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Mobile Pull Handle */}

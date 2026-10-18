@@ -14,6 +14,9 @@ import {
   Edit3,
   UserX,
   Sparkles,
+  FileSpreadsheet,
+  FileText,
+  Calendar,
 } from 'lucide-react';
 import { Assignment, Faculty, SessionType } from '../types';
 
@@ -34,12 +37,16 @@ interface ScheduleContextMenuProps {
   onRemoveDuty?: (assignment: Assignment) => void;
   onSubstitute?: (assignment: Assignment) => void;
   onSwap?: (assignment: Assignment, faculty: Faculty) => void;
+  onMoveToDate?: (assignment: Assignment, faculty: Faculty) => void;
   onToggleReserve?: (assignment: Assignment) => void;
   onToggleLock?: (assignment: Assignment) => void;
   onToggleSlotUnavailable?: (facultySrNo: number, date: string, session?: SessionType) => void;
   onQuickAssign?: (facultySrNo: number, date: string, session: SessionType, isReserve?: boolean) => void;
   onPrintDutySlip?: (facultySrNo: number) => void;
   onEditFaculty?: (faculty: Faculty) => void;
+  onExportFacultyExcel?: (faculty: Faculty) => void;
+  onExportFacultyCsv?: (faculty: Faculty) => void;
+  onExportFacultyIcs?: (faculty: Faculty) => void;
 }
 
 export const ScheduleContextMenu: React.FC<ScheduleContextMenuProps> = ({
@@ -48,12 +55,16 @@ export const ScheduleContextMenu: React.FC<ScheduleContextMenuProps> = ({
   onRemoveDuty,
   onSubstitute,
   onSwap,
+  onMoveToDate,
   onToggleReserve,
   onToggleLock,
   onToggleSlotUnavailable,
   onQuickAssign,
   onPrintDutySlip,
   onEditFaculty,
+  onExportFacultyExcel,
+  onExportFacultyCsv,
+  onExportFacultyIcs,
 }) => {
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -148,6 +159,18 @@ export const ScheduleContextMenu: React.FC<ScheduleContextMenuProps> = ({
           >
             <ArrowLeftRight className="w-4 h-4 text-indigo-500" />
             <span>Two-Way Swap with Faculty...</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              onMoveToDate?.(target.assignment!, target.faculty);
+              onClose();
+            }}
+            className="w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg hover:bg-emerald-50 dark:hover:bg-emerald-950/50 text-slate-700 dark:text-slate-200 hover:text-emerald-700 dark:hover:text-emerald-300 transition text-left cursor-pointer"
+          >
+            <Calendar className="w-4 h-4 text-emerald-500" />
+            <span>Move to Date & Session...</span>
           </button>
 
           <button
@@ -299,12 +322,50 @@ export const ScheduleContextMenu: React.FC<ScheduleContextMenuProps> = ({
           <button
             type="button"
             onClick={() => {
-              onPrintDutySlip?.(target.faculty.srNo);
+              onExportFacultyExcel?.(target.faculty);
               onClose();
             }}
             className="w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg hover:bg-emerald-50 dark:hover:bg-emerald-950/40 text-slate-700 dark:text-slate-200 hover:text-emerald-700 dark:hover:text-emerald-300 transition text-left cursor-pointer"
           >
-            <Printer className="w-4 h-4 text-emerald-500" />
+            <FileSpreadsheet className="w-4 h-4 text-emerald-500" />
+            <span>Export Schedule (.xlsx)</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              onExportFacultyCsv?.(target.faculty);
+              onClose();
+            }}
+            className="w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg hover:bg-sky-50 dark:hover:bg-sky-950/40 text-slate-700 dark:text-slate-200 hover:text-sky-700 dark:hover:text-sky-300 transition text-left cursor-pointer"
+          >
+            <FileText className="w-4 h-4 text-sky-500" />
+            <span>Export Schedule (.csv)</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              onExportFacultyIcs?.(target.faculty);
+              onClose();
+            }}
+            className="w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-950/40 text-slate-700 dark:text-slate-200 hover:text-indigo-700 dark:hover:text-indigo-300 transition text-left cursor-pointer"
+          >
+            <Calendar className="w-4 h-4 text-indigo-500" />
+            <span>Download Calendar (.ics)</span>
+          </button>
+
+          <div className="my-1 border-t border-slate-100 dark:border-white/5" />
+
+          <button
+            type="button"
+            onClick={() => {
+              onPrintDutySlip?.(target.faculty.srNo);
+              onClose();
+            }}
+            className="w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 transition text-left cursor-pointer"
+          >
+            <Printer className="w-4 h-4 text-slate-500" />
             <span>Print Faculty Duty Slip</span>
           </button>
 

@@ -13,6 +13,7 @@ import {
   X,
   RotateCcw,
   Building,
+  ShieldCheck,
 } from 'lucide-react';
 import { useScheduler } from '../context/SchedulerContext';
 import { useLenis } from '../context/LenisContext';
@@ -45,7 +46,7 @@ export const MobileBottomDock: React.FC = () => {
           onClick={() => setIsMoreMenuOpen(false)}
         >
           <div
-            className="w-full apple-glass rounded-t-3xl p-5 shadow-2xl border-t border-white/20 animate-sheet-up space-y-4 max-h-[80vh] overflow-y-auto"
+            className="w-full liquid-glass-modal rounded-t-3xl p-5 shadow-2xl animate-sheet-up space-y-4 max-h-[80vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Top drag handle */}
@@ -136,6 +137,21 @@ export const MobileBottomDock: React.FC = () => {
                   <div className="text-[10px] text-slate-400">Exam Venues</div>
                 </div>
               </button>
+
+              <button
+                onClick={() => handleTabSelect('control_room')}
+                className={`btn-spring p-3 rounded-xl flex items-center space-x-2.5 text-left border ${
+                  activeTab === 'control_room'
+                    ? 'bg-sky-500/15 border-sky-400 text-sky-700 dark:text-sky-300 font-bold'
+                    : 'bg-white/60 dark:bg-slate-800/60 border-slate-200/80 dark:border-white/10 text-slate-700 dark:text-slate-300'
+                }`}
+              >
+                <ShieldCheck className="w-4 h-4 text-emerald-500 shrink-0" />
+                <div>
+                  <div className="font-bold">Control Room</div>
+                  <div className="text-[10px] text-slate-400">Live Attendance</div>
+                </div>
+              </button>
             </div>
 
             {/* Quick Rebalance Action */}
@@ -159,7 +175,7 @@ export const MobileBottomDock: React.FC = () => {
       {/* Primary Floating Bottom Dock */}
       <nav
         aria-label="Mobile Navigation Dock"
-        className="md:hidden fixed bottom-3 inset-x-3 z-40 apple-glass rounded-2xl p-1.5 shadow-[0_12px_40px_rgba(0,0,0,0.18)] dark:shadow-[0_12px_40px_rgba(0,0,0,0.55)] border border-white/70 dark:border-white/15 safe-bottom-dock flex items-center justify-between backdrop-blur-2xl no-print print:hidden"
+        className="md:hidden fixed bottom-3 inset-x-3 z-40 liquid-glass-nav rounded-2xl p-1.5 safe-bottom-dock flex items-center justify-between no-print print:hidden"
       >
         <div className="apple-specular-rim" />
 
@@ -197,7 +213,7 @@ export const MobileBottomDock: React.FC = () => {
               scrollTo(0);
             }}
             disabled={isGenerating}
-            className="btn-spring flex items-center justify-center px-3.5 py-2.5 rounded-xl bg-gradient-to-r from-sky-600 via-sky-500 to-indigo-600 text-white font-bold text-xs shadow-lg shadow-sky-500/30 border border-white/30 cursor-pointer disabled:opacity-50"
+            className="liquid-glass-btn flex items-center justify-center px-3.5 py-2.5 rounded-xl bg-gradient-to-r from-sky-600 via-sky-500 to-indigo-600 text-white font-bold text-xs shadow-lg shadow-sky-500/30 border border-white/30 cursor-pointer disabled:opacity-50"
             title="Generate 5 Alternatives"
           >
             <Sparkles className={`w-4 h-4 ${isGenerating ? 'animate-spin' : ''}`} />

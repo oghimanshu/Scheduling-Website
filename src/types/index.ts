@@ -138,6 +138,8 @@ export interface ExamSubject {
   department?: string;
 }
 
+export type AttendanceStatus = 'scheduled' | 'present' | 'absent' | 'deployed';
+
 export interface Assignment {
   id: string;                // Unique ID: `${facultySrNo}-${date}-${session}`
   facultySrNo: number;
@@ -152,6 +154,11 @@ export interface Assignment {
   roomId?: string;           // Assigned Exam Hall / Room ID
   roomName?: string;         // Room Name & Block (e.g. "Hall 101, Science Block")
   subjectName?: string;      // Course / Subject Name
+  attendanceStatus?: AttendanceStatus; // Day-of-exam live check-in status
+  attendanceTimestamp?: string;        // Time when marked present/absent
+  deployedToRoom?: string;             // Room name where reserve was deployed
+  deployedForFacultySrNo?: number;     // Original absent faculty who was replaced
+  replacedByFacultySrNo?: number;      // Reserve faculty who replaced this faculty
 }
 
 export interface ValidationConflict {
@@ -238,6 +245,7 @@ export type TabType =
   | 'rooms'
   | 'availability'
   | 'schedule'
+  | 'control_room'
   | 'instructions';
 
 export interface CloudUser {
@@ -323,6 +331,8 @@ export interface SchedulerSettings {
   reserveCanExceedCap: boolean;          // Whether reserve duties can exceed workload limit (default false)
   allowBestEffort?: boolean;            // When true, generate best-effort schedule even if infeasible (default: true)
   relaxArrivalConstraints?: boolean;    // When true, allow Mid/Afternoon arrivals to cover Morning/JRS 1 when exhausted
+  enableRoomAllocation?: boolean;       // When true, automatically allocate rooms to duties (default false)
+  autoRebalanceOnManualEdit?: boolean;  // Automatically rebalance schedule on manual moves and replacements (default true)
   firebaseConfig?: {
     apiKey: string;
     authDomain: string;

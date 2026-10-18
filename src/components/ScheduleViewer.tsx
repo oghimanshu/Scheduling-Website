@@ -33,7 +33,10 @@ import { DragDropCollisionModal } from './DragDropCollisionModal';
 import { DragDropOverrideModal } from './DragDropOverrideModal';
 import { ScheduleContextMenu, ContextMenuTarget } from './ScheduleContextMenu';
 import { SwapFacultyModal } from './SwapFacultyModal';
+import { MoveDutyModal } from './MoveDutyModal';
 import { useScrollIsolation } from '../hooks/useScrollIsolation';
+import { exportSingleFacultyToExcel, exportSingleFacultyToCsv } from '../services/export/exportManager';
+import { downloadFacultyCalendarIcs } from '../services/calendarService';
 
 
 export const ScheduleViewer: React.FC<{ viewModeOverride?: 'faculty' | 'session' | 'workload' }> = ({
@@ -63,6 +66,10 @@ export const ScheduleViewer: React.FC<{ viewModeOverride?: 'faculty' | 'session'
     targetedConflictCell,
     setTargetedConflictCell,
     cleanExcludedDateAssignments,
+    autoFillVacantSlot,
+    rebalanceCurrentSchedule,
+    undoLastAutoRebalance,
+    updateSettings,
   } = useScheduler();
 
   const scheduleViewMode = viewModeOverride || contextScheduleViewMode;
@@ -104,11 +111,12 @@ export const ScheduleViewer: React.FC<{ viewModeOverride?: 'faculty' | 'session'
   } | null>(null);
 
   // Action Toast
-  const [actionToast, setActionToast] = useState<string | null>(null);
+  const [actionToast, setActionToast] = useState<string | { text: string; actionLabel?: string; onAction?: () => void } | null>(null);
 
-  // Right-Click Context Menu & Swap Modal State
+  // Right-Click Context Menu, Swap Modal & Move Duty Modal State
   const [contextMenuTarget, setContextMenuTarget] = useState<ContextMenuTarget | null>(null);
   const [swapModalData, setSwapModalData] = useState<{ assignment: Assignment; faculty: Faculty } | null>(null);
+  const [moveDutyData, setMoveDutyData] = useState<{ assignment: Assignment; faculty: Faculty } | null>(null);
 
   const activeDates = useMemo(
     () => project.examPeriod.dates.filter((d) => !d.isExcluded),
@@ -310,15 +318,31 @@ export const ScheduleViewer: React.FC<{ viewModeOverride?: 'faculty' | 'session'
       tgtSession
     );
     if (res.success) {
-      if (sourceFaculty.srNo === targetFaculty.srNo) {
-        setActionToast(`Moved ${tgtSession} duty to ${dateDisplay}`);
+      if (project.settings.autoRebalanceOnManualEdit !== false && res.updatedAssignments) {
+        rebalanceCurrentSchedule(res.updatedAssignments, true).then(() => {
+          setActionToast({
+            text: `Moved duty to ${targetFaculty.name}. Auto-rebalanced schedule.`,
+            actionLabel: 'Undo',
+            onAction: () => {
+              undoLastAutoRebalance();
+              setActionToast('Reverted schedule to previous state.');
+              setTimeout(() => setActionToast(null), 3000);
+            },
+          });
+          setTimeout(() => setActionToast(null), 8000);
+        });
       } else {
-        setActionToast(`Transferred ${tgtSession} to ${targetFaculty.name} on ${dateDisplay}`);
+        if (sourceFaculty.srNo === targetFaculty.srNo) {
+          setActionToast(`Moved ${tgtSession} duty to ${dateDisplay}`);
+        } else {
+          setActionToast(`Transferred ${tgtSession} to ${targetFaculty.name} on ${dateDisplay}`);
+        }
+        setTimeout(() => setActionToast(null), 3000);
       }
     } else {
       setActionToast(res.error || 'Duty transfer failed');
+      setTimeout(() => setActionToast(null), 3000);
     }
-    setTimeout(() => setActionToast(null), 3000);
   };
 
   // Resolve collision (swap vs replace)
@@ -359,11 +383,27 @@ export const ScheduleViewer: React.FC<{ viewModeOverride?: 'faculty' | 'session'
     );
     if (res.success) {
       const verb = action === 'swap' ? 'Swapped duties between' : 'Replaced duty from';
-      setActionToast(`${verb} ${sourceFaculty.name} and ${targetFaculty.name}`);
+      if (project.settings.autoRebalanceOnManualEdit !== false && res.updatedAssignments) {
+        rebalanceCurrentSchedule(res.updatedAssignments, true).then(() => {
+          setActionToast({
+            text: `${verb} ${sourceFaculty.name} and ${targetFaculty.name}. Auto-rebalanced schedule.`,
+            actionLabel: 'Undo',
+            onAction: () => {
+              undoLastAutoRebalance();
+              setActionToast('Reverted schedule to previous state.');
+              setTimeout(() => setActionToast(null), 3000);
+            },
+          });
+          setTimeout(() => setActionToast(null), 8000);
+        });
+      } else {
+        setActionToast(`${verb} ${sourceFaculty.name} and ${targetFaculty.name}`);
+        setTimeout(() => setActionToast(null), 3000);
+      }
     } else {
       setActionToast(res.error || 'Duty transfer failed');
+      setTimeout(() => setActionToast(null), 3000);
     }
-    setTimeout(() => setActionToast(null), 3000);
   };
 
   // Confirm administrator override
@@ -387,11 +427,27 @@ export const ScheduleViewer: React.FC<{ viewModeOverride?: 'faculty' | 'session'
     );
 
     if (res.success) {
-      setActionToast(`Authorized override transfer of ${tgtSession} to ${targetFaculty.name}`);
+      if (project.settings.autoRebalanceOnManualEdit !== false && res.updatedAssignments) {
+        rebalanceCurrentSchedule(res.updatedAssignments, true).then(() => {
+          setActionToast({
+            text: `Authorized override transfer to ${targetFaculty.name}. Auto-rebalanced schedule.`,
+            actionLabel: 'Undo',
+            onAction: () => {
+              undoLastAutoRebalance();
+              setActionToast('Reverted schedule to previous state.');
+              setTimeout(() => setActionToast(null), 3000);
+            },
+          });
+          setTimeout(() => setActionToast(null), 8000);
+        });
+      } else {
+        setActionToast(`Authorized override transfer of ${tgtSession} to ${targetFaculty.name}`);
+        setTimeout(() => setActionToast(null), 3500);
+      }
     } else {
       setActionToast(res.error || 'Override transfer failed');
+      setTimeout(() => setActionToast(null), 3500);
     }
-    setTimeout(() => setActionToast(null), 3500);
   };
 
   // Intercept Ctrl+P / Cmd+P to open the Master Schedule Print Customizer
@@ -557,6 +613,26 @@ export const ScheduleViewer: React.FC<{ viewModeOverride?: 'faculty' | 'session'
             <Scale className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
             <span className="sm:hidden">Equity</span>
             <span className="hidden sm:inline">Equity Analytics</span>
+          </button>
+
+          {/* Auto-Rebalance On/Off Quick Toggle */}
+          <button
+            type="button"
+            onClick={() => {
+              const newVal = project.settings.autoRebalanceOnManualEdit === false ? true : false;
+              updateSettings({ autoRebalanceOnManualEdit: newVal });
+              setActionToast(`Auto-Rebalance on Manual Moves ${newVal ? 'Enabled' : 'Paused'}`);
+              setTimeout(() => setActionToast(null), 2500);
+            }}
+            className={`btn-spring flex items-center justify-center space-x-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer border flex-1 sm:flex-initial transition-all ${
+              project.settings.autoRebalanceOnManualEdit !== false
+                ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800'
+                : 'bg-white/80 dark:bg-slate-900/80 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-white/10 hover:bg-slate-100'
+            }`}
+            title="Toggle automatic schedule rebalancing when duties are moved or replaced"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+            <span className="truncate">Auto-Rebalance: {project.settings.autoRebalanceOnManualEdit !== false ? 'ON' : 'OFF'}</span>
           </button>
 
           {/* Print Master Schedule Button - Opens Customizer */}
@@ -744,13 +820,13 @@ export const ScheduleViewer: React.FC<{ viewModeOverride?: 'faculty' | 'session'
             </div>
           )}
 
-          <div ref={scheduleTableRef} className="table-fade-indicator overflow-x-auto touch-scroll">
+          <div ref={scheduleTableRef} className="table-fade-indicator overflow-x-auto overflow-y-auto touch-scroll max-h-[74vh]">
 
             <table className="w-full text-left text-xs border-collapse">
-              <thead className="bg-slate-50/70 dark:bg-slate-800/70 text-slate-700 dark:text-slate-300 font-semibold uppercase tracking-wider border-b border-slate-200/60 dark:border-white/5 text-[11px] sticky top-0 z-20 backdrop-blur-md">
+              <thead className="bg-slate-100/95 dark:bg-slate-800/95 text-slate-700 dark:text-slate-300 font-semibold uppercase tracking-wider border-b border-slate-200/80 dark:border-white/10 text-[11px] sticky top-0 z-30 backdrop-blur-md shadow-xs">
                 <tr>
-                  <th className="py-3 px-3 w-12 sm:w-14 sticky left-0 z-30 bg-slate-100/95 dark:bg-slate-800/95 backdrop-blur-xs">Sr.</th>
-                  <th className="py-3 px-3 min-w-[150px] sm:min-w-[180px] sticky left-12 sm:left-14 z-30 bg-slate-100/95 dark:bg-slate-800/95 backdrop-blur-xs border-r border-slate-200/80 dark:border-white/10 shadow-[2px_0_5px_rgba(0,0,0,0.04)]">Faculty Member</th>
+                  <th className="py-3 px-3 w-12 sm:w-14 sticky top-0 left-0 z-40 bg-slate-100/95 dark:bg-slate-800/95 backdrop-blur-xs">Sr.</th>
+                  <th className="py-3 px-3 min-w-[150px] sm:min-w-[180px] sticky top-0 left-12 sm:left-14 z-40 bg-slate-100/95 dark:bg-slate-800/95 backdrop-blur-xs border-r border-slate-200/80 dark:border-white/10 shadow-[2px_0_5px_rgba(0,0,0,0.04)]">Faculty Member</th>
                   <th className="py-3 px-2 w-20">Arrival</th>
                   {activeDates.map((d) => {
                     const dateReq =
@@ -800,7 +876,7 @@ export const ScheduleViewer: React.FC<{ viewModeOverride?: 'faculty' | 'session'
                   const isAtTarget = grandTotal === f.targetSupervisions;
 
                   return (
-                    <tr key={f.srNo} className="group hover:bg-sky-50/30 dark:hover:bg-white/5 transition">
+                    <tr key={f.srNo} className="group hover:bg-sky-50/30 dark:hover:bg-white/5 transition-colors duration-150">
                       <td className="py-2 px-3 font-mono tabular-nums font-medium text-slate-400 dark:text-slate-500 sticky left-0 z-10 bg-white/95 dark:bg-slate-900/95 group-hover:bg-slate-50 dark:group-hover:bg-slate-800">
                         {f.srNo}
                       </td>
@@ -1057,7 +1133,7 @@ export const ScheduleViewer: React.FC<{ viewModeOverride?: 'faculty' | 'session'
                                 {isMobileTarget ? (
                                   <span className="text-[11px]">Drop Here</span>
                                 ) : (
-                                  <span className="group-hover:scale-125 transition-transform">+</span>
+                                  <span className="text-base leading-none group-hover:text-sky-500 font-bold transition-colors">+</span>
                                 )}
                               </button>
                             )}
@@ -1265,7 +1341,7 @@ export const ScheduleViewer: React.FC<{ viewModeOverride?: 'faculty' | 'session'
                                     }}
                                     onClick={() => setSelectedAssignmentForInspect(a)}
                                     className={`btn-spring px-2.5 py-1 rounded-lg border font-medium flex items-center space-x-1.5 shadow-2xs backdrop-blur-xs select-none transition-all ${
-                                      !a.isLocked ? 'cursor-grab active:cursor-grabbing hover:scale-105' : 'cursor-pointer'
+                                      !a.isLocked ? 'cursor-grab active:cursor-grabbing hover:border-sky-400 hover:ring-2 hover:ring-sky-400/30 hover:brightness-105' : 'cursor-pointer'
                                     } ${
                                       isCurrentDrag
                                         ? 'opacity-40 ring-2 ring-sky-500 bg-sky-200 dark:bg-sky-900'
@@ -1421,7 +1497,7 @@ export const ScheduleViewer: React.FC<{ viewModeOverride?: 'faculty' | 'session'
                                       }}
                                       onClick={() => setSelectedAssignmentForInspect(a)}
                                       className={`btn-spring px-2.5 py-1 rounded-lg border font-medium flex items-center space-x-1.5 shadow-2xs backdrop-blur-xs select-none transition-all ${
-                                        !a.isLocked ? 'cursor-grab active:cursor-grabbing hover:scale-105' : 'cursor-pointer'
+                                        !a.isLocked ? 'cursor-grab active:cursor-grabbing hover:border-amber-400 hover:ring-2 hover:ring-amber-400/30 hover:brightness-105' : 'cursor-pointer'
                                       } ${
                                         isCurrentDrag
                                           ? 'opacity-40 ring-2 ring-amber-500 bg-amber-200 dark:bg-amber-900'
@@ -1469,12 +1545,12 @@ export const ScheduleViewer: React.FC<{ viewModeOverride?: 'faculty' | 'session'
       {scheduleViewMode === 'workload' && (
         <div className="apple-glass-card overflow-hidden">
           <div className="apple-specular-rim" />
-          <div className="overflow-x-auto touch-scroll">
+          <div className="overflow-x-auto overflow-y-auto touch-scroll max-h-[74vh]">
             <table className="w-full text-left text-xs">
-              <thead className="bg-slate-50/70 dark:bg-slate-800/70 text-slate-600 dark:text-slate-300 font-semibold uppercase tracking-wider border-b border-slate-200/60 dark:border-white/5 text-[11px] sticky top-0 z-20 backdrop-blur-md">
+              <thead className="bg-slate-100/95 dark:bg-slate-800/95 text-slate-700 dark:text-slate-300 font-semibold uppercase tracking-wider border-b border-slate-200/80 dark:border-white/10 text-[11px] sticky top-0 z-30 backdrop-blur-md shadow-xs">
                 <tr>
-                  <th className="py-3 px-3 w-12 sm:w-16 sticky left-0 z-30 bg-slate-100/95 dark:bg-slate-800/95 backdrop-blur-xs">Sr.</th>
-                  <th className="py-3 px-4 min-w-[150px] sm:min-w-[180px] sticky left-12 sm:left-16 z-30 bg-slate-100/95 dark:bg-slate-800/95 backdrop-blur-xs border-r border-slate-200/80 dark:border-white/10 shadow-[2px_0_5px_rgba(0,0,0,0.04)]">Faculty Member</th>
+                  <th className="py-3 px-3 w-12 sm:w-16 sticky top-0 left-0 z-40 bg-slate-100/95 dark:bg-slate-800/95 backdrop-blur-xs">Sr.</th>
+                  <th className="py-3 px-4 min-w-[150px] sm:min-w-[180px] sticky top-0 left-12 sm:left-16 z-40 bg-slate-100/95 dark:bg-slate-800/95 backdrop-blur-xs border-r border-slate-200/80 dark:border-white/10 shadow-[2px_0_5px_rgba(0,0,0,0.04)]">Faculty Member</th>
                   <th className="py-3 px-3">Role</th>
                   <th className="py-3 px-3 text-center">Previous</th>
                   <th className="py-3 px-3 text-center">Target</th>
@@ -1501,7 +1577,7 @@ export const ScheduleViewer: React.FC<{ viewModeOverride?: 'faculty' | 'session'
                   const pct = Math.min(100, Math.round((total / f.targetSupervisions) * 100));
 
                   return (
-                    <tr key={f.srNo} className="group hover:bg-sky-50/30 dark:hover:bg-white/5 transition">
+                    <tr key={f.srNo} className="group hover:bg-sky-50/30 dark:hover:bg-white/5 transition-colors duration-150">
                       <td className="py-3 px-3 font-mono tabular-nums font-medium text-slate-400 dark:text-slate-500 sticky left-0 z-10 bg-white/95 dark:bg-slate-900/95 group-hover:bg-slate-50 dark:group-hover:bg-slate-800">
                         {f.srNo}
                       </td>
@@ -1643,11 +1719,22 @@ export const ScheduleViewer: React.FC<{ viewModeOverride?: 'faculty' | 'session'
         </div>
       )}
 
-      {/* Action Toast */}
+      {/* Action Toast - Centered at Bottom of Screen */}
       {actionToast && (
-        <div className="fixed top-20 right-6 z-50 bg-slate-900/95 text-white px-4 py-2.5 rounded-2xl shadow-2xl border border-sky-400/50 backdrop-blur-xl flex items-center space-x-2 text-xs font-semibold animate-modal-spring no-print">
+        <div className="fixed bottom-20 md:bottom-6 left-1/2 -translate-x-1/2 z-50 max-w-lg w-auto max-w-[90vw] flex items-center justify-center space-x-3 px-4 py-2.5 rounded-2xl bg-slate-900/90 dark:bg-slate-900/90 text-white text-xs font-medium shadow-2xl backdrop-blur-md border border-white/15 animate-spring no-print">
           <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-          <span>{actionToast}</span>
+          <span className="truncate">{typeof actionToast === 'string' ? actionToast : actionToast.text}</span>
+          {typeof actionToast === 'object' && actionToast.actionLabel && actionToast.onAction && (
+            <button
+              onClick={() => {
+                actionToast.onAction?.();
+                setActionToast(null);
+              }}
+              className="ml-1.5 px-2.5 py-1 rounded-xl bg-sky-500 hover:bg-sky-400 text-white font-bold text-[11px] shadow-sm transition active:scale-95 cursor-pointer shrink-0"
+            >
+              {actionToast.actionLabel}
+            </button>
+          )}
         </div>
       )}
 
@@ -1666,6 +1753,9 @@ export const ScheduleViewer: React.FC<{ viewModeOverride?: 'faculty' | 'session'
         }}
         onSwap={(assignment, faculty) => {
           setSwapModalData({ assignment, faculty });
+        }}
+        onMoveToDate={(assignment, faculty) => {
+          setMoveDutyData({ assignment, faculty });
         }}
         onToggleReserve={(assignment) => {
           const res = addOrUpdateAssignment(
@@ -1687,9 +1777,24 @@ export const ScheduleViewer: React.FC<{ viewModeOverride?: 'faculty' | 'session'
           setTimeout(() => setActionToast(null), 3000);
         }}
         onToggleSlotUnavailable={(srNo, date, session) => {
+          const fac = project.faculty.find((f) => f.srNo === srNo);
+          const facName = fac ? fac.name : `Faculty #${srNo}`;
           setSlotAvailability(srNo, date, session);
-          setActionToast(`Updated availability for faculty #${srNo}`);
-          setTimeout(() => setActionToast(null), 3000);
+          if (project.settings.autoRebalanceOnManualEdit !== false && project.assignments.length > 0) {
+            setActionToast({
+              text: `${facName} marked unavailable${session ? ` for ${session}` : ''} on ${date}. Schedule auto-rebalanced with duties redistributed.`,
+              actionLabel: 'Undo',
+              onAction: () => {
+                undoLastAutoRebalance();
+                setActionToast('Reverted schedule to previous state.');
+                setTimeout(() => setActionToast(null), 3000);
+              },
+            });
+            setTimeout(() => setActionToast(null), 7000);
+          } else {
+            setActionToast(`Updated availability for ${facName}`);
+            setTimeout(() => setActionToast(null), 3000);
+          }
         }}
         onQuickAssign={(srNo, date, session, isReserve) => {
           const res = addOrUpdateAssignment(srNo, date, session, false, undefined, isReserve);
@@ -1706,6 +1811,21 @@ export const ScheduleViewer: React.FC<{ viewModeOverride?: 'faculty' | 'session'
         onEditFaculty={(faculty) => {
           setManualEditSlot({ facultySrNo: faculty.srNo, date: activeDates[0]?.date || '', session: 'JRS 1' });
         }}
+        onExportFacultyExcel={(faculty) => {
+          exportSingleFacultyToExcel(faculty, project);
+          setActionToast(`Exported Excel schedule for ${faculty.name}`);
+          setTimeout(() => setActionToast(null), 3000);
+        }}
+        onExportFacultyCsv={(faculty) => {
+          exportSingleFacultyToCsv(faculty, project);
+          setActionToast(`Exported CSV schedule for ${faculty.name}`);
+          setTimeout(() => setActionToast(null), 3000);
+        }}
+        onExportFacultyIcs={(faculty) => {
+          downloadFacultyCalendarIcs(faculty, project.assignments, project.examPeriod?.dates || []);
+          setActionToast(`Downloaded calendar (.ics) for ${faculty.name}`);
+          setTimeout(() => setActionToast(null), 3000);
+        }}
       />
 
       {/* Two-Way Swap Faculty Picker Modal */}
@@ -1718,11 +1838,95 @@ export const ScheduleViewer: React.FC<{ viewModeOverride?: 'faculty' | 'session'
         onConfirmSwap={(sourceAssignment, targetFacultySrNo) => {
           const res = atomicTransferOrSwapDuty(sourceAssignment.id, targetFacultySrNo, 'swap');
           if (res.success) {
-            setActionToast(`Successfully exchanged duties`);
+            if (project.settings.autoRebalanceOnManualEdit !== false && res.updatedAssignments) {
+              rebalanceCurrentSchedule(res.updatedAssignments, true).then(() => {
+                setActionToast({
+                  text: 'Successfully exchanged duties. Auto-rebalanced schedule.',
+                  actionLabel: 'Undo',
+                  onAction: () => {
+                    undoLastAutoRebalance();
+                    setActionToast('Reverted schedule to previous state.');
+                    setTimeout(() => setActionToast(null), 3000);
+                  },
+                });
+                setTimeout(() => setActionToast(null), 8000);
+              });
+            } else {
+              setActionToast(`Successfully exchanged duties`);
+              setTimeout(() => setActionToast(null), 3000);
+            }
           } else {
             setActionToast(res.error || 'Duty exchange failed');
+            setTimeout(() => setActionToast(null), 3000);
           }
-          setTimeout(() => setActionToast(null), 3000);
+        }}
+      />
+
+      {/* Move Duty Across Dates Modal */}
+      <MoveDutyModal
+        isOpen={Boolean(moveDutyData)}
+        onClose={() => setMoveDutyData(null)}
+        assignment={moveDutyData?.assignment || null}
+        faculty={moveDutyData?.faculty || null}
+        onExecuteMove={({ targetDate, targetSession, targetFacultySrNo, lockDuty }) => {
+          if (!moveDutyData) return;
+          const { assignment } = moveDutyData;
+          setMoveDutyData(null);
+
+          const srcDate = assignment.date;
+          const srcSession = assignment.session;
+
+          // 1. Move duty to target date & session
+          const res = atomicTransferOrSwapDuty(
+            assignment.id,
+            targetFacultySrNo,
+            'replace',
+            false,
+            undefined,
+            lockDuty,
+            targetDate,
+            targetSession
+          );
+
+          if (!res.success) {
+            setActionToast(res.error || 'Failed to move duty');
+            setTimeout(() => setActionToast(null), 3500);
+            return;
+          }
+
+          // 2. Automatically backfill the vacated slot on the source date/session
+          const backfilledFaculty = autoFillVacantSlot(srcDate, srcSession);
+
+          // 3. Formulate feedback message and prompt for schedule rebalancing
+          const targetDateConfig = project.examPeriod.dates.find((d) => d.date === targetDate);
+          const targetDateDisplay = targetDateConfig?.displayDate || targetDate;
+          const backfillInfo = backfilledFaculty ? ` Backfilled ${srcSession} with ${backfilledFaculty.name}.` : '';
+
+          if (project.settings.autoRebalanceOnManualEdit !== false) {
+            rebalanceCurrentSchedule(undefined, true).then(() => {
+              setActionToast({
+                text: `Moved duty to ${targetDateDisplay} (${targetSession}).${backfillInfo} Auto-rebalanced schedule.`,
+                actionLabel: 'Undo',
+                onAction: () => {
+                  undoLastAutoRebalance();
+                  setActionToast('Reverted schedule to previous state.');
+                  setTimeout(() => setActionToast(null), 3000);
+                },
+              });
+              setTimeout(() => setActionToast(null), 8000);
+            });
+          } else {
+            setActionToast({
+              text: `Moved duty to ${targetDateDisplay} (${targetSession}).${backfillInfo}`,
+              actionLabel: 'Rebalance Schedule',
+              onAction: () => {
+                rebalanceCurrentSchedule();
+                setActionToast('Rebalanced schedule around your locked transfer.');
+                setTimeout(() => setActionToast(null), 3500);
+              },
+            });
+            setTimeout(() => setActionToast(null), 8000);
+          }
         }}
       />
     </div>

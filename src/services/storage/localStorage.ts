@@ -67,6 +67,9 @@ export function loadProjectFromStorage(): { state: ProjectState; loadedFromStora
           if (parsed.settings.promptGenerationOptions === undefined) {
             parsed.settings.promptGenerationOptions = DEFAULT_SETTINGS.promptGenerationOptions;
           }
+          if (parsed.settings.enableRoomAllocation === undefined) {
+            parsed.settings.enableRoomAllocation = false;
+          }
           if (!Array.isArray(parsed.assignments)) {
             parsed.assignments = [];
           }

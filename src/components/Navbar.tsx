@@ -20,6 +20,7 @@ import {
   FolderOpen,
   Zap,
   Building,
+  ShieldCheck,
 } from 'lucide-react';
 import { useScheduler } from '../context/SchedulerContext';
 import { useLenis } from '../context/LenisContext';
@@ -52,10 +53,10 @@ export const Navbar: React.FC = () => {
 
   return (
     <header
-      className={`apple-glass sticky top-0 z-30 border-b transition-all duration-300 relative no-print print:hidden ${
+      className={`liquid-glass-nav sticky top-0 z-40 transition-all duration-300 relative no-print print:hidden ${
         isScrolled
-          ? 'border-slate-300/80 dark:border-white/15 shadow-[0_8px_32px_rgba(0,0,0,0.06)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.45)] backdrop-blur-3xl'
-          : 'border-slate-200/60 dark:border-white/10 shadow-xs'
+          ? 'shadow-[0_12px_40px_rgba(0,0,0,0.1)] dark:shadow-[0_12px_40px_rgba(0,0,0,0.6)]'
+          : 'shadow-sm'
       }`}
     >
       <div className="apple-specular-rim" />
@@ -264,7 +265,7 @@ export const Navbar: React.FC = () => {
             </button>
 
             <button
-              onClick={rebalanceCurrentSchedule}
+              onClick={() => rebalanceCurrentSchedule()}
               disabled={isGenerating}
               className="btn-spring hidden md:inline-flex items-center space-x-1.5 px-3 py-1.5 text-xs font-semibold text-amber-900 dark:text-amber-200 bg-amber-100 dark:bg-amber-950/70 hover:bg-amber-200 dark:hover:bg-amber-900/80 border border-amber-300 dark:border-amber-700/60 rounded-xl shadow-xs disabled:opacity-40 cursor-pointer"
               title="Rebalance while strictly preserving locked assignments"
@@ -298,6 +299,7 @@ export const Navbar: React.FC = () => {
             { id: 'rooms', label: 'Rooms & Halls', shortLabel: 'Rooms', icon: Building },
             { id: 'availability', label: 'Availability Matrix', shortLabel: 'Availability', icon: CheckCircle2 },
             { id: 'schedule', label: 'Schedule Views', shortLabel: 'Schedule', icon: FileSpreadsheet },
+            { id: 'control_room', label: 'Control Room (Live)', shortLabel: 'Control Room', icon: ShieldCheck },
             { id: 'instructions', label: 'Instructions & Guide', shortLabel: 'Guide', icon: BookOpen },
           ].map((tab) => {
             const Icon = tab.icon;

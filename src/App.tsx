@@ -36,6 +36,7 @@ import { QuickstartWizardModal } from './components/QuickstartWizardModal';
 import { GlobalFileDropzone } from './components/GlobalFileDropzone';
 import { RoomManager } from './components/RoomManager';
 import { RoomChartModal } from './components/RoomChartModal';
+import { ControlRoomView } from './components/ControlRoomView';
 
 const AppContent: React.FC = () => {
   const {
@@ -52,7 +53,7 @@ const AppContent: React.FC = () => {
   }, [activeTab]);
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 transition-colors duration-300 relative overflow-hidden">
+    <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 transition-colors duration-300 relative overflow-x-clip">
       {/* Global Universal File Drag & Drop Receiver */}
       <GlobalFileDropzone />
 
@@ -90,6 +91,7 @@ const AppContent: React.FC = () => {
           {activeTab === 'rooms' && <RoomManager />}
           {activeTab === 'availability' && <AvailabilityManager />}
           {activeTab === 'schedule' && <ScheduleViewer />}
+          {activeTab === 'control_room' && <ControlRoomView />}
           {activeTab === 'instructions' && <InstructionsView />}
         </div>
       </main>

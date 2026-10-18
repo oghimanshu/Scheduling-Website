@@ -111,7 +111,23 @@ Designed and Developed by Himanshu Gaur.
 
 ---
 
-### 7. Institutional Letterhead, Signatures, and Print Customizer
+### 7. Day-of-Exam Control Room and Live Attendance
+- **Live Attendance and Check-In Roster**:
+  - Live session switcher (`JRS 1`, `JRS 2`, `JRS 3`) with real-time duty check-in toggling (`Scheduled`, `Present`, `Absent`).
+  - Search by faculty name, room, or session with live capacity and attendance percentages.
+- **Instant 1-Click Standby Reserve Deployment**:
+  - Real-time vacant room detection when an invigilator is marked absent or late.
+  - One-click modal to select and deploy available standby reserves directly to unstaffed rooms.
+  - Automatic duty count reconciliation, crediting the deployed reserve and marking absent faculty as unfulfilled.
+- **Strict Deselected JRS Reserve Prevention**:
+  - Prevents phantom reserve duty generation and quota consumption when exam sessions are deselected or set to 0 requirements.
+- **Official Daily Attendance Register**:
+  - Instant print format featuring institutional letterhead, room invigilator rosters, standby rosters, and signing authority lines.
+  - CSV attendance export for administrative records.
+
+---
+
+### 8. Institutional Letterhead, Signatures, and Print Customizer
 - **Institutional Branding**:
   - Upload college logo, header text, subtitle, and accreditation details.
 - **Multi-Tier Signing Authorities**:
@@ -122,13 +138,13 @@ Designed and Developed by Himanshu Gaur.
 
 ---
 
-### 8. Google Drive Sync and Zero-Setup Cloud Backup
+### 9. Google Drive Sync and Zero-Setup Cloud Backup
 - Backup and restore scheduling projects directly to Google Drive folders.
 - Local browser auto-save ensures zero data loss between sessions.
 
 ---
 
-### 9. Visual Polish and Accessibility
+### 10. Visual Polish and Accessibility
 - **Apple VisionOS Glassmorphic Aesthetic**:
   - Modern translucent cards, specular lighting rims, and smooth spring physics.
 - **Dark Mode with Ambient Animations**:

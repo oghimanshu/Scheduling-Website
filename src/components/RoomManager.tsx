@@ -17,6 +17,7 @@ import {
   ChevronRight,
   Filter,
   Copy,
+  RotateCcw,
 } from 'lucide-react';
 import { useScheduler } from '../context/SchedulerContext';
 import { ExamRoom } from '../types';
@@ -39,6 +40,7 @@ export const RoomManager: React.FC = () => {
     toggleRoomActive,
     updateRoomsList,
     assignRoomsSeparately,
+    clearRoomAllocations,
     setIsRoomChartModalOpen,
   } = useScheduler();
 
@@ -184,11 +186,23 @@ export const RoomManager: React.FC = () => {
     }
   };
 
+  const allocatedDutiesCount = useMemo(() => {
+    return project.assignments.filter((a) => !!a.roomId || !!a.roomName).length;
+  }, [project.assignments]);
+
   const handleAutoAssign = () => {
     assignRoomsSeparately();
     setNotification({
       message: 'Active rooms have been allocated across all scheduled duty sessions.',
       type: 'success',
+    });
+  };
+
+  const handleClearRooms = () => {
+    clearRoomAllocations();
+    setNotification({
+      message: 'All room allocations have been cleared from duties. Schedules will display pure session duties.',
+      type: 'info',
     });
   };
 
@@ -229,6 +243,17 @@ export const RoomManager: React.FC = () => {
             <Sparkles className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
             Auto-Assign Rooms
           </button>
+
+          {allocatedDutiesCount > 0 && (
+            <button
+              onClick={handleClearRooms}
+              className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-xl border border-rose-300 dark:border-rose-700 bg-rose-50 dark:bg-rose-950/40 text-rose-800 dark:text-rose-300 hover:bg-rose-100 dark:hover:bg-rose-900/60 transition-colors shadow-xs"
+              title="Remove room tags from all assignments in the schedule"
+            >
+              <RotateCcw className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />
+              Clear Room Allocations
+            </button>
+          )}
 
           <button
             onClick={() => setIsRoomChartModalOpen(true)}
@@ -395,9 +420,9 @@ export const RoomManager: React.FC = () => {
 
       {/* Rooms Table */}
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xs overflow-hidden">
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto overflow-y-auto touch-scroll max-h-[70vh]">
           <table className="w-full text-left text-xs text-slate-600 dark:text-slate-300">
-            <thead className="bg-slate-50 dark:bg-slate-800/80 text-slate-700 dark:text-slate-300 border-b border-slate-200 dark:border-slate-800 uppercase text-[10px] tracking-wider">
+            <thead className="bg-slate-50 dark:bg-slate-800/95 text-slate-700 dark:text-slate-300 border-b border-slate-200 dark:border-slate-800 uppercase text-[10px] tracking-wider sticky top-0 z-20 backdrop-blur-md shadow-xs">
               <tr>
                 <th className="py-3.5 px-4 font-semibold">Room / Hall</th>
                 <th className="py-3.5 px-4 font-semibold">Building & Floor</th>

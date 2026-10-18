@@ -52,6 +52,9 @@ export const GenerationOptionsModal: React.FC<{ forceOpen?: boolean }> = ({ forc
   const [relaxArrivalConstraints, setRelaxArrivalConstraints] = useState<boolean>(
     project.settings.relaxArrivalConstraints ?? false
   );
+  const [enableRoomAllocation, setEnableRoomAllocation] = useState<boolean>(
+    project.settings.enableRoomAllocation ?? false
+  );
   const [rememberPreferences, setRememberPreferences] = useState(
     !project.settings.promptGenerationOptions
   );
@@ -72,6 +75,7 @@ export const GenerationOptionsModal: React.FC<{ forceOpen?: boolean }> = ({ forc
       reserveCanExceedCap,
       allowBestEffort,
       relaxArrivalConstraints,
+      enableRoomAllocation,
       promptGenerationOptions: !rememberPreferences,
     });
 
@@ -89,6 +93,7 @@ export const GenerationOptionsModal: React.FC<{ forceOpen?: boolean }> = ({ forc
         reserveCanExceedCap,
         allowBestEffort,
         relaxArrivalConstraints,
+        enableRoomAllocation,
       },
       {
         allowBestEffort,
@@ -370,6 +375,28 @@ export const GenerationOptionsModal: React.FC<{ forceOpen?: boolean }> = ({ forc
               </div>
             </label>
           </div>
+        </div>
+
+        {/* 8. Room & Examination Hall Allocation */}
+        <div className="space-y-3 p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-white/10">
+          <label className="flex items-start space-x-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={enableRoomAllocation}
+              onChange={(e) => setEnableRoomAllocation(e.target.checked)}
+              className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 mt-0.5 cursor-pointer"
+            />
+            <div className="flex-1">
+              <span className="font-bold text-slate-900 dark:text-white block text-xs">
+                8. Allocate Exam Halls &amp; Rooms to Duties
+              </span>
+              <span className="text-slate-500 dark:text-slate-400 text-[11px] block mt-0.5">
+                {enableRoomAllocation
+                  ? 'Active examination rooms and halls will be automatically mapped to assigned duties.'
+                  : 'Rooms will not be allocated. Duties will be generated cleanly without room tags, avoiding clutter in schedules and exports.'}
+              </span>
+            </div>
+          </label>
         </div>
 
         {/* Remember Preferences */}

@@ -9,6 +9,8 @@ import {
   Ban,
   Calendar,
   Users,
+  Wand2,
+  RotateCcw,
 } from 'lucide-react';
 import { useScheduler } from '../context/SchedulerContext';
 import { ArrivalCategory, SessionType } from '../types';
@@ -21,7 +23,11 @@ export const AvailabilityManager: React.FC = () => {
     bulkSetAvailability,
     copyAvailabilityDateToDate,
     updateFacultyExcludedDates,
+    undoLastAutoRebalance,
+    updateSettings,
   } = useScheduler();
+
+  const [actionToast, setActionToast] = useState<string | { text: string; actionLabel?: string; onAction?: () => void } | null>(null);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState<'All' | 'Regular' | 'HOD'>('All');
@@ -53,6 +59,18 @@ export const AvailabilityManager: React.FC = () => {
     const srNos = filteredFaculty.map((f) => f.srNo);
     const dateStrs = activeDates.map((d) => d.date);
     bulkSetAvailability(srNos, dateStrs, true);
+    if (project.assignments.length > 0 && project.settings.autoRebalanceOnManualEdit !== false) {
+      setActionToast({
+        text: 'Marked faculty available. Schedule auto-rebalanced.',
+        actionLabel: 'Undo',
+        onAction: () => {
+          undoLastAutoRebalance();
+          setActionToast('Reverted schedule to previous state.');
+          setTimeout(() => setActionToast(null), 3000);
+        },
+      });
+      setTimeout(() => setActionToast(null), 7000);
+    }
   };
 
   const handleMarkAllUnavailable = () => {
@@ -64,6 +82,18 @@ export const AvailabilityManager: React.FC = () => {
       const srNos = filteredFaculty.map((f) => f.srNo);
       const dateStrs = activeDates.map((d) => d.date);
       bulkSetAvailability(srNos, dateStrs, false);
+      if (project.assignments.length > 0 && project.settings.autoRebalanceOnManualEdit !== false) {
+        setActionToast({
+          text: `Marked ${filteredFaculty.length} faculty unavailable. Schedule auto-rebalanced with duties redistributed.`,
+          actionLabel: 'Undo',
+          onAction: () => {
+            undoLastAutoRebalance();
+            setActionToast('Reverted schedule to previous state.');
+            setTimeout(() => setActionToast(null), 3000);
+          },
+        });
+        setTimeout(() => setActionToast(null), 7000);
+      }
     }
   };
 
@@ -98,8 +128,27 @@ export const AvailabilityManager: React.FC = () => {
             </p>
           </div>
 
-          {/* Bulk Buttons */}
+          {/* Bulk Buttons & Quick Auto-Rebalance Toggle */}
           <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                const current = project.settings.autoRebalanceOnManualEdit !== false;
+                updateSettings({ autoRebalanceOnManualEdit: !current });
+                setActionToast(`Auto-rebalance ${!current ? 'Enabled' : 'Paused'}`);
+                setTimeout(() => setActionToast(null), 3000);
+              }}
+              className={`btn-spring inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition cursor-pointer ${
+                project.settings.autoRebalanceOnManualEdit !== false
+                  ? 'bg-sky-50 dark:bg-sky-950/60 text-sky-700 dark:text-sky-300 border-sky-300/80 dark:border-sky-700/60 hover:bg-sky-100'
+                  : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-300 dark:border-white/10 hover:bg-slate-200'
+              }`}
+              title="Automatically rebalance duties when marking faculty available or unavailable"
+            >
+              <Wand2 className="w-3.5 h-3.5" />
+              <span>Auto-Rebalance: {project.settings.autoRebalanceOnManualEdit !== false ? 'ON' : 'OFF'}</span>
+            </button>
+
             <button
               onClick={handleMarkAllAvailable}
               className="btn-spring inline-flex items-center space-x-1.5 px-3 py-1.5 text-xs font-medium text-emerald-700 dark:text-emerald-300 bg-emerald-50/80 dark:bg-emerald-950/40 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 border border-emerald-200 dark:border-emerald-800/40 rounded-lg cursor-pointer"
@@ -292,11 +341,18 @@ export const AvailabilityManager: React.FC = () => {
                             onClick={() => {
                               const nextVal = !isDayAvailable;
                               setAvailability(f.srNo, d.date, nextVal);
-                              const currentExcluded = f.excludedDates || [];
-                              const updated = nextVal
-                                ? currentExcluded.filter((dt) => dt !== d.date)
-                                : [...currentExcluded, d.date];
-                              updateFacultyExcludedDates(f.srNo, updated);
+                              if (project.assignments.length > 0 && project.settings.autoRebalanceOnManualEdit !== false) {
+                                setActionToast({
+                                  text: `${f.name} marked ${nextVal ? 'available' : 'on leave'} on ${d.displayDate}. Duties auto-rebalanced across days.`,
+                                  actionLabel: 'Undo',
+                                  onAction: () => {
+                                    undoLastAutoRebalance();
+                                    setActionToast('Reverted schedule to previous state.');
+                                    setTimeout(() => setActionToast(null), 3000);
+                                  },
+                                });
+                                setTimeout(() => setActionToast(null), 7000);
+                              }
                             }}
                             className={`w-full py-1 px-1.5 rounded-lg font-semibold text-[11px] flex items-center justify-center space-x-1 transition cursor-pointer active:scale-95 ${
                               isDayAvailable
@@ -331,7 +387,22 @@ export const AvailabilityManager: React.FC = () => {
                                     key={sess}
                                     type="button"
                                     disabled={Boolean(isWholeExamRestricted)}
-                                    onClick={() => setSlotAvailability(f.srNo, d.date, sess)}
+                                    onClick={() => {
+                                      const currentSlotDisabled = isSlotDisabled;
+                                      setSlotAvailability(f.srNo, d.date, sess);
+                                      if (project.assignments.length > 0 && project.settings.autoRebalanceOnManualEdit !== false) {
+                                        setActionToast({
+                                          text: `${f.name} marked ${currentSlotDisabled ? 'available' : 'unavailable'} for ${sess} on ${d.displayDate}. Duties auto-rebalanced.`,
+                                          actionLabel: 'Undo',
+                                          onAction: () => {
+                                            undoLastAutoRebalance();
+                                            setActionToast('Reverted schedule to previous state.');
+                                            setTimeout(() => setActionToast(null), 3000);
+                                          },
+                                        });
+                                        setTimeout(() => setActionToast(null), 7000);
+                                      }
+                                    }}
                                     title={
                                       isWholeExamRestricted
                                         ? `Faculty profile restricts to ${f.allowedSessions?.join(', ')}`
@@ -363,6 +434,26 @@ export const AvailabilityManager: React.FC = () => {
           </table>
         </div>
       </div>
+
+      {/* Floating Action Toast with Interactive Undo - Centered at Bottom of Screen */}
+      {actionToast && (
+        <div className="fixed bottom-20 md:bottom-6 left-1/2 -translate-x-1/2 z-50 max-w-lg w-auto max-w-[90vw] flex items-center justify-center space-x-3 px-4 py-2.5 rounded-2xl bg-slate-900/90 dark:bg-slate-900/90 text-white text-xs font-medium shadow-2xl backdrop-blur-md border border-white/15 animate-spring no-print">
+          <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+          <span className="truncate">{typeof actionToast === 'string' ? actionToast : actionToast.text}</span>
+          {typeof actionToast === 'object' && actionToast.actionLabel && actionToast.onAction && (
+            <button
+              type="button"
+              onClick={() => {
+                actionToast.onAction?.();
+                setActionToast(null);
+              }}
+              className="ml-1.5 px-2.5 py-1 rounded-xl bg-sky-500 hover:bg-sky-400 text-white font-bold text-[11px] shadow-sm transition active:scale-95 cursor-pointer shrink-0"
+            >
+              {actionToast.actionLabel}
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 };
