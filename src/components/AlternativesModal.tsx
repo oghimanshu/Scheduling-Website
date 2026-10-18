@@ -25,8 +25,15 @@ export const AlternativesModal: React.FC = () => {
   if (!isAlternativesModalOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/60 dark:bg-black/80 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-y-auto" data-lenis-prevent>
-      <div className="liquid-glass-modal rounded-t-3xl sm:rounded-2xl max-w-5xl w-full max-h-[92dvh] sm:my-auto flex flex-col shadow-2xl animate-sheet-up sm:animate-modal-spring">
+    <div
+      className="fixed inset-0 z-50 bg-slate-900/60 dark:bg-black/80 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-y-auto"
+      data-lenis-prevent
+      onClick={() => setIsAlternativesModalOpen(false)}
+    >
+      <div
+        className="liquid-glass-modal rounded-t-3xl sm:rounded-2xl max-w-5xl w-full max-h-[92dvh] sm:my-auto flex flex-col shadow-2xl animate-sheet-up sm:animate-modal-spring"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Mobile Pull Handle */}
         <div className="w-10 h-1.5 bg-slate-300 dark:bg-slate-700 rounded-full mx-auto my-2.5 sm:hidden shrink-0" />
         {/* Header */}

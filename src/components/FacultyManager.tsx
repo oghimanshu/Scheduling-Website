@@ -218,6 +218,19 @@ export const FacultyManager: React.FC = () => {
     });
   }, [project.faculty, searchTerm, roleFilter, arrivalFilter, inclusionFilter]);
 
+  const isAnyFilterActive =
+    searchTerm !== '' ||
+    roleFilter !== 'All' ||
+    arrivalFilter !== 'All' ||
+    inclusionFilter !== 'All';
+
+  const handleClearAllFilters = () => {
+    setSearchTerm('');
+    setRoleFilter('All');
+    setArrivalFilter('All');
+    setInclusionFilter('All');
+  };
+
   // Handle CSV file content
   const handleFileContent = (content: string) => {
     setCsvRawText(content);
@@ -643,13 +656,26 @@ export const FacultyManager: React.FC = () => {
             <select
               value={arrivalFilter}
               onChange={(e) => setArrivalFilter(e.target.value as any)}
-              className="text-xs bg-white/70 dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl px-2.5 py-1.5 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-sky-500"
+              className="text-xs bg-white/70 dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl px-2.5 py-1.5 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-sky-500 font-medium"
             >
               <option value="All">All Arrivals</option>
               <option value="Morning">Morning</option>
               <option value="Mid">Mid</option>
               <option value="Afternoon">Afternoon</option>
             </select>
+
+            {/* Clear All Filters Button */}
+            {isAnyFilterActive && (
+              <button
+                type="button"
+                onClick={handleClearAllFilters}
+                className="btn-spring flex items-center space-x-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800 hover:bg-rose-100 shadow-2xs transition cursor-pointer"
+                title="Reset all search and filter parameters"
+              >
+                <X className="w-3.5 h-3.5 text-rose-500" />
+                <span>Clear Filters</span>
+              </button>
+            )}
           </div>
         </div>
       </div>

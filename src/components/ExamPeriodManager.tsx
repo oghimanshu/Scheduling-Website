@@ -17,6 +17,8 @@ import {
   Check,
   Users,
   X,
+  Search,
+  Filter,
 } from 'lucide-react';
 import { useScheduler } from '../context/SchedulerContext';
 import { ExamDateConfig, ExclusionReason, SessionType, ArrivalCategory, SessionTiming } from '../types';
@@ -63,6 +65,34 @@ export const ExamPeriodManager: React.FC = () => {
   });
 
   const dateContextMenu = useContextMenu<ExamDateConfig>();
+
+  // Search and Filter states
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'All' | 'active' | 'excluded'>('All');
+
+  const filteredDates = useMemo(() => {
+    return project.examPeriod.dates.filter((d) => {
+      if (searchTerm) {
+        const q = searchTerm.toLowerCase();
+        const match =
+          d.date.toLowerCase().includes(q) ||
+          (d.displayDate && d.displayDate.toLowerCase().includes(q)) ||
+          (d.dayOfWeek && d.dayOfWeek.toLowerCase().includes(q)) ||
+          (d.exclusionReason && d.exclusionReason.toLowerCase().includes(q));
+        if (!match) return false;
+      }
+      if (statusFilter === 'active' && d.isExcluded) return false;
+      if (statusFilter === 'excluded' && !d.isExcluded) return false;
+      return true;
+    });
+  }, [project.examPeriod.dates, searchTerm, statusFilter]);
+
+  const isAnyFilterActive = searchTerm !== '' || statusFilter !== 'All';
+
+  const handleClearAllFilters = () => {
+    setSearchTerm('');
+    setStatusFilter('All');
+  };
 
   // Template session requirements for "Apply to all dates"
   const [templateReqs, setTemplateReqs] = useState<Record<string, number>>(() => {
@@ -497,6 +527,44 @@ export const ExamPeriodManager: React.FC = () => {
           </button>
         </div>
 
+        {/* Search & Filter Controls */}
+        <div className="p-3 bg-slate-50/50 dark:bg-slate-900/50 border-b border-slate-100 dark:border-white/5 flex flex-wrap items-center justify-between gap-2.5">
+          <div className="relative w-full sm:w-64">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2" />
+            <input
+              type="text"
+              placeholder="Search date, day, or reason..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-9 pr-3 py-1.5 text-xs bg-white/80 dark:bg-slate-800/80 border border-slate-200 dark:border-white/10 rounded-xl text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-500"
+            />
+          </div>
+
+          <div className="flex items-center space-x-2">
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value as any)}
+              className="text-xs bg-white/80 dark:bg-slate-800/80 border border-slate-200 dark:border-white/10 rounded-xl px-2.5 py-1.5 text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-sky-500 font-medium"
+            >
+              <option value="All">All Dates ({project.examPeriod.dates.length})</option>
+              <option value="active">Active Exam Dates ({project.examPeriod.dates.filter(d => !d.isExcluded).length})</option>
+              <option value="excluded">Excluded / Off Days ({project.examPeriod.dates.filter(d => d.isExcluded).length})</option>
+            </select>
+
+            {isAnyFilterActive && (
+              <button
+                type="button"
+                onClick={handleClearAllFilters}
+                className="btn-spring flex items-center space-x-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800 hover:bg-rose-100 shadow-2xs transition cursor-pointer"
+                title="Reset all search and filter parameters"
+              >
+                <X className="w-3.5 h-3.5 text-rose-500" />
+                <span>Clear Filters</span>
+              </button>
+            )}
+          </div>
+        </div>
+
         <div className="overflow-x-auto overflow-y-auto touch-scroll max-h-[70vh]">
           <table className="w-full text-left text-xs">
             <thead className="bg-slate-100/95 dark:bg-slate-800/95 text-slate-700 dark:text-slate-300 font-semibold uppercase tracking-wider border-b border-slate-200/80 dark:border-white/10 text-[11px] sticky top-0 z-20 backdrop-blur-md shadow-xs">
@@ -519,7 +587,7 @@ export const ExamPeriodManager: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-white/5">
-              {project.examPeriod.dates.map((d) => {
+              {filteredDates.map((d) => {
                 const isExpanded = expandedDate === d.date;
                 const timingWarnings = checkSessionTimingsOverlap(d.sessionTimings);
                 const hasCustomTimings = Boolean(d.sessionTimings);
@@ -859,8 +927,15 @@ export const ExamPeriodManager: React.FC = () => {
 
       {/* Add Single Date Modal */}
       {isAddDateModalOpen && typeof document !== 'undefined' && createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-fade-in">
-          <div className="apple-glass-card w-full max-w-lg p-6 bg-white/95 dark:bg-slate-900/95 border border-slate-200/80 dark:border-white/10 rounded-2xl shadow-2xl relative">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-fade-in"
+          data-lenis-prevent
+          onClick={() => setIsAddDateModalOpen(false)}
+        >
+          <div
+            className="apple-glass-card w-full max-w-lg p-6 bg-white/95 dark:bg-slate-900/95 border border-slate-200/80 dark:border-white/10 rounded-2xl shadow-2xl relative"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center justify-between pb-4 border-b border-slate-200/80 dark:border-white/10">
               <div className="flex items-center gap-2">
                 <Calendar className="w-5 h-5 text-sky-600 dark:text-sky-400" />

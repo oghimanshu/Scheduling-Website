@@ -41,6 +41,7 @@ import { ControlRoomView } from './components/ControlRoomView';
 const AppContent: React.FC = () => {
   const {
     activeTab,
+    isFocusMode,
     selectedForSubstitute,
     isSubstituteModalOpen,
     setIsSubstituteModalOpen,
@@ -49,8 +50,10 @@ const AppContent: React.FC = () => {
 
   // Smooth scroll to top when changing views via Lenis
   useEffect(() => {
-    scrollTo(0, { duration: 0.7 });
-  }, [activeTab]);
+    if (!isFocusMode) {
+      scrollTo(0, { duration: 0.7 });
+    }
+  }, [activeTab, isFocusMode]);
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 transition-colors duration-300 relative overflow-x-clip">
@@ -78,11 +81,15 @@ const AppContent: React.FC = () => {
         <div className="absolute -bottom-40 left-1/4 w-[36rem] h-[36rem] rounded-full bg-gradient-to-tr from-teal-400/15 via-sky-300/15 to-transparent dark:from-teal-600/12 dark:via-sky-700/10 dark:to-transparent blur-[120px] transform-gpu animate-float-reverse" />
       </div>
 
-      {/* Navbar with tabs and quick status */}
-      <Navbar />
+      {/* Navbar with tabs and quick status (hidden during Focus Mode) */}
+      {!isFocusMode && <Navbar />}
 
       {/* Main Container with Smooth View Transitions & Mobile Bottom Dock Clearance */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-2.5 sm:px-6 lg:px-8 py-4 sm:py-6 pb-28 md:pb-6 relative z-10">
+      <main className={`flex-1 w-full mx-auto relative z-10 transition-all ${
+        isFocusMode
+          ? 'px-1 sm:px-2 py-1 pb-2 max-w-none'
+          : 'max-w-7xl px-2.5 sm:px-6 lg:px-8 py-4 sm:py-6 pb-28 md:pb-6'
+      }`}>
         <div key={activeTab} className="animate-tab-enter">
           {activeTab === 'dashboard' && <Dashboard />}
           {activeTab === 'faculty' && <FacultyManager />}
@@ -96,11 +103,12 @@ const AppContent: React.FC = () => {
         </div>
       </main>
 
-      {/* Mobile Floating Action Dock for Single-Thumb Control */}
-      <MobileBottomDock />
+      {/* Mobile Floating Action Dock for Single-Thumb Control (hidden during Focus Mode) */}
+      {!isFocusMode && <MobileBottomDock />}
 
-      {/* Footer with Liquid Glass styling & Himanshu Gaur Attribution */}
-      <footer className="apple-glass border-t border-slate-200/70 dark:border-white/10 py-5 mt-auto relative z-10 pb-20 md:pb-5 no-print print:hidden">
+      {/* Footer with Liquid Glass styling & Himanshu Gaur Attribution (hidden during Focus Mode) */}
+      {!isFocusMode && (
+        <footer className="apple-glass border-t border-slate-200/70 dark:border-white/10 py-5 mt-auto relative z-10 pb-20 md:pb-5 no-print print:hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row justify-between items-center text-xs text-slate-500 dark:text-slate-400 gap-3">
           <div className="flex flex-col sm:flex-row items-center space-y-1 sm:space-y-0 sm:space-x-2 text-center sm:text-left">
             <span className="font-bold text-slate-800 dark:text-slate-100">Examination Supervision Scheduler</span>
@@ -120,6 +128,7 @@ const AppContent: React.FC = () => {
           </div>
         </div>
       </footer>
+      )}
 
       {/* Interactive Modals */}
       <AlternativesModal />

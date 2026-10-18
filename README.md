@@ -43,10 +43,11 @@ Designed and Developed by Himanshu Gaur.
 
 ---
 
-### 3. Comprehensive Right-Click and Touch Long-Press Context Menus
+### 3. Comprehensive Right-Click Context Menus & Universal Outside-Click Dismissal
 - **Universal Desktop and Mobile Support**:
   - Full desktop right-click menu and 500ms touch long-press support for tablets and mobile touchscreens.
   - Glassmorphic popup menu with automatic viewport boundary clamping.
+  - **Universal Outside-Click Dismissal**: Clicking empty table whitespace or modal backdrops immediately dismisses all open menus, popups, and dialogs.
 - **Faculty Rows**:
   - Edit Faculty Details (Name, Role, Arrival, Quotas).
   - Toggle Head of Department (HOD) status.
@@ -111,19 +112,21 @@ Designed and Developed by Himanshu Gaur.
 
 ---
 
-### 7. Day-of-Exam Control Room and Live Attendance
+### 7. Day-of-Exam Control Room, Drag-and-Drop Reserves & Multi-Session Register
 - **Live Attendance and Check-In Roster**:
   - Live session switcher (`JRS 1`, `JRS 2`, `JRS 3`) with real-time duty check-in toggling (`Scheduled`, `Present`, `Absent`).
   - Search by faculty name, room, or session with live capacity and attendance percentages.
-- **Instant 1-Click Standby Reserve Deployment**:
-  - Real-time vacant room detection when an invigilator is marked absent or late.
-  - One-click modal to select and deploy available standby reserves directly to unstaffed rooms.
-  - Automatic duty count reconciliation, crediting the deployed reserve and marking absent faculty as unfulfilled.
-- **Strict Deselected JRS Reserve Prevention**:
-  - Prevents phantom reserve duty generation and quota consumption when exam sessions are deselected or set to 0 requirements.
+- **Drag-and-Drop Standby Reserve Deployment**:
+  - Drag reserve invigilators directly from the standby tray into vacant room slots.
+  - Automatically marks the replaced faculty member as absent and deploys the standby supervisor.
+  - Non-intrusive 1-click Undo toast lets operators revert mistaken deployments instantly.
+  - Rigid, non-jumping deployment modal with sticky action controls.
 - **Official Daily Attendance Register**:
-  - Instant print format featuring institutional letterhead, room invigilator rosters, standby rosters, and signing authority lines.
-  - CSV attendance export for administrative records.
+  - Multi-session print dropdown offering two export formats:
+    - **All Sessions (1 Document)**: Combines all sessions on sequential sheets for a consolidated daily attendance record.
+    - **Current Session Only**: Focused single-session printout tailored for the active examination period.
+  - Clean institutional letterhead, room invigilator rosters, standby rosters, and verification signature blocks.
+  - CSV attendance export for administrative archival.
 
 ---
 
@@ -144,13 +147,33 @@ Designed and Developed by Himanshu Gaur.
 
 ---
 
-### 10. Visual Polish and Accessibility
-- **Apple VisionOS Glassmorphic Aesthetic**:
-  - Modern translucent cards, specular lighting rims, and smooth spring physics.
-- **Dark Mode with Ambient Animations**:
-  - Dark mode featuring subtle animated cherry blossoms for a calm, distraction-free environment.
-- **Pointer-Aware Scroll Isolation**:
-  - Smooth Lenis scrolling with isolated scroll containers for dense data tables.
+### 10. Cursor-Aware Intelligent Scrolling & Excel-Style Navigation
+- **Cursor-Aware Direction Routing**:
+  - Elements with horizontal overflow and no vertical scrolling automatically route vertical mouse wheel actions directly to horizontal scrolling without requiring the Shift key.
+- **Excel-Style Bidirectional Scrolling**:
+  - Hold Shift while scrolling to navigate horizontally across dense 2D schedule grids.
+- **Isolated Smooth Scrolling**:
+  - Smooth Lenis momentum scrolling with isolated scroll containers and pull-to-dismiss modal interaction.
+
+---
+
+### 11. Universal Multi-Dimensional Search, Role Filtering & Workload Sorting
+- **Fast Filter Controls**:
+  - Filter across all views by Role (HODs vs. Regular Faculty vs. Custom Tiers), Arrival Timing (Morning, Mid, Afternoon), and Availability.
+- **Workload-Based Sorting**:
+  - Sort faculty by duty workload, name, or senior number for rapid auditing.
+- **Universal Search**:
+  - Real-time instant search across faculty rosters, room allocations, and attendance tables.
+
+---
+
+### 12. Real-Time Auto-Rebalance on Availability & Manual Edits
+- **Instant Availability Rebalancing**:
+  - Marking a faculty member as unavailable automatically redistributes their duties across other examination dates without manual re-solve clicks.
+- **Cross-Date Duty Transfer**:
+  - Transferring duties across dates automatically fills vacated slots to preserve equilibrium.
+- **Unobtrusive Notifications**:
+  - Bottom-center toast notifications report automatic rebalancing results cleanly without interrupting operator focus.
 
 ---
 

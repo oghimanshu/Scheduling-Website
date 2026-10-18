@@ -109,6 +109,8 @@ interface SchedulerContextType {
   setSelectedForSubstitute: (assignment: Assignment | null) => void;
   isSubstituteModalOpen: boolean;
   setIsSubstituteModalOpen: (open: boolean) => void;
+  isFocusMode: boolean;
+  setIsFocusMode: (val: boolean) => void;
   isRoomChartModalOpen: boolean;
   setIsRoomChartModalOpen: (open: boolean) => void;
   isConflictsModalOpen: boolean;
@@ -219,6 +221,7 @@ interface SchedulerContextType {
   assignRoomToDuty: (assignmentId: string, roomId?: string) => void;
   markAttendance: (assignmentId: string, status: AttendanceStatus) => void;
   deployReserveToRoom: (reserveAssignmentId: string, targetDutyAssignmentId: string) => { success: boolean; message: string };
+  undoDeployReserve: (reserveAssignmentId: string, targetDutyAssignmentId: string) => void;
   autoFillVacantSlot: (date: string, session: SessionType) => Faculty | null;
 }
 
@@ -247,6 +250,7 @@ export const SchedulerProvider: React.FC<{ children: React.ReactNode; initialPro
   });
 
   const [activeTab, setActiveTab] = useState<TabType>('dashboard');
+  const [isFocusMode, setIsFocusMode] = useState<boolean>(false);
   const [scheduleViewMode, setScheduleViewMode] = useState<'faculty' | 'session' | 'workload'>('faculty');
   const [isGenerating, setIsGenerating] = useState(false);
   const [lastSaved, setLastSaved] = useState<string>(project.lastSavedTimestamp || 'Not saved yet');
@@ -2456,6 +2460,46 @@ export const SchedulerProvider: React.FC<{ children: React.ReactNode; initialPro
     };
   }, [project.assignments, project.faculty]);
 
+  const undoDeployReserve = useCallback((reserveAssignmentId: string, targetDutyAssignmentId: string) => {
+    setProject((prev) => {
+      const newAssignments = prev.assignments.map((a) => {
+        if (a.id === reserveAssignmentId) {
+          return {
+            ...a,
+            isReserve: true,
+            roomId: undefined,
+            roomName: undefined,
+            attendanceStatus: 'scheduled' as AttendanceStatus,
+            attendanceTimestamp: undefined,
+            deployedToRoom: undefined,
+            deployedForFacultySrNo: undefined,
+          };
+        }
+        if (a.id === targetDutyAssignmentId) {
+          return {
+            ...a,
+            attendanceStatus: 'absent' as AttendanceStatus,
+            replacedByFacultySrNo: undefined,
+          };
+        }
+        return a;
+      });
+
+      const activeId = prev.activeScheduleId || (prev.alternatives && prev.alternatives[0]?.id);
+      const updatedAlternatives = prev.alternatives?.map((alt) =>
+        alt.id === activeId ? { ...alt, assignments: newAssignments } : alt
+      );
+      const updated = {
+        ...prev,
+        assignments: newAssignments,
+        alternatives: updatedAlternatives || prev.alternatives,
+        lastSavedTimestamp: new Date().toLocaleTimeString('en-GB'),
+      };
+      saveProjectToStorage(updated);
+      return updated;
+    });
+  }, []);
+
   return (
     <SchedulerContext.Provider
       value={{
@@ -2598,9 +2642,12 @@ export const SchedulerProvider: React.FC<{ children: React.ReactNode; initialPro
         assignRoomToDuty,
         markAttendance,
         deployReserveToRoom,
+        undoDeployReserve,
         autoFillVacantSlot,
         undoSnapshot,
         undoLastAutoRebalance,
+        isFocusMode,
+        setIsFocusMode,
       }}
     >
       {children}

@@ -129,8 +129,15 @@ export const RoleSegregationModal: React.FC<{ forceOpen?: boolean }> = ({ forceO
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-y-auto" data-lenis-prevent>
-      <div className="apple-glass-card bg-white dark:bg-slate-900 rounded-t-3xl sm:rounded-3xl max-w-4xl w-full max-h-[92dvh] flex flex-col shadow-2xl border border-slate-200 dark:border-white/10 relative overflow-hidden sm:my-auto animate-sheet-up sm:animate-modal-spring">
+    <div
+      className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-y-auto"
+      data-lenis-prevent
+      onClick={() => setIsRoleSegregationModalOpen(false)}
+    >
+      <div
+        className="apple-glass-card bg-white dark:bg-slate-900 rounded-t-3xl sm:rounded-3xl max-w-4xl w-full max-h-[92dvh] flex flex-col shadow-2xl border border-slate-200 dark:border-white/10 relative overflow-hidden sm:my-auto animate-sheet-up sm:animate-modal-spring"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Mobile Pull Handle */}
         <div className="w-10 h-1.5 bg-slate-300 dark:bg-slate-700 rounded-full mx-auto my-2.5 sm:hidden shrink-0" />
         {/* Header */}

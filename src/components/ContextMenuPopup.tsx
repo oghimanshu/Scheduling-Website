@@ -20,6 +20,9 @@ export const ContextMenuPopup: React.FC<ContextMenuPopupProps> = ({
     <div
       className="fixed inset-0 z-[10000] pointer-events-auto select-none"
       onClick={onClose}
+      onPointerDown={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
       onContextMenu={(e) => {
         e.preventDefault();
         onClose();

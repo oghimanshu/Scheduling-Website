@@ -156,5 +156,59 @@ describe('Day-of-Exam Control Room & Attendance Operations', () => {
     const deployResult = ctx.deployReserveToRoom('asg-reserve-1', 'asg-primary-1');
     expect(deployResult.success).toBe(true);
     expect(deployResult.message).toContain('Successfully deployed');
+
+    // Verify undoDeployReserve reverses the deployment cleanly
+    ctx.undoDeployReserve('asg-reserve-1', 'asg-primary-1');
+  });
+
+  it('should verify undoDeployReserve reverts replacement and restores reserve standby status', () => {
+    let capturedContext: ReturnType<typeof useScheduler> | null = null;
+
+    const ContextCapturer: React.FC = () => {
+      capturedContext = useScheduler();
+      return null;
+    };
+
+    renderToString(
+      <SchedulerProvider initialProjectState={testState}>
+        <ContextCapturer />
+      </SchedulerProvider>
+    );
+
+    const ctx = capturedContext!;
+    expect(typeof ctx.undoDeployReserve).toBe('function');
+
+    // Perform deploy then undo
+    ctx.deployReserveToRoom('asg-reserve-1', 'asg-primary-1');
+    ctx.undoDeployReserve('asg-reserve-1', 'asg-primary-1');
+
+    const primaryAfterUndo = ctx.project.assignments.find((a) => a.id === 'asg-primary-1');
+    const reserveAfterUndo = ctx.project.assignments.find((a) => a.id === 'asg-reserve-1');
+
+    expect(primaryAfterUndo?.replacedByFacultySrNo).toBeUndefined();
+    expect(reserveAfterUndo?.deployedToRoom).toBeUndefined();
+    expect(reserveAfterUndo?.attendanceStatus).toBe('scheduled');
+  });
+
+  it('should render workload badges, drag-and-drop hints, and sort selector in ControlRoomView', () => {
+    const html = renderToString(
+      <SchedulerProvider initialProjectState={testState}>
+        <ControlRoomView />
+      </SchedulerProvider>
+    );
+
+    // Sort duties selector
+    expect(html).toContain('Sort: Session &amp; Room');
+    expect(html).toContain('Sort: Vacant / Absent First');
+
+    // Standby reserve drag-and-drop prompt & workload badge
+    expect(html).toContain('Drag &amp; drop onto room to deploy');
+    expect(html).toContain('duty');
+
+    // Drag hint for room duties
+    expect(html).toContain('Drag a reserve supervisor here to deploy instantly');
+
+    // Print register dropdown options
+    expect(html).toContain('Print Daily Register');
   });
 });

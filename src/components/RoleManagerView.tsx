@@ -1004,8 +1004,15 @@ export const RoleManagerView: React.FC = () => {
 
       {/* Add Role Tier Modal */}
       {isAddRoleModalOpen && typeof document !== 'undefined' && createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-fade-in">
-          <div className="apple-glass-card w-full max-w-lg p-6 bg-white/95 dark:bg-slate-900/95 border border-slate-200/80 dark:border-white/10 rounded-2xl shadow-2xl relative">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-fade-in"
+          data-lenis-prevent
+          onClick={() => setIsAddRoleModalOpen(false)}
+        >
+          <div
+            className="apple-glass-card w-full max-w-lg p-6 bg-white/95 dark:bg-slate-900/95 border border-slate-200/80 dark:border-white/10 rounded-2xl shadow-2xl relative"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center justify-between pb-4 border-b border-slate-200/80 dark:border-white/10">
               <div className="flex items-center gap-2">
                 <Award className="w-5 h-5 text-purple-600 dark:text-purple-400" />

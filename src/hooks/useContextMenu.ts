@@ -52,7 +52,7 @@ export function useContextMenu<T>() {
   useEffect(() => {
     if (!menuState.isOpen) return;
 
-    const handleOutsideClick = (e: MouseEvent) => {
+    const handleOutsideClick = (e: MouseEvent | PointerEvent) => {
       closeMenu();
     };
 
@@ -64,14 +64,17 @@ export function useContextMenu<T>() {
       closeMenu();
     };
 
-    window.addEventListener('click', handleOutsideClick);
-    window.addEventListener('contextmenu', handleOutsideClick);
+    // Use capture phase so any pointer interaction outside closes the menu instantly
+    window.addEventListener('pointerdown', handleOutsideClick, true);
+    window.addEventListener('click', handleOutsideClick, true);
+    window.addEventListener('contextmenu', handleOutsideClick, true);
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('scroll', handleScroll, true);
 
     return () => {
-      window.removeEventListener('click', handleOutsideClick);
-      window.removeEventListener('contextmenu', handleOutsideClick);
+      window.removeEventListener('pointerdown', handleOutsideClick, true);
+      window.removeEventListener('click', handleOutsideClick, true);
+      window.removeEventListener('contextmenu', handleOutsideClick, true);
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('scroll', handleScroll, true);
     };

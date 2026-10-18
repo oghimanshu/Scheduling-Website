@@ -34,8 +34,15 @@ export const InfeasibilityModal: React.FC = () => {
   if (!infeasibilityReport || !infeasibilityReport.isInfeasible) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-y-auto" data-lenis-prevent>
-      <div className="apple-glass-card bg-white/95 dark:bg-slate-900/95 rounded-t-3xl sm:rounded-3xl max-w-2xl w-full max-h-[92dvh] sm:my-auto flex flex-col shadow-2xl border border-sky-300/80 dark:border-sky-900/40 animate-sheet-up sm:animate-modal-spring relative overflow-hidden">
+    <div
+      className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-y-auto"
+      data-lenis-prevent
+      onClick={() => setInfeasibilityReport(null)}
+    >
+      <div
+        className="apple-glass-card bg-white/95 dark:bg-slate-900/95 rounded-t-3xl sm:rounded-3xl max-w-2xl w-full max-h-[92dvh] sm:my-auto flex flex-col shadow-2xl border border-sky-300/80 dark:border-sky-900/40 animate-sheet-up sm:animate-modal-spring relative overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Mobile Pull Handle */}
         <div className="w-10 h-1.5 bg-slate-300 dark:bg-slate-700 rounded-full mx-auto my-2.5 sm:hidden shrink-0" />
         

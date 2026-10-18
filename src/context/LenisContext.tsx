@@ -25,8 +25,9 @@ const LenisContext = createContext<LenisContextType>({
 function findScrollableContainer(
   target: EventTarget | null,
   deltaX: number,
-  deltaY: number
-): HTMLElement | null {
+  deltaY: number,
+  isShiftKey: boolean = false
+): { element: HTMLElement; axis: 'horizontal' | 'vertical' } | null {
   if (!target || !(target instanceof Element)) return null;
 
   let curr: Element | null = target;
@@ -45,21 +46,42 @@ function findScrollableContainer(
         (overflowX === 'auto' || overflowX === 'scroll') &&
         curr.scrollWidth > curr.clientWidth;
 
-      // Vertical scroll room check
-      if (isScrollableY && Math.abs(deltaY) > 0) {
-        const canScrollDown = deltaY > 0 && curr.scrollTop < curr.scrollHeight - curr.clientHeight - 1;
-        const canScrollUp = deltaY < 0 && curr.scrollTop > 1;
-        if (canScrollDown || canScrollUp) {
-          return curr;
-        }
-      }
-
-      // Horizontal scroll room check
-      if (isScrollableX && Math.abs(deltaX) > 0) {
+      // 1. If Shift is pressed, search for horizontal scroll room
+      if (isShiftKey && isScrollableX && Math.abs(deltaX) > 0) {
         const canScrollRight = deltaX > 0 && curr.scrollLeft < curr.scrollWidth - curr.clientWidth - 1;
         const canScrollLeft = deltaX < 0 && curr.scrollLeft > 1;
         if (canScrollRight || canScrollLeft) {
-          return curr;
+          return { element: curr, axis: 'horizontal' };
+        }
+      }
+
+      // 2. Standard horizontal check (native deltaX from trackpad or Shift+wheel)
+      if (!isShiftKey && isScrollableX && Math.abs(deltaX) > 0) {
+        const canScrollRight = deltaX > 0 && curr.scrollLeft < curr.scrollWidth - curr.clientWidth - 1;
+        const canScrollLeft = deltaX < 0 && curr.scrollLeft > 1;
+        if (canScrollRight || canScrollLeft) {
+          return { element: curr, axis: 'horizontal' };
+        }
+      }
+
+      // 3. Cursor-Aware Horizontal Scroll:
+      // When hovering over an element that has horizontal overflow but NO vertical overflow
+      // (e.g. date selector ribbon, session switcher, tab bar, wide preview table without vertical scroll),
+      // directly scroll it horizontally with normal mouse wheel rolls without requiring Shift.
+      if (!isShiftKey && !isScrollableY && isScrollableX && Math.abs(deltaY) > 0) {
+        const canScrollRight = deltaY > 0 && curr.scrollLeft < curr.scrollWidth - curr.clientWidth - 1;
+        const canScrollLeft = deltaY < 0 && curr.scrollLeft > 1;
+        if (canScrollRight || canScrollLeft) {
+          return { element: curr, axis: 'horizontal' };
+        }
+      }
+
+      // 4. Vertical scroll room check (normal wheel in 2D container or vertical list)
+      if (!isShiftKey && isScrollableY && Math.abs(deltaY) > 0) {
+        const canScrollDown = deltaY > 0 && curr.scrollTop < curr.scrollHeight - curr.clientHeight - 1;
+        const canScrollUp = deltaY < 0 && curr.scrollTop > 1;
+        if (canScrollDown || canScrollUp) {
+          return { element: curr, axis: 'vertical' };
         }
       }
     }
@@ -100,7 +122,7 @@ export const LenisProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
     rafId = requestAnimationFrame(raf);
 
-    // Universal Pointer-Aware Wheel Dispatcher with Smart Boundary Chaining
+    // Universal Pointer-Aware Wheel Dispatcher with Cursor-Aware auto-horizontal and Excel-mode Shift support
     const handlePointerAwareWheel = (e: WheelEvent) => {
       // Normalize wheel delta across line and page modes
       let deltaX = e.deltaX;
@@ -114,29 +136,48 @@ export const LenisProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         deltaY *= window.innerHeight;
       }
 
-      // 1. Locate innermost scrollable container with room under cursor
-      const container = findScrollableContainer(e.target, deltaX, deltaY);
-
-      if (container) {
-        // Direct scroll to the hovered container
-        if (Math.abs(deltaY) > 0) {
-          container.scrollTop += deltaY;
+      // Excel-like Bidirectional Scroll: If Shift is held, map vertical wheel roll to horizontal scroll
+      const isShift = e.shiftKey;
+      if (isShift) {
+        if (deltaY !== 0 && deltaX === 0) {
+          deltaX = deltaY;
+          deltaY = 0;
+        } else if (deltaY !== 0 && deltaX !== 0) {
+          deltaX = deltaX || deltaY;
+          deltaY = 0;
         }
-        if (Math.abs(deltaX) > 0) {
-          container.scrollLeft += deltaX;
+      }
+
+      // 1. Locate innermost scrollable container with room under cursor
+      const scrollTarget = findScrollableContainer(e.target, deltaX, deltaY, isShift);
+
+      if (scrollTarget) {
+        const { element: container, axis } = scrollTarget;
+
+        if (axis === 'horizontal') {
+          // In cursor-aware auto-horizontal mode, map deltaY to horizontal scroll if deltaX is 0
+          const moveX = Math.abs(deltaX) > 0 ? deltaX : deltaY;
+          container.scrollLeft += moveX;
+        } else {
+          container.scrollTop += deltaY;
         }
 
         // Isolate this wheel event: prevent Lenis and window from hijacking
         e.preventDefault();
         e.stopPropagation();
       } else {
-        // 2. No inner scrollable room in this direction (either general page or reached boundary)
-        const isInsideModal = (e.target as Element)?.closest?.('.fixed.inset-0, [role="dialog"], [data-modal]');
-        if (isInsideModal) {
-          // If inside an open modal that has reached its bounds, prevent background page scroll
+        // 2. No inner scrollable room in this direction
+        if (isShift) {
+          // If Shift is pressed while hovering over a table or content, prevent accidental vertical jumps
           e.preventDefault();
+        } else {
+          const isInsideModal = (e.target as Element)?.closest?.('.fixed.inset-0, [role="dialog"], [data-modal]');
+          if (isInsideModal) {
+            // If inside an open modal that has reached its bounds, prevent background page scroll
+            e.preventDefault();
+          }
+          // Otherwise, allow event to propagate to Lenis for smooth global page scrolling (smart boundary chaining)
         }
-        // Otherwise, allow event to propagate to Lenis for smooth global page scrolling (smart boundary chaining)
       }
     };
 

@@ -23,9 +23,13 @@ import {
   Printer,
   Building2,
   Building,
+  Maximize2,
+  Minimize2,
+  X,
+  RotateCcw,
 } from 'lucide-react';
 import { useScheduler } from '../context/SchedulerContext';
-import { SessionType, Assignment, Faculty, ExamDateConfig } from '../types';
+import { SessionType, Assignment, Faculty, ExamDateConfig, DEFAULT_CUSTOM_ROLES } from '../types';
 import { isFacultyEligibleForSession, isFacultyAvailableForSlot } from '../services/validation/validator';
 import { setPrintOrientation, clearPrintOrientation } from '../utils/printHelper';
 import { WorkloadAnalytics } from './WorkloadAnalytics';
@@ -70,12 +74,16 @@ export const ScheduleViewer: React.FC<{ viewModeOverride?: 'faculty' | 'session'
     rebalanceCurrentSchedule,
     undoLastAutoRebalance,
     updateSettings,
+    isFocusMode,
+    setIsFocusMode,
   } = useScheduler();
 
   const scheduleViewMode = viewModeOverride || contextScheduleViewMode;
 
   const [searchTerm, setSearchTerm] = useState('');
+  const [roleFilter, setRoleFilter] = useState<string>('All');
   const [sessionFilter, setSessionFilter] = useState<'All' | SessionType>('All');
+  const [statusFilter, setStatusFilter] = useState<'All' | 'double' | 'locked'>('All');
   const [onlyDoubleAssignments, setOnlyDoubleAssignments] = useState(false);
   const [showAnalytics, setShowAnalytics] = useState(false);
 
@@ -153,14 +161,43 @@ export const ScheduleViewer: React.FC<{ viewModeOverride?: 'faculty' | 'session'
   // Filtered faculty for Faculty View & Workload View
   const filteredFaculty = useMemo(() => {
     return project.faculty.filter((f) => {
+      // 1. Search term (Name or Sr. No.)
       const matchSearch =
+        !searchTerm ||
         f.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         f.srNo.toString().includes(searchTerm);
 
       if (!matchSearch) return false;
 
-      if (onlyDoubleAssignments) {
-        const fMap = assignmentsByFacultyDate.get(f.srNo);
+      // 2. Role filter
+      if (roleFilter !== 'All') {
+        const currentRole = f.role || (f.isHod ? 'HOD' : 'Regular');
+        const matchRole =
+          roleFilter.toLowerCase() === 'hod'
+            ? f.isHod
+            : roleFilter.toLowerCase() === 'regular'
+            ? !f.isHod
+            : currentRole.toLowerCase() === roleFilter.toLowerCase();
+        if (!matchRole) return false;
+      }
+
+      const fMap = assignmentsByFacultyDate.get(f.srNo);
+
+      // 3. Timing / Session filter (shows faculty with at least one duty in this session)
+      if (sessionFilter !== 'All') {
+        let hasSession = false;
+        if (fMap) {
+          fMap.forEach((assignments) => {
+            if (assignments.some((a) => a.session === sessionFilter)) {
+              hasSession = true;
+            }
+          });
+        }
+        if (!hasSession) return false;
+      }
+
+      // 4. Status filter: double duties or locked duties
+      if (statusFilter === 'double' || onlyDoubleAssignments) {
         let hasDouble = false;
         if (fMap) {
           fMap.forEach((assignments) => {
@@ -170,9 +207,42 @@ export const ScheduleViewer: React.FC<{ viewModeOverride?: 'faculty' | 'session'
         if (!hasDouble) return false;
       }
 
+      if (statusFilter === 'locked') {
+        let hasLocked = false;
+        if (fMap) {
+          fMap.forEach((assignments) => {
+            if (assignments.some((a) => a.isLocked)) hasLocked = true;
+          });
+        }
+        if (!hasLocked) return false;
+      }
+
       return true;
     });
-  }, [project.faculty, searchTerm, onlyDoubleAssignments, assignmentsByFacultyDate]);
+  }, [
+    project.faculty,
+    searchTerm,
+    roleFilter,
+    sessionFilter,
+    statusFilter,
+    onlyDoubleAssignments,
+    assignmentsByFacultyDate,
+  ]);
+
+  const isAnyFilterActive =
+    searchTerm !== '' ||
+    roleFilter !== 'All' ||
+    sessionFilter !== 'All' ||
+    statusFilter !== 'All' ||
+    onlyDoubleAssignments;
+
+  const handleClearAllFilters = () => {
+    setSearchTerm('');
+    setRoleFilter('All');
+    setSessionFilter('All');
+    setStatusFilter('All');
+    setOnlyDoubleAssignments(false);
+  };
 
   // Active alternative index
   const currentAltIndex = useMemo(() => {
@@ -462,6 +532,17 @@ export const ScheduleViewer: React.FC<{ viewModeOverride?: 'faculty' | 'session'
     return () => window.removeEventListener('keydown', handlePrintShortcut);
   }, [setIsPrintScheduleModalOpen]);
 
+  // Handle Esc key to exit Focus Mode
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isFocusMode) {
+        setIsFocusMode(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isFocusMode, setIsFocusMode]);
+
   // Scroll to and pulse highlight targeted conflict cell
   useEffect(() => {
     if (!targetedConflictCell) return;
@@ -670,11 +751,32 @@ export const ScheduleViewer: React.FC<{ viewModeOverride?: 'faculty' | 'session'
             <span className="sm:hidden">Noticeboard</span>
             <span className="hidden sm:inline">Noticeboard Chart</span>
           </button>
+
+          {/* Focus Mode Maximizer Button */}
+          <button
+            type="button"
+            onClick={() => setIsFocusMode(!isFocusMode)}
+            className={`btn-spring flex items-center justify-center space-x-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer border flex-1 sm:flex-initial transition-all ${
+              isFocusMode
+                ? 'bg-indigo-600 text-white border-indigo-700 shadow-md ring-2 ring-indigo-400/40'
+                : 'bg-indigo-500/10 dark:bg-indigo-950/40 text-indigo-800 dark:text-indigo-300 border-indigo-300 dark:border-indigo-800 hover:bg-indigo-500/20 shadow-2xs'
+            }`}
+            title={isFocusMode ? 'Exit Full-screen Focus Mode (Esc)' : 'Enter Full-screen Focus Mode'}
+          >
+            {isFocusMode ? (
+              <Minimize2 className="w-3.5 h-3.5 text-white" />
+            ) : (
+              <Maximize2 className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+            )}
+            <span className="sm:hidden">{isFocusMode ? 'Exit' : 'Focus'}</span>
+            <span className="hidden sm:inline">{isFocusMode ? 'Exit Focus Mode' : 'Focus Mode'}</span>
+          </button>
         </div>
 
         {/* Filters */}
-        <div className="flex flex-wrap items-center gap-3 w-full md:w-auto justify-between sm:justify-end">
-          <div className="relative w-full sm:w-64">
+        <div className="flex flex-wrap items-center gap-2.5 w-full md:w-auto justify-between sm:justify-end">
+          {/* Search Box */}
+          <div className="relative w-full sm:w-56">
             <Search className="w-4 h-4 absolute left-3 top-2 text-slate-400 dark:text-slate-500" />
             <input
               type="text"
@@ -685,15 +787,66 @@ export const ScheduleViewer: React.FC<{ viewModeOverride?: 'faculty' | 'session'
             />
           </div>
 
-          <label className="flex items-center space-x-1.5 text-xs text-slate-600 dark:text-slate-400 cursor-pointer select-none">
-            <input
-              type="checkbox"
-              checked={onlyDoubleAssignments}
-              onChange={(e) => setOnlyDoubleAssignments(e.target.checked)}
-              className="rounded text-sky-600 focus:ring-sky-500 bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700"
-            />
-            <span>Show Double Duties Only</span>
-          </label>
+          {/* Role Filter */}
+          <div className="flex items-center space-x-1">
+            <select
+              value={roleFilter}
+              onChange={(e) => setRoleFilter(e.target.value)}
+              className="text-xs bg-white/70 dark:bg-slate-900/70 border border-slate-200 dark:border-white/10 rounded-lg px-2.5 py-1.5 text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-sky-500 font-medium"
+              title="Filter by faculty role"
+            >
+              <option value="All">All Roles</option>
+              <option value="Regular">Regular Faculty</option>
+              <option value="HOD">HODs Only</option>
+              {(project.settings.customRoles || DEFAULT_CUSTOM_ROLES).map((r) => (
+                <option key={r.id} value={r.name}>
+                  {r.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Timing / Session Filter */}
+          <div className="flex items-center space-x-1">
+            <select
+              value={sessionFilter}
+              onChange={(e) => setSessionFilter(e.target.value as any)}
+              className="text-xs bg-white/70 dark:bg-slate-900/70 border border-slate-200 dark:border-white/10 rounded-lg px-2.5 py-1.5 text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-sky-500 font-medium"
+              title="Filter by exam session timing"
+            >
+              <option value="All">All Timings / Sessions</option>
+              <option value="JRS 1">JRS 1 (Morning 09:00 - 12:00)</option>
+              <option value="JRS 2">JRS 2 (Mid 12:00 - 15:00)</option>
+              <option value="JRS 3">JRS 3 (Afternoon 15:00 - 18:00)</option>
+            </select>
+          </div>
+
+          {/* Duty Status Filter */}
+          <div className="flex items-center space-x-1">
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value as any)}
+              className="text-xs bg-white/70 dark:bg-slate-900/70 border border-slate-200 dark:border-white/10 rounded-lg px-2.5 py-1.5 text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-sky-500 font-medium"
+              title="Filter by assignment status"
+            >
+              <option value="All">All Assignments</option>
+              <option value="double">Double Duties Only</option>
+              <option value="locked">Locked Duties Only</option>
+            </select>
+          </div>
+
+          {/* Clear All Filters Button */}
+          {isAnyFilterActive && (
+            <button
+              type="button"
+              onClick={handleClearAllFilters}
+              className="btn-spring flex items-center space-x-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800 hover:bg-rose-100 shadow-2xs transition cursor-pointer"
+              title="Reset all active search and filter parameters"
+            >
+              <X className="w-3.5 h-3.5 text-rose-500" />
+              <span>Clear Filters</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -1042,6 +1195,12 @@ export const ScheduleViewer: React.FC<{ viewModeOverride?: 'faculty' | 'session'
                                       } ${
                                         isMobileSelected ? 'ring-2 ring-sky-500 ring-offset-1 scale-[1.04] shadow-md animate-pulse' : ''
                                       } ${
+                                        sessionFilter !== 'All' && a.session !== sessionFilter
+                                          ? 'opacity-25 grayscale-[40%]'
+                                          : sessionFilter !== 'All' && a.session === sessionFilter
+                                          ? 'ring-2 ring-sky-500 shadow-sm font-bold scale-[1.02]'
+                                          : ''
+                                      } ${
                                         a.isReserve
                                           ? 'bg-amber-500/15 dark:bg-amber-950/70 text-amber-900 dark:text-amber-200 hover:bg-amber-500/25 border border-amber-400/50 dark:border-amber-700/60 shadow-xs'
                                           : a.session === 'JRS 1'
@@ -1199,12 +1358,39 @@ export const ScheduleViewer: React.FC<{ viewModeOverride?: 'faculty' | 'session'
                 </div>
 
                 <div className="divide-y divide-slate-100 dark:divide-white/5 text-xs">
-                  {(['JRS 1', 'JRS 2', 'JRS 3'] as SessionType[]).map((session) => {
+                  {(['JRS 1', 'JRS 2', 'JRS 3'] as SessionType[])
+                    .filter((s) => sessionFilter === 'All' || s === sessionFilter)
+                    .map((session) => {
                     const sessionAssignments = (project.assignments || []).filter(
                       (a) => a.date === d.date && a.session === session
                     );
-                    const primaryAssignments = sessionAssignments.filter((a) => !a.isReserve);
-                    const reserveAssignments = sessionAssignments.filter((a) => a.isReserve);
+                    const matchFacultyFilter = (a: Assignment) => {
+                      const fac = facultyMap.get(a.facultySrNo);
+                      if (!fac) return false;
+                      if (
+                        searchTerm &&
+                        !(
+                          fac.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          fac.srNo.toString().includes(searchTerm)
+                        )
+                      ) {
+                        return false;
+                      }
+                      if (roleFilter !== 'All') {
+                        const currentRole = fac.role || (fac.isHod ? 'HOD' : 'Regular');
+                        const matchRole =
+                          roleFilter.toLowerCase() === 'hod'
+                            ? fac.isHod
+                            : roleFilter.toLowerCase() === 'regular'
+                            ? !fac.isHod
+                            : currentRole.toLowerCase() === roleFilter.toLowerCase();
+                        if (!matchRole) return false;
+                      }
+                      if (statusFilter === 'locked' && !a.isLocked) return false;
+                      return true;
+                    };
+                    const primaryAssignments = sessionAssignments.filter((a) => !a.isReserve && matchFacultyFilter(a));
+                    const reserveAssignments = sessionAssignments.filter((a) => a.isReserve && matchFacultyFilter(a));
                     const required = d.sessionRequirements?.[session] ?? 0;
                     const isFilled = primaryAssignments.length >= required;
 
@@ -1929,6 +2115,22 @@ export const ScheduleViewer: React.FC<{ viewModeOverride?: 'faculty' | 'session'
           }
         }}
       />
+
+      {/* Floating Bottom-Center Exit Pill in Focus Mode */}
+      {isFocusMode && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center space-x-3 px-4 py-2 rounded-2xl bg-indigo-950/90 text-white text-xs font-medium shadow-2xl backdrop-blur-md border border-indigo-400/30 animate-spring no-print">
+          <Maximize2 className="w-3.5 h-3.5 text-indigo-300 shrink-0" />
+          <span>Focus Mode Active</span>
+          <span className="text-indigo-300 text-[10px] hidden sm:inline">&bull; Press Esc to exit</span>
+          <button
+            type="button"
+            onClick={() => setIsFocusMode(false)}
+            className="ml-2 px-2.5 py-1 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-[11px] shadow-sm transition active:scale-95 cursor-pointer"
+          >
+            Exit Focus
+          </button>
+        </div>
+      )}
     </div>
   );
 };

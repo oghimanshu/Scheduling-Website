@@ -11,9 +11,10 @@ import {
   Users,
   Wand2,
   RotateCcw,
+  X,
 } from 'lucide-react';
 import { useScheduler } from '../context/SchedulerContext';
-import { ArrivalCategory, SessionType } from '../types';
+import { ArrivalCategory, SessionType, DEFAULT_CUSTOM_ROLES } from '../types';
 
 export const AvailabilityManager: React.FC = () => {
   const {
@@ -44,15 +45,32 @@ export const AvailabilityManager: React.FC = () => {
   const filteredFaculty = useMemo(() => {
     return project.faculty.filter((f) => {
       const matchSearch =
+        !searchTerm ||
         f.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         f.srNo.toString().includes(searchTerm);
+      const currentRole = f.role || (f.isHod ? 'HOD' : 'Regular');
       const matchRole =
-        roleFilter === 'All' ? true : roleFilter === 'HOD' ? f.isHod : !f.isHod;
+        roleFilter === 'All'
+          ? true
+          : roleFilter.toLowerCase() === 'hod'
+          ? f.isHod
+          : roleFilter.toLowerCase() === 'regular'
+          ? !f.isHod
+          : currentRole.toLowerCase() === roleFilter.toLowerCase();
       const matchArrival =
         arrivalFilter === 'All' ? true : f.arrival === arrivalFilter;
       return matchSearch && matchRole && matchArrival;
     });
   }, [project.faculty, searchTerm, roleFilter, arrivalFilter]);
+
+  const isAnyFilterActive =
+    searchTerm !== '' || roleFilter !== 'All' || arrivalFilter !== 'All';
+
+  const handleClearAllFilters = () => {
+    setSearchTerm('');
+    setRoleFilter('All');
+    setArrivalFilter('All');
+  };
 
   // Bulk actions on current filtered faculty
   const handleMarkAllAvailable = () => {
@@ -232,28 +250,47 @@ export const AvailabilityManager: React.FC = () => {
           />
         </div>
 
-        <div className="flex items-center space-x-2 w-full sm:w-auto">
-          <Filter className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
+        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+          <Filter className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 shrink-0" />
           <select
             value={roleFilter}
             onChange={(e) => setRoleFilter(e.target.value as any)}
-            className="text-xs bg-white/70 dark:bg-slate-900/70 border border-slate-200 dark:border-white/10 rounded-lg px-2.5 py-1.5 text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-sky-500"
+            className="text-xs bg-white/70 dark:bg-slate-900/70 border border-slate-200 dark:border-white/10 rounded-lg px-2.5 py-1.5 text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-sky-500 font-medium"
+            title="Filter by role"
           >
-            <option value="All">All Faculty</option>
+            <option value="All">All Roles</option>
             <option value="Regular">Regular Faculty</option>
-            <option value="HOD">HODs</option>
+            <option value="HOD">HODs Only</option>
+            {(project.settings.customRoles || DEFAULT_CUSTOM_ROLES).map((r) => (
+              <option key={r.id} value={r.name}>
+                {r.name}
+              </option>
+            ))}
           </select>
 
           <select
             value={arrivalFilter}
             onChange={(e) => setArrivalFilter(e.target.value as any)}
-            className="text-xs bg-white/70 dark:bg-slate-900/70 border border-slate-200 dark:border-white/10 rounded-lg px-2.5 py-1.5 text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-sky-500"
+            className="text-xs bg-white/70 dark:bg-slate-900/70 border border-slate-200 dark:border-white/10 rounded-lg px-2.5 py-1.5 text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-sky-500 font-medium"
+            title="Filter by reporting arrival shift"
           >
             <option value="All">All Arrivals</option>
             <option value="Morning">Morning</option>
             <option value="Mid">Mid</option>
             <option value="Afternoon">Afternoon</option>
           </select>
+
+          {isAnyFilterActive && (
+            <button
+              type="button"
+              onClick={handleClearAllFilters}
+              className="btn-spring flex items-center space-x-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800 hover:bg-rose-100 shadow-2xs transition cursor-pointer"
+              title="Reset all search and filter parameters"
+            >
+              <X className="w-3.5 h-3.5 text-rose-500" />
+              <span>Clear Filters</span>
+            </button>
+          )}
         </div>
       </div>
 

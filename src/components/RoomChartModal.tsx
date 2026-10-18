@@ -83,9 +83,16 @@ export const RoomChartModal: React.FC<{ forceOpen?: boolean }> = ({ forceOpen })
   };
 
   const modalContent = (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/70 backdrop-blur-xs flex flex-col items-center justify-start print:static print:bg-white print:p-0">
+    <div
+      className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/70 backdrop-blur-xs flex flex-col items-center justify-start print:static print:bg-white print:p-0"
+      data-lenis-prevent
+      onClick={() => setIsRoomChartModalOpen(false)}
+    >
       {/* Top Floating Control Bar (Hidden on Print) */}
-      <div className="w-full max-w-5xl bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-6 py-3 flex flex-wrap items-center justify-between gap-4 sticky top-0 z-30 shadow-md print:hidden">
+      <div
+        className="w-full max-w-5xl bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-6 py-3 flex flex-wrap items-center justify-between gap-4 sticky top-0 z-30 shadow-md print:hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="flex items-center gap-3">
           <div className="p-2 bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 rounded-xl">
             <Building className="w-5 h-5" />
@@ -160,7 +167,10 @@ export const RoomChartModal: React.FC<{ forceOpen?: boolean }> = ({ forceOpen })
       </div>
 
       {/* Printable Sheet View */}
-      <div className="w-full max-w-5xl my-6 bg-white text-slate-900 rounded-2xl shadow-2xl p-8 print:my-0 print:p-4 print:shadow-none print:max-w-none print:w-full print:rounded-none">
+      <div
+        className="w-full max-w-5xl my-6 bg-white text-slate-900 rounded-2xl shadow-2xl p-8 print:my-0 print:p-4 print:shadow-none print:max-w-none print:w-full print:rounded-none"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Institutional Header */}
         <div className="border-b-2 border-slate-800 pb-4 mb-6 text-center">
           <h1 className="text-xl font-bold tracking-tight uppercase text-slate-900">

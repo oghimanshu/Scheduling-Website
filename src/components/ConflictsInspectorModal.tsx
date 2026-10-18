@@ -109,6 +109,7 @@ export const ConflictsInspectorModal: React.FC<{ forceOpen?: boolean }> = ({
   const modalContent = (
     <div
       className="fixed inset-0 z-[10000] flex items-center justify-center p-3 sm:p-5 bg-slate-950/60 backdrop-blur-md animate-fade-in"
+      data-lenis-prevent
       onClick={() => setIsConflictsModalOpen(false)}
     >
       <div

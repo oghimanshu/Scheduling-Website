@@ -71,7 +71,7 @@ export const ScheduleContextMenu: React.FC<ScheduleContextMenuProps> = ({
   useEffect(() => {
     if (!target) return;
 
-    const handleOutsideClick = (e: MouseEvent) => {
+    const handleOutsideClick = (e: MouseEvent | PointerEvent) => {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
         onClose();
       }
@@ -87,14 +87,17 @@ export const ScheduleContextMenu: React.FC<ScheduleContextMenuProps> = ({
       onClose();
     };
 
-    window.addEventListener('click', handleOutsideClick);
-    window.addEventListener('contextmenu', handleOutsideClick);
+    // Use capture phase so clicks on any outside element or whitespace dismiss the menu immediately
+    window.addEventListener('pointerdown', handleOutsideClick, true);
+    window.addEventListener('click', handleOutsideClick, true);
+    window.addEventListener('contextmenu', handleOutsideClick, true);
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('scroll', handleScroll, true);
 
     return () => {
-      window.removeEventListener('click', handleOutsideClick);
-      window.removeEventListener('contextmenu', handleOutsideClick);
+      window.removeEventListener('pointerdown', handleOutsideClick, true);
+      window.removeEventListener('click', handleOutsideClick, true);
+      window.removeEventListener('contextmenu', handleOutsideClick, true);
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('scroll', handleScroll, true);
     };
