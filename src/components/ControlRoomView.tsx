@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Calendar,
   Clock,
@@ -1080,10 +1081,10 @@ export const ControlRoomView: React.FC = () => {
         </div>
       </div>
 
-      {/* Deploy Reserve Modal - Centered, Rigid Viewport Dialog */}
-      {deployTargetDuty && (
+      {/* Deploy Reserve Modal - Centered, Rigid Viewport Dialog (Portaled to document.body to escape transform containing block) */}
+      {deployTargetDuty && typeof document !== 'undefined' && createPortal(
         <div
-          className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 overflow-hidden"
+          className="fixed inset-0 z-[9999] bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 overflow-hidden"
           data-lenis-prevent
           onClick={() => setDeployTargetDuty(null)}
         >
@@ -1192,7 +1193,8 @@ export const ControlRoomView: React.FC = () => {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Official Daily Attendance Register (Optimized for Printing) */}

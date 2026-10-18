@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Building,
   Plus,
@@ -529,9 +530,9 @@ export const RoomManager: React.FC = () => {
       </div>
 
       {/* Add / Edit Room Modal */}
-      {isAddModalOpen && (
+      {isAddModalOpen && typeof document !== 'undefined' && createPortal(
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs"
+          className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs"
           data-lenis-prevent
           onClick={() => setIsAddModalOpen(false)}
         >
@@ -655,7 +656,8 @@ export const RoomManager: React.FC = () => {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Room Context Menu */}
